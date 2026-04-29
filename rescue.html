@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資料救援</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #f5f5f4; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .box { background: #fff; border-radius: 16px; padding: 36px; width: 360px; max-width: 92vw; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  h2 { font-size: 18px; margin-bottom: 8px; }
+  p { font-size: 13px; color: #666; margin-bottom: 24px; }
+  .btn { display: block; width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; margin-bottom: 10px; }
+  .btn.secondary { background: #f0f0f0; color: #333; }
+  .status { font-size: 13px; color: #1D9E75; margin-top: 16px; min-height: 20px; }
+  .warn { font-size: 12px; color: #BA7517; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div style="font-size:36px;margin-bottom:12px">🚑</div>
+  <h2>資料救援頁面</h2>
+  <p>這個頁面會直接讀取你瀏覽器裡的記帳資料並匯出，不需要密碼。</p>
+  <button class="btn" onclick="exportData()">⬇ 匯出資料備份</button>
+  <button class="btn secondary" onclick="checkData()">檢查資料狀態</button>
+  <div class="status" id="status"></div>
+  <div class="warn" id="warn"></div>
+</div>
+<script>
+const KEY = 'ledger_v3';
+
+function checkData() {
+  const raw = localStorage.getItem(KEY);
+  const el = document.getElementById('status');
+  const warn = document.getElementById('warn');
+  if (!raw) {
+    el.style.color = '#D85A30';
+    el.textContent = '找不到資料，可能是不同瀏覽器或已清除';
+    warn.textContent = '請確認你是用同一個瀏覽器開啟這個頁面';
+    return null;
+  }
+  try {
+    const d = JSON.parse(raw);
+    const txnCount = (d.txns || []).length;
+    const acctCount = (d.accounts || []).length;
+    const arCount = (d.arItems || []).length;
+    el.style.color = '#1D9E75';
+    el.textContent = `找到資料！帳戶 ${acctCount} 個、交易 ${txnCount} 筆、應收應付 ${arCount} 筆`;
+    warn.textContent = '';
+    return d;
+  } catch(e) {
+    el.style.color = '#D85A30';
+    el.textContent = '資料格式異常';
+    return null;
+  }
+}
+
+function exportData() {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) {
+    checkData();
+    return;
+  }
+  try {
+    const d = JSON.parse(raw);
+    const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = '記帳本備份_' + today + '.json';
+    a.click();
+    document.getElementById('status').style.color = '#1D9E75';
+    document.getElementById('status').textContent = '✓ 備份已下載！接下來可以上傳新版 index.html 再匯入。';
+  } catch(e) {
+    document.getElementById('status').style.color = '#D85A30';
+    document.getElementById('status').textContent = '匯出失敗：' + e.message;
+  }
+}
+
+// 自動檢查
+window.onload = checkData;
+</script>
+</body>
+</html>
