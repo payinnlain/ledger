@@ -148,15 +148,18 @@
 <body>
 
 <!-- 密碼遮罩 -->
-<div id="lock-screen" style="position:fixed;inset:0;background:var(--bg3);z-index:9999;display:flex;align-items:center;justify-content:center;">
-  <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:40px 36px;width:320px;max-width:90vw;text-align:center">
-    <div style="font-size:32px;margin-bottom:16px">🔒</div>
-    <div style="font-size:18px;font-weight:600;margin-bottom:6px">記帳本</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:24px">請輸入密碼以繼續</div>
-    <input type="password" id="lock-input" placeholder="密碼" style="width:100%;text-align:center;font-size:16px;margin-bottom:12px" onkeydown="if(event.key==='Enter')unlock()">
-    <div id="lock-err" style="font-size:12px;color:var(--red);margin-bottom:10px;min-height:16px"></div>
-    <button onclick="unlock()" style="width:100%;background:var(--text);color:var(--bg);border:none;padding:10px;border-radius:var(--radius);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">進入</button>
-    <div style="margin-top:20px;font-size:11px;color:var(--text3)">忘記密碼？修改 HTML 中的 APP_PASSWORD</div>
+<div id="lock-screen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#f5f5f4;z-index:99999;display:flex;align-items:center;justify-content:center;-webkit-overflow-scrolling:touch;">
+  <div style="background:#ffffff;border:1px solid rgba(0,0,0,0.12);border-radius:16px;padding:40px 36px;width:320px;max-width:90vw;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="font-size:36px;margin-bottom:16px">🔒</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:6px;color:#1a1a1a">記帳本</div>
+    <div style="font-size:13px;color:#6b6b6b;margin-bottom:24px">請輸入密碼以繼續</div>
+    <input type="password" id="lock-input" placeholder="密碼" autocomplete="current-password"
+      style="width:100%;text-align:center;font-size:18px;padding:10px;margin-bottom:8px;border:1px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a1a;font-family:inherit;-webkit-appearance:none;appearance:none;display:block;"
+      onkeydown="if(event.key==='Enter')unlock()">
+    <div id="lock-err" style="font-size:12px;color:#D85A30;margin-bottom:10px;min-height:16px"></div>
+    <button onclick="unlock()"
+      style="width:100%;background:#1a1a1a;color:#fff;border:none;padding:12px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none;">進入</button>
+    <div style="margin-top:20px;font-size:11px;color:#999">忘記密碼？修改 HTML 中的 APP_PASSWORD</div>
   </div>
 </div>
 
@@ -337,7 +340,7 @@ function unlock(){
 if(sessionStorage.getItem('ledger_unlocked')==='1'){
   document.getElementById('lock-screen').style.display='none';
 } else {
-  setTimeout(()=>document.getElementById('lock-input').focus(), 100);
+  setTimeout(()=>{ const el=document.getElementById('lock-input'); if(el){ el.focus(); el.click(); } }, 300);
 }
 
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
