@@ -406,6 +406,45 @@ function deleteAccount(id){
   if(!confirm('確定刪除此帳戶？')) return;
   accounts=accounts.filter(a=>a.id!==id); sv(); renderAccounts(); refreshAcctSelects();
 }
+function editAccount(id){
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  const typeOpts=[['bank','🏦 銀行帳戶'],['cash','💵 現金'],['credit','💳 信用卡'],['invest','📈 投資帳戶'],['crypto','🪙 加密貨幣']]
+    .map(([v,l])=>`<option value="${v}"${a.type===v?' selected':''}>${l}</option>`).join('');
+  const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC']
+    .map(c=>`<option${c===a.currency?' selected':''}>${c}</option>`).join('');
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:15px;font-weight:500">編輯帳戶</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:var(--text2)">帳戶名稱</label>
+          <input type="text" id="ea-name" value="${a.name}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">帳戶類型</label>
+          <select id="ea-type" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${typeOpts}</select></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">幣別</label>
+          <select id="ea-cur" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${curOpts}</select></div>
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:var(--text2)">起始餘額</label>
+          <input type="number" id="ea-bal" value="${a.initBalance||0}" step="0.01" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+      </div>
+      <div style="text-align:right">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveAccountEdit(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function saveAccountEdit(id){
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  const name=document.getElementById('ea-name').value.trim();
+  if(!name){alert('請輸入帳戶名稱');return;}
+  a.name=name;
+  a.type=document.getElementById('ea-type').value;
+  a.currency=document.getElementById('ea-cur').value;
+  a.initBalance=parseFloat(document.getElementById('ea-bal').value)||0;
+  sv(); closeEdit(); renderAccounts(); refreshAcctSelects(); renderAcctOverview();
+}
 function selAcctType(t,el){
   currentAcctType=t;
   document.querySelectorAll('.acct-type-btn').forEach(b=>b.classList.remove('selected'));
@@ -421,6 +460,7 @@ function renderAccounts(){
       <div style="font-size:22px;width:36px;text-align:center">${ICONS[a.type]||'🏦'}</div>
       <div class="txn-meta"><div class="txn-desc">${a.name}</div><div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}</div></div>
       <div class="txn-amount" style="color:${c}">${fmt(bal,a.currency)}</div>
+      <button class="btn-sm" onclick="editAccount(${a.id})">編輯</button>
       <button class="btn-sm danger" onclick="deleteAccount(${a.id})">刪除</button>
     </div>`;
   }).join('');
