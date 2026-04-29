@@ -721,52 +721,87 @@ function selAcctType(t,el){
   document.getElementById('credit-extra').style.display=t==='credit'?'':'none';
   document.getElementById('loan-extra').style.display=t==='loan'?'':'none';
 }
+function toggleAcctGroup(type){
+  const el = document.getElementById('acct-group-'+type);
+  const arrow = document.getElementById('acct-arrow-'+type);
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.textContent = isOpen ? '▶' : '▼';
+}
+
 function renderAccounts(){
   const el=document.getElementById('acct-manage-list');
   if(!accounts.length){el.innerHTML='<div class="empty-state">尚未新增帳戶</div>';return;}
-  el.innerHTML=accounts.map(a=>{
-    const bal=acctBalance(a);
-    const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--text)':'var(--red)');
-    return `<div class="txn-item">
-      <div style="font-size:22px;width:36px;text-align:center">${ICONS[a.type]||'🏦'}</div>
-      <div class="txn-meta">
-        <div class="txn-desc">${a.name}</div>
-        <div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}${a.type==='credit'&&a.billDay?' · 結帳日：'+a.billDay+'號':''}${a.type==='credit'&&a.dueDays?' · 繳款期限：結帳後'+a.dueDays+'天':''}${a.type==='loan'&&a.loanRate?' · 年利率：'+a.loanRate+'%':''}${a.type==='loan'&&a.loanPayment?' · 月付：'+fmt(a.loanPayment,a.currency):''}${a.type==='loan'&&a.loanEndDate?' · 到期：'+a.loanEndDate:''}${a.type==='loan'&&a.loanMonths?loanProgress(a):''}</div>
-        ${a.type==='credit'&&a.creditLimit?`<div style="margin-top:6px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
-            <span>已用額度</span><span>${fmt(Math.abs(Math.min(0,acctBalance(a))),a.currency)} / ${fmt(a.creditLimit,a.currency)}</span>
-          </div>
-          <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
-            <div style="height:100%;border-radius:3px;background:${(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)>0.9?'var(--red)':(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)>0.7?'var(--amber)':'var(--blue)'};width:${Math.min(100,(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)*100).toFixed(1)}%"></div>
-          </div>
-        </div>`:''}
-        ${a.type==='loan'&&a.loanTotal?`<div style="margin-top:6px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
-            <span>已還款</span><span>${fmt(a.loanTotal-Math.abs(acctBalance(a)),a.currency)} / ${fmt(a.loanTotal,a.currency)}</span>
-          </div>
-          <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
-            <div style="height:100%;border-radius:3px;background:var(--green);width:${Math.min(100,Math.max(0,((a.loanTotal-Math.abs(acctBalance(a)))/a.loanTotal)*100)).toFixed(1)}%"></div>
-          </div>
-        </div>`:''}
+
+  const groups = [
+    {type:'bank',   label:'🏦 銀行帳戶'},
+    {type:'cash',   label:'💵 現金'},
+    {type:'prepaid',label:'🎴 預付/儲值卡'},
+    {type:'credit', label:'💳 信用卡'},
+    {type:'invest', label:'📈 投資帳戶'},
+    {type:'crypto', label:'🪙 加密貨幣'},
+    {type:'loan',   label:'🏛 貸款'},
+  ];
+
+  el.innerHTML = groups.map(g => {
+    const list = accounts.filter(a=>a.type===g.type);
+    if(!list.length) return '';
+
+    const totalTWD = list.reduce((s,a)=>s+twdEq(acctBalance(a),a.currency),0);
+    const balColor = g.type==='credit'||g.type==='loan'
+      ? (totalTWD<0?'var(--red)':'var(--green)')
+      : (totalTWD>=0?'var(--green)':'var(--red)');
+
+    const items = list.map(a=>{
+      const bal=acctBalance(a);
+      const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--text)':'var(--red)');
+      return `<div class="txn-item" style="margin-bottom:6px">
+        <div style="font-size:22px;width:36px;text-align:center">${ICONS[a.type]||'🏦'}</div>
+        <div class="txn-meta">
+          <div class="txn-desc">${a.name}</div>
+          <div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}${a.type==='credit'&&a.billDay?' · 結帳日：'+a.billDay+'號':''}${a.type==='credit'&&a.dueDays?' · 繳款期限：結帳後'+a.dueDays+'天':''}${a.type==='loan'&&a.loanRate?' · 年利率：'+a.loanRate+'%':''}${a.type==='loan'&&a.loanPayment?' · 月付：'+fmt(a.loanPayment,a.currency):''}${a.type==='loan'&&a.loanEndDate?' · 到期：'+a.loanEndDate:''}${a.type==='loan'&&a.loanMonths?loanProgress(a):''}</div>
+          ${a.type==='credit'&&a.creditLimit?`<div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
+              <span>已用額度</span><span>${fmt(Math.abs(Math.min(0,acctBalance(a))),a.currency)} / ${fmt(a.creditLimit,a.currency)}</span>
+            </div>
+            <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;border-radius:3px;background:${(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)>0.9?'var(--red)':(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)>0.7?'var(--amber)':'var(--blue)'};width:${Math.min(100,(Math.abs(Math.min(0,acctBalance(a)))/a.creditLimit)*100).toFixed(1)}%"></div>
+            </div>
+          </div>`:''}
+          ${a.type==='loan'&&a.loanTotal?`<div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
+              <span>已還款</span><span>${fmt(a.loanTotal-Math.abs(acctBalance(a)),a.currency)} / ${fmt(a.loanTotal,a.currency)}</span>
+            </div>
+            <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;border-radius:3px;background:var(--green);width:${Math.min(100,Math.max(0,((a.loanTotal-Math.abs(acctBalance(a)))/a.loanTotal)*100)).toFixed(1)}%"></div>
+            </div>
+          </div>`:''}
+        </div>
+        <div class="txn-amount" style="color:${c}">${fmt(bal,a.currency)}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-sm" onclick="editAccount(${a.id})">編輯</button>
+          <button class="btn-sm danger" onclick="deleteAccount(${a.id})">刪除</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:10px">
+      <div onclick="toggleAcctGroup('${g.type}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border-radius:var(--radius);cursor:pointer;user-select:none;">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="acct-arrow-${g.type}" style="font-size:12px;color:var(--text2)">▼</span>
+          <span style="font-size:14px;font-weight:500">${g.label}</span>
+          <span style="font-size:12px;color:var(--text2)">${list.length} 個帳戶</span>
+        </div>
+        <span style="font-size:14px;font-weight:600;color:${balColor}">${Math.round(totalTWD).toLocaleString()} <span style="font-size:11px;font-weight:400;color:var(--text2)">約TWD</span></span>
       </div>
-      <div class="txn-amount" style="color:${c}">${fmt(bal,a.currency)}</div>
-      <button class="btn-sm" onclick="editAccount(${a.id})">編輯</button>
-      <button class="btn-sm danger" onclick="deleteAccount(${a.id})">刪除</button>
+      <div id="acct-group-${g.type}" style="padding:8px 0 0">
+        ${items}
+      </div>
     </div>`;
   }).join('');
 }
-function getFilteredAccts(){
-  const typeFilter = document.getElementById('txn-acct-type')?.value || '';
-  return typeFilter ? accounts.filter(a=>a.type===typeFilter) : accounts;
-}
-function filterAcctByType(){
-  const filtered = getFilteredAccts();
-  const opts = filtered.length
-    ? filtered.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
-    : '<option value="">（此類型無帳戶）</option>';
-  const el = document.getElementById('txn-acct');
-  if(el){ el.innerHTML=opts; populateCats(); }
-}
+
 function refreshAcctSelects(){
   const allOpts=accounts.length
     ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
