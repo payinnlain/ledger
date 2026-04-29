@@ -354,11 +354,11 @@ const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙'
 const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,IDR:0.002};
 const KEY = 'ledger_v3';
 
-/* ── Gist 雲端同步 ── */
-const GIST_TOKEN = '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';
-const GIST_ID    = '26808fd4b9854b7bf2efcd18b8d38546';
-const GIST_FILE  = 'ledger-data.json';
-const GIST_API   = 'https://api.github.com/gists/'+GIST_ID;
+/* ── Supabase 雲端同步 ── */
+const SB_URL  = 'https://nyvyfzytrtxnbwdxgnax.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55dnlmenl0cnR4bmJ3ZHhnbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NDY1NjMsImV4cCI6MjA5MzAyMjU2M30.K2_0aQhbct4Xi9L8K--IX_ly6DOLe01h5VuKNNVaPxw';
+const SB_TABLE = 'ledger';
+const SB_ROW_ID = 1;
 let saveTimer = null;
 
 function setSyncStatus(state, msg){
@@ -372,23 +372,33 @@ function setSyncStatus(state, msg){
 async function loadAll(){
   setSyncStatus('ing','載入中...');
   try {
-    const res = await fetch(GIST_API, {
+    const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.${SB_ROW_ID}&select=data`, {
       headers: {
-        'Authorization': 'token '+GIST_TOKEN,
-        'Accept': 'application/vnd.github.v3+json'
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer '+SB_KEY
       }
     });
     if(res.ok){
-      const json = await res.json();
-      const raw = json.files[GIST_FILE]?.content || '{}';
-      const d = JSON.parse(raw);
-      txns     = d.txns     || [];
-      arItems  = d.arItems  || [];
-      budgets  = d.budgets  || {};
-      accounts = d.accounts || [];
-      if(d.catsOut && d.catsOut.length) CATS_OUT = d.catsOut;
-      localStorage.setItem(KEY, raw);
-      setSyncStatus('ok','已同步 ✓');
+      const rows = await res.json();
+      if(rows.length && rows[0].data){
+        const d = JSON.parse(rows[0].data);
+        txns     = d.txns     || [];
+        arItems  = d.arItems  || [];
+        budgets  = d.budgets  || {};
+        accounts = d.accounts || [];
+        if(d.catsOut && d.catsOut.length) CATS_OUT = d.catsOut;
+        localStorage.setItem(KEY, rows[0].data);
+        setSyncStatus('ok','已同步 ✓');
+      } else {
+        // No data yet, try local
+        const local = localStorage.getItem(KEY);
+        if(local){
+          const d = JSON.parse(local);
+          txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
+          if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut;
+        }
+        setSyncStatus('ok','已同步 ✓');
+      }
     } else {
       throw new Error('HTTP '+res.status);
     }
@@ -408,28 +418,31 @@ async function loadAll(){
 }
 
 function sv(){
-  localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT}));
+  const data = JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT});
+  localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToGist, 1500);
+  saveTimer = setTimeout(()=>saveToSupabase(data), 1500);
 }
 
-async function saveToGist(){
+async function saveToSupabase(data){
   try {
-    const data = JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT});
-    const res = await fetch(GIST_API, {
-      method: 'PATCH',
+    // Upsert row with id=1
+    const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}`, {
+      method: 'POST',
       headers: {
-        'Authorization': 'token '+GIST_TOKEN,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer '+SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
       },
-      body: JSON.stringify({ files: { [GIST_FILE]: { content: data } } })
+      body: JSON.stringify({ id: SB_ROW_ID, data })
     });
-    if(res.ok){
+    if(res.ok || res.status===201){
       setSyncStatus('ok','已同步 ✓');
     } else {
-      throw new Error('HTTP '+res.status);
+      const err = await res.text();
+      throw new Error(err);
     }
   } catch(e){
     setSyncStatus('err','同步失敗（已存本地）');
