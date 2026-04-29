@@ -800,11 +800,42 @@ function renderBudget(){
   const prog=document.getElementById('budget-progress');
   const bCats=CATS_OUT.filter(c=>budgets[c]>0);
   if(!bCats.length){prog.innerHTML='<div class="empty-state">請先設定預算</div>';return;}
-  prog.innerHTML=bCats.map(c=>{
+  // 加總
+  const totalBudget = bCats.reduce((s,c)=>s+(budgets[c]||0),0);
+  const totalSpent  = bCats.reduce((s,c)=>s+(spent[c]||0),0);
+  const totalPct    = totalBudget>0?Math.min(100,(totalSpent/totalBudget)*100):0;
+  const totalOver   = totalSpent>totalBudget;
+  const totalCol    = totalPct<70?'var(--green)':totalPct<90?'var(--amber)':'var(--red)';
+
+  const summary = `<div style="background:var(--bg2);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:14px;font-weight:500">本月預算總計</span>
+      <span style="font-size:13px;color:${totalOver?'var(--red)':'var(--text2)'}">
+        ${totalSpent.toLocaleString()} / ${totalBudget.toLocaleString()} TWD
+        ${totalOver?' (超支)':''}
+      </span>
+    </div>
+    <div class="budget-bar-track" style="height:10px;margin-bottom:8px">
+      <div class="budget-bar-fill" style="width:${totalPct.toFixed(1)}%;background:${totalCol}"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+      <span>已使用 <strong style="color:${totalCol}">${totalPct.toFixed(1)}%</strong></span>
+      <span>剩餘 <strong style="color:${totalOver?'var(--red)':'var(--green)'}">${(totalBudget-totalSpent).toLocaleString()} TWD</strong></span>
+    </div>
+  </div>`;
+
+  prog.innerHTML = summary + bCats.map(c=>{
     const b=budgets[c]||0,s=spent[c]||0,pct=b>0?Math.min(100,(s/b)*100):0,over=s>b;
     const col=pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
     return `<div class="budget-bar-wrap">
-      <div class="budget-bar-info"><span>${c}</span><span style="color:${over?'var(--red)':'var(--text2)'}">${s.toLocaleString()} / ${b.toLocaleString()} TWD${over?' (超支)':''}</span></div>
+      <div class="budget-bar-info">
+        <span>${c}</span>
+        <span style="color:${over?'var(--red)':'var(--text2)'}">
+          ${s.toLocaleString()} / ${b.toLocaleString()} TWD
+          <strong style="color:${col};margin-left:6px">${pct.toFixed(1)}%</strong>
+          ${over?' (超支)':''}
+        </span>
+      </div>
       <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
     </div>`;
   }).join('');
