@@ -146,6 +146,20 @@
 </style>
 </head>
 <body>
+
+<!-- 密碼遮罩 -->
+<div id="lock-screen" style="position:fixed;inset:0;background:var(--bg3);z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:40px 36px;width:320px;max-width:90vw;text-align:center">
+    <div style="font-size:32px;margin-bottom:16px">🔒</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:6px">記帳本</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px">請輸入密碼以繼續</div>
+    <input type="password" id="lock-input" placeholder="密碼" style="width:100%;text-align:center;font-size:16px;margin-bottom:12px" onkeydown="if(event.key==='Enter')unlock()">
+    <div id="lock-err" style="font-size:12px;color:var(--red);margin-bottom:10px;min-height:16px"></div>
+    <button onclick="unlock()" style="width:100%;background:var(--text);color:var(--bg);border:none;padding:10px;border-radius:var(--radius);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit">進入</button>
+    <div style="margin-top:20px;font-size:11px;color:var(--text3)">忘記密碼？修改 HTML 中的 APP_PASSWORD</div>
+  </div>
+</div>
+
 <div class="app">
   <div class="topbar">
     <h1>記帳本</h1>
@@ -165,6 +179,7 @@
 
   <!-- DASHBOARD -->
   <div id="tab-dashboard" class="panel active">
+    <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
     <div id="acct-overview" class="acct-grid"></div>
     <div class="summary-grid" id="summary-cards"></div>
     <div class="two-col">
@@ -276,6 +291,28 @@
 </div>
 
 <script>
+/* ── 密碼設定（修改這裡）── */
+const APP_PASSWORD = '5212';
+
+function unlock(){
+  const input = document.getElementById('lock-input').value;
+  if(input === APP_PASSWORD){
+    document.getElementById('lock-screen').style.display='none';
+    sessionStorage.setItem('ledger_unlocked','1');
+  } else {
+    document.getElementById('lock-err').textContent='密碼錯誤，請再試一次';
+    document.getElementById('lock-input').value='';
+    document.getElementById('lock-input').focus();
+  }
+}
+
+// 如果本次 session 已解鎖，直接跳過
+if(sessionStorage.getItem('ledger_unlocked')==='1'){
+  document.getElementById('lock-screen').style.display='none';
+} else {
+  setTimeout(()=>document.getElementById('lock-input').focus(), 100);
+}
+
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
 const CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
@@ -554,8 +591,46 @@ function saveBudgets(){
   sv(); renderBudget(); alert('預算已儲存');
 }
 
+/* ── total assets ── */
+function renderTotalAssets(){
+  const el=document.getElementById('total-asset-bar');
+  if(!accounts.length){el.innerHTML='<span style="font-size:14px;color:var(--text2)">前往帳戶頁新增帳戶以計算總資產</span>';return;}
+
+  // group by currency
+  const byCur={};
+  accounts.forEach(a=>{
+    const bal=acctBalance(a);
+    if(!byCur[a.currency]) byCur[a.currency]=0;
+    byCur[a.currency]+=bal;
+  });
+
+  // total in TWD (approx)
+  const totalTWD=accounts.reduce((s,a)=>s+twdEq(acctBalance(a),a.currency),0);
+
+  // liability (credit cards with negative balance = debt)
+  const liability=accounts.filter(a=>a.type==='credit').reduce((s,a)=>{
+    const b=acctBalance(a); return s+(b<0?Math.abs(twdEq(b,a.currency)):0);
+  },0);
+  const netAsset=totalTWD-liability;
+
+  // breakdown by currency (excluding TWD if zero)
+  const breakdown=Object.entries(byCur)
+    .filter(([c,v])=>Math.abs(v)>0.0001)
+    .map(([c,v])=>`<span style="font-size:12px;color:var(--text2);background:var(--bg2);padding:3px 10px;border-radius:10px;white-space:nowrap">${fmt(v,c)}</span>`)
+    .join('');
+
+  el.innerHTML=`
+    <div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">淨資產（約TWD）</div>
+      <div style="font-size:28px;font-weight:700;color:${netAsset>=0?'var(--green)':'var(--red)'}">${Math.round(netAsset).toLocaleString()}</div>
+      ${liability>0?`<div style="font-size:12px;color:var(--text2);margin-top:2px">資產 ${Math.round(totalTWD).toLocaleString()} － 負債 ${Math.round(liability).toLocaleString()}</div>`:''}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">${breakdown}</div>`;
+}
+
 /* ── dashboard ── */
 function renderDashboard(){
+  renderTotalAssets();
   renderAcctOverview();
   const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
   const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
