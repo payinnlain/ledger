@@ -191,6 +191,7 @@
   <div class="topbar">
     <h1>記帳本</h1>
     <div class="topbar-right">
+      <span id="sync-status" style="font-size:12px;color:#BA7517">載入中...</span>
       <div class="nav-tabs">
         <button class="tab-btn active" onclick="switchTab('dashboard',this)">總覽</button>
         <button class="tab-btn" onclick="switchTab('txn',this)">收支</button>
@@ -353,12 +354,89 @@ const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙'
 const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,IDR:0.002};
 const KEY = 'ledger_v3';
 
-function ld(k,d){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} }
-function sv(){ localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT})); }
-function loadAll(){
-  const d=ld(KEY,null);
-  if(d){ txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut; }
+/* ── Gist 雲端同步 ── */
+const GIST_TOKEN = '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';
+const GIST_ID    = '26808fd4b9854b7bf2efcd18b8d38546';
+const GIST_FILE  = 'ledger-data.json';
+const GIST_API   = 'https://api.github.com/gists/'+GIST_ID;
+let saveTimer = null;
+
+function setSyncStatus(state, msg){
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  const colors = {ok:'#1D9E75', ing:'#BA7517', err:'#D85A30'};
+  el.textContent = msg;
+  el.style.color = colors[state]||'#666';
 }
+
+async function loadAll(){
+  setSyncStatus('ing','載入中...');
+  try {
+    const res = await fetch(GIST_API, {
+      headers: {
+        'Authorization': 'token '+GIST_TOKEN,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    if(res.ok){
+      const json = await res.json();
+      const raw = json.files[GIST_FILE]?.content || '{}';
+      const d = JSON.parse(raw);
+      txns     = d.txns     || [];
+      arItems  = d.arItems  || [];
+      budgets  = d.budgets  || {};
+      accounts = d.accounts || [];
+      if(d.catsOut && d.catsOut.length) CATS_OUT = d.catsOut;
+      localStorage.setItem(KEY, raw);
+      setSyncStatus('ok','已同步 ✓');
+    } else {
+      throw new Error('HTTP '+res.status);
+    }
+  } catch(e){
+    const local = localStorage.getItem(KEY);
+    if(local){
+      const d = JSON.parse(local);
+      txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
+      if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut;
+      setSyncStatus('err','離線模式（本地）');
+    } else {
+      setSyncStatus('err','無法載入');
+    }
+  }
+  refreshAcctSelects();
+  renderDashboard();
+}
+
+function sv(){
+  localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT}));
+  setSyncStatus('ing','儲存中...');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToGist, 1500);
+}
+
+async function saveToGist(){
+  try {
+    const data = JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT});
+    const res = await fetch(GIST_API, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'token '+GIST_TOKEN,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: data } } })
+    });
+    if(res.ok){
+      setSyncStatus('ok','已同步 ✓');
+    } else {
+      throw new Error('HTTP '+res.status);
+    }
+  } catch(e){
+    setSyncStatus('err','同步失敗（已存本地）');
+  }
+}
+
+function ld(k,d){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} }
 
 let txns=[], arItems=[], budgets={}, accounts=[];
 let currentType='in', currentArType='ar', currentAcctType='bank';
