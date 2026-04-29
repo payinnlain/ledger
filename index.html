@@ -429,6 +429,7 @@
 </div>
 
 <!-- 浮動重整按鈕 -->
+<button onclick="debugData()" style="position:fixed;bottom:128px;right:16px;width:48px;height:48px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;">🔍</button>
 <button onclick="reloadData()" id="fab-reload"
   style="position:fixed;bottom:72px;right:16px;width:48px;height:48px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">↻</button>
 
@@ -451,6 +452,22 @@ const SB_TABLE = 'ledger';
 const SB_ROW_ID = 1;
 let saveTimer = null;
 
+async function debugData(){
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.${SB_ROW_ID}&select=data`, {
+      headers: {'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY}
+    });
+    const rows = await res.json();
+    if(rows.length && rows[0].data){
+      const d = JSON.parse(rows[0].data);
+      const msg = 'Supabase: 帳戶'+(d.accounts||[]).length+'個 交易'+(d.txns||[]).length+'筆';
+      alert(msg);
+    } else {
+      const local = localStorage.getItem(KEY);
+      alert('Supabase無資料 / 本地:' + (local ? JSON.parse(local).accounts.length+'個帳戶' : '空'));
+    }
+  } catch(e){ alert('錯誤:'+e.message); }
+}
 function reloadData(){
   txns=[]; arItems=[]; budgets={}; accounts=[];
   loadAll();
