@@ -819,6 +819,18 @@ function renderAccounts(){
   }).join('');
 }
 
+function getFilteredAccts(){
+  const typeFilter = document.getElementById('txn-acct-type')?.value || '';
+  return typeFilter ? accounts.filter(a=>a.type===typeFilter) : accounts;
+}
+function filterAcctByType(){
+  const filtered = getFilteredAccts();
+  const opts = filtered.length
+    ? filtered.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
+    : '<option value="">（此類型無帳戶）</option>';
+  const el = document.getElementById('txn-acct');
+  if(el){ el.innerHTML=opts; populateCats(); }
+}
 function refreshAcctSelects(){
   const allOpts=accounts.length
     ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
