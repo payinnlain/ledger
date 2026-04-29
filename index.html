@@ -290,6 +290,9 @@
   <div class="footer-note">資料存在此瀏覽器 · 定期點「匯出」備份 JSON 以防資料遺失</div>
 </div>
 
+<!-- 編輯 Modal -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;"></div>
+
 <script>
 /* ── 密碼設定（修改這裡）── */
 const APP_PASSWORD = '1234';
@@ -492,6 +495,52 @@ function addTxn(){
 function deleteTxn(id){
   txns=txns.filter(t=>t.id!==id); sv(); renderTxnList(); renderAcctOverview(); renderDashboard();
 }
+function editTxn(id){
+  const t=txns.find(x=>x.id===id); if(!t) return;
+  const isCrypto=isCryptoAcct(t.acctId);
+  const cats=isCrypto?CATS_CRYPTO:(t.type==='in'?CATS_IN:t.type==='xfer'?['轉帳']:CATS_OUT);
+  const catOpts=cats.map(c=>`<option${c===t.cat?' selected':''}>${c}</option>`).join('');
+  const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC','BNB','XRP']
+    .map(c=>`<option${c===t.currency?' selected':''}>${c}</option>`).join('');
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:440px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:15px;font-weight:500">編輯記錄</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">金額</label>
+          <input type="number" id="e-amt" value="${t.amount}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">幣別</label>
+          <select id="e-cur" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${curOpts}</select></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">類別</label>
+          <select id="e-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${catOpts}</select></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">日期</label>
+          <input type="date" id="e-date" value="${t.date}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px"><label style="font-size:12px;color:var(--text2)">備註</label>
+        <input type="text" id="e-note" value="${t.note||''}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+      <div style="text-align:right">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveEdit(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function saveEdit(id){
+  const t=txns.find(x=>x.id===id); if(!t) return;
+  const amt=parseFloat(document.getElementById('e-amt').value);
+  if(!amt||amt<=0){alert('請輸入有效金額');return;}
+  t.amount=amt;
+  t.currency=document.getElementById('e-cur').value;
+  t.cat=document.getElementById('e-cat').value;
+  t.date=document.getElementById('e-date').value;
+  t.note=document.getElementById('e-note').value;
+  sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
+}
+function closeEdit(){
+  document.getElementById('edit-modal').style.display='none';
+}
 function renderTxnList(){
   const m=document.getElementById('filter-month').value;
   const fa=document.getElementById('filter-acct').value;
@@ -517,6 +566,7 @@ function renderTxnList(){
         <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+      <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
       <button class="btn-sm danger" onclick="deleteTxn(${t.id})">刪除</button>
     </div>`;
   }).join('');
