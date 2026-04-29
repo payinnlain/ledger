@@ -259,7 +259,18 @@
   <!-- BUDGET -->
   <div id="tab-budget" class="panel">
     <div class="card">
-      <div class="section-title">設定月度預算（TWD）</div>
+      <div class="section-header">
+        <span class="section-title">設定月度預算（TWD）</span>
+        <button class="btn-sm" onclick="toggleCatEdit()">管理分類</button>
+      </div>
+      <div id="cat-edit-panel" style="display:none;margin-bottom:16px;padding:14px;background:var(--bg2);border-radius:var(--radius)">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">新增或刪除預算分類（也會同步更新支出分類選單）</div>
+        <div id="cat-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="new-cat-input" placeholder="輸入新分類名稱" style="flex:1;font-size:13px" onkeydown="if(event.key==='Enter')addCat()">
+          <button class="btn-primary" onclick="addCat()" style="padding:7px 16px;font-size:13px">新增</button>
+        </div>
+      </div>
       <div id="budget-form"></div>
       <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="saveBudgets()">儲存預算</button></div>
     </div>
@@ -330,7 +341,7 @@ if(sessionStorage.getItem('ledger_unlocked')==='1'){
 }
 
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
-const CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
+let CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
 const CAT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#993556','#3B6D11','#634806','#5DCAA5','#5F5E5A'];
 const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙',loan:'🏛',prepaid:'🎴'};
@@ -338,10 +349,10 @@ const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,I
 const KEY = 'ledger_v3';
 
 function ld(k,d){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} }
-function sv(){ localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts})); }
+function sv(){ localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT})); }
 function loadAll(){
   const d=ld(KEY,null);
-  if(d){ txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; }
+  if(d){ txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut; }
 }
 
 let txns=[], arItems=[], budgets={}, accounts=[];
@@ -746,6 +757,35 @@ function renderArList(type,elId){
 function renderAr(){ renderArList('ar','ar-list'); renderArList('ap','ap-list'); }
 
 /* ── budget ── */
+function toggleCatEdit(){
+  const p=document.getElementById('cat-edit-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  if(p.style.display==='block') renderCatList();
+}
+function renderCatList(){
+  document.getElementById('cat-list').innerHTML=CATS_OUT.map(c=>
+    '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:13px">'+
+    c+
+    '<button onclick="removeCat(''+c+'')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px">✕</button>'+
+    '</span>'
+  ).join('');
+}
+function addCat(){
+  const input=document.getElementById('new-cat-input');
+  const name=input.value.trim();
+  if(!name){return;}
+  if(CATS_OUT.includes(name)){alert('此分類已存在');return;}
+  CATS_OUT.push(name);
+  sv(); renderCatList(); renderBudget();
+  input.value='';
+}
+function removeCat(name){
+  if(CATS_OUT.length<=1){alert('至少保留一個分類');return;}
+  if(!confirm('刪除「'+name+'」分類？已記錄的交易不受影響。')) return;
+  CATS_OUT=CATS_OUT.filter(c=>c!==name);
+  delete budgets[name];
+  sv(); renderCatList(); renderBudget();
+}
 function renderBudget(){
   document.getElementById('budget-form').innerHTML='<div class="form-grid">'+
     CATS_OUT.map(c=>`<div class="form-group"><label>${c}</label>
