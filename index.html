@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -147,6 +146,46 @@
 </style>
 </head>
 <body>
+
+<div id="lock-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f0efec;z-index:99999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:40px 32px;width:300px;max-width:90vw;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+    <div style="font-size:40px;margin-bottom:12px">🔒</div>
+    <div style="font-size:17px;font-weight:600;color:#111;margin-bottom:20px">記帳本</div>
+    <input id="pw" type="password" placeholder="輸入密碼"
+      style="width:100%;padding:12px;font-size:16px;border:1.5px solid #ddd;border-radius:8px;text-align:center;font-family:inherit;background:#fafafa;color:#111;display:block;"
+      onkeydown="if(event.key==='Enter')tryUnlock()">
+    <div id="pw-err" style="color:#c0392b;font-size:12px;margin:8px 0;min-height:16px"></div>
+    <button onclick="tryUnlock()"
+      style="width:100%;padding:12px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">進入</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var PW = '5212';
+  window.tryUnlock = function(){
+    var val = document.getElementById('pw').value;
+    if(val === PW){
+      document.getElementById('lock-screen').style.display='none';
+      sessionStorage.setItem('_unlocked','yes');
+    } else {
+      document.getElementById('pw-err').textContent='密碼錯誤';
+      document.getElementById('pw').value='';
+      document.getElementById('pw').focus();
+    }
+  };
+  if(sessionStorage.getItem('_unlocked')==='yes'){
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('lock-screen').style.display='none';
+    });
+  } else {
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('pw').focus();
+    });
+  }
+})();
+</script>
+
 
 <div class="app">
   <div class="topbar">
@@ -306,21 +345,6 @@
 <div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;"></div>
 
 <script>
-/* ── 密碼設定（修改這裡）── */
-const APP_PASSWORD = '1234';
-
-function unlock(){
-  const val = document.getElementById('lock-input').value;
-  if(val === APP_PASSWORD){
-    document.getElementById('lock-screen').style.display='none';
-    sessionStorage.setItem('ledger_unlocked','1');
-  } else {
-    document.getElementById('lock-err').textContent='密碼錯誤，請再試一次';
-    document.getElementById('lock-input').value='';
-    document.getElementById('lock-input').focus();
-  }
-}
-
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
 let CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
@@ -913,13 +937,6 @@ function switchTab(t,el){
 }
 
 // init
-// 密碼保護：在所有內容載入後執行
-if(sessionStorage.getItem('ledger_unlocked')==='1'){
-  document.getElementById('lock-screen').style.display='none';
-} else {
-  setTimeout(()=>{ const el=document.getElementById('lock-input'); if(el){ el.focus(); } }, 300);
-}
-
 loadAll();
 document.getElementById('txn-date').value=todayStr();
 document.getElementById('filter-month').value=thisMonth();
