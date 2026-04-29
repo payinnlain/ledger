@@ -411,6 +411,8 @@
         <div class="form-group"><label>年利率（%）</label><input type="number" id="acct-loan-rate" placeholder="例：2.5" min="0" step="0.01"></div>
         <div class="form-group"><label>每月還款日（號）</label><input type="number" id="acct-loan-day" placeholder="例：15" min="1" max="31"></div>
         <div class="form-group"><label>月付金額</label><input type="number" id="acct-loan-payment" placeholder="例：15000" min="0" step="100"></div>
+        <div class="form-group"><label>貸款到期日</label><input type="date" id="acct-loan-enddate"></div>
+        <div class="form-group"><label>總期數（月）</label><input type="number" id="acct-loan-months" placeholder="例：240" min="1" step="1"></div>
       </div>
       <div id="credit-extra" style="display:none;margin-top:10px" class="form-grid">
         <div class="form-group"><label>結帳日（每月幾號）</label><input type="number" id="acct-bill-day" placeholder="例：25" min="1" max="31"></div>
@@ -615,7 +617,9 @@ function addAccount(){
   const loanRate=currentAcctType==='loan'?(parseFloat(document.getElementById('acct-loan-rate').value)||null):null;
   const loanDay=currentAcctType==='loan'?(parseInt(document.getElementById('acct-loan-day').value)||null):null;
   const loanPayment=currentAcctType==='loan'?(parseFloat(document.getElementById('acct-loan-payment').value)||null):null;
-  accounts.push({id:Date.now(),type:currentAcctType,name,initBalance:bal,currency:cur,billDay,dueDays,creditLimit,loanTotal,loanRate,loanDay,loanPayment});
+  const loanEndDate=currentAcctType==='loan'?(document.getElementById('acct-loan-enddate').value||null):null;
+  const loanMonths=currentAcctType==='loan'?(parseInt(document.getElementById('acct-loan-months').value)||null):null;
+  accounts.push({id:Date.now(),type:currentAcctType,name,initBalance:bal,currency:cur,billDay,dueDays,creditLimit,loanTotal,loanRate,loanDay,loanPayment,loanEndDate,loanMonths});
   sv(); renderAccounts(); refreshAcctSelects();
   document.getElementById('acct-name').value='';
   document.getElementById('acct-balance').value='';
@@ -626,6 +630,8 @@ function addAccount(){
   document.getElementById('acct-loan-rate').value='';
   document.getElementById('acct-loan-day').value='';
   document.getElementById('acct-loan-payment').value='';
+  document.getElementById('acct-loan-enddate').value='';
+  document.getElementById('acct-loan-months').value='';
 }
 function deleteAccount(id){
   if(!confirm('確定刪除此帳戶？')) return;
@@ -682,6 +688,8 @@ function saveAccountEdit(id){
     a.loanRate=parseFloat(document.getElementById('ea-loanrate')?.value)||null;
     a.loanDay=parseInt(document.getElementById('ea-loanday')?.value)||null;
     a.loanPayment=parseFloat(document.getElementById('ea-loanpayment')?.value)||null;
+    a.loanEndDate=document.getElementById('ea-loanenddate')?.value||null;
+    a.loanMonths=parseInt(document.getElementById('ea-loanmonths')?.value)||null;
     a.billDay=null; a.dueDays=null; a.creditLimit=null;
   } else { a.billDay=null; a.dueDays=null; a.creditLimit=null; a.loanTotal=null; a.loanRate=null; a.loanDay=null; a.loanPayment=null; }
   sv(); closeEdit(); renderAccounts(); refreshAcctSelects(); renderAcctOverview();
@@ -703,7 +711,7 @@ function renderAccounts(){
       <div style="font-size:22px;width:36px;text-align:center">${ICONS[a.type]||'🏦'}</div>
       <div class="txn-meta">
         <div class="txn-desc">${a.name}</div>
-        <div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}${a.type==='credit'&&a.billDay?' · 結帳日：'+a.billDay+'號':''}${a.type==='credit'&&a.dueDays?' · 繳款期限：結帳後'+a.dueDays+'天':''}${a.type==='loan'&&a.loanRate?' · 年利率：'+a.loanRate+'%':''}${a.type==='loan'&&a.loanPayment?' · 月付：'+fmt(a.loanPayment,a.currency):''}</div>
+        <div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}${a.type==='credit'&&a.billDay?' · 結帳日：'+a.billDay+'號':''}${a.type==='credit'&&a.dueDays?' · 繳款期限：結帳後'+a.dueDays+'天':''}${a.type==='loan'&&a.loanRate?' · 年利率：'+a.loanRate+'%':''}${a.type==='loan'&&a.loanPayment?' · 月付：'+fmt(a.loanPayment,a.currency):''}${a.type==='loan'&&a.loanEndDate?' · 到期：'+a.loanEndDate:''}${a.type==='loan'&&a.loanMonths?loanProgress(a):''}</div>
         ${a.type==='credit'&&a.creditLimit?`<div style="margin-top:6px">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
             <span>已用額度</span><span>${fmt(Math.abs(Math.min(0,acctBalance(a))),a.currency)} / ${fmt(a.creditLimit,a.currency)}</span>
@@ -751,6 +759,12 @@ function refreshAcctSelects(){
   if(ta) ta.onchange=populateCats;
   const fa=document.getElementById('filter-acct');
   if(fa) fa.innerHTML='<option value="">全部帳戶</option>'+accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+}
+function loanProgress(a){
+  if(!a.loanMonths) return '';
+  const paid = a.loanTotal&&a.loanPayment ? Math.round((a.loanTotal-Math.abs(acctBalance(a)))/(a.loanPayment||1)) : null;
+  const remaining = a.loanMonths - (paid||0);
+  return ' · 剩餘約 '+Math.max(0,remaining)+' 期';
 }
 function nextLoanPayment(a){
   if(!a.loanDay) return '';
