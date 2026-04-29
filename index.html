@@ -729,10 +729,10 @@ function toggleCatEdit(){
 }
 function renderCatList(){
   document.getElementById('cat-list').innerHTML=CATS_OUT.map(c=>
-    '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:13px">'+
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:0.5px solid var(--border2);border-radius:20px;padding:4px 10px;font-size:13px">`+
     c+
-    '<button onclick="removeCat(''+c+'')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px">✕</button>'+
-    '</span>'
+    `<button onclick="removeCat(this)" data-cat="${c}" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0 0 0 2px">✕</button>`+
+    `</span>`
   ).join('');
 }
 function addCat(){
@@ -744,7 +744,7 @@ function addCat(){
   sv(); renderCatList(); renderBudget();
   input.value='';
 }
-function removeCat(name){
+function removeCat(btn){ const name = typeof btn === 'string' ? btn : btn.dataset.cat;
   if(CATS_OUT.length<=1){alert('至少保留一個分類');return;}
   if(!confirm('刪除「'+name+'」分類？已記錄的交易不受影響。')) return;
   CATS_OUT=CATS_OUT.filter(c=>c!==name);
