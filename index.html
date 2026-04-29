@@ -277,6 +277,7 @@
         <button class="acct-type-btn" onclick="selAcctType('invest',this)">📈 投資帳戶</button>
         <button class="acct-type-btn" onclick="selAcctType('crypto',this)">🪙 加密貨幣</button>
         <button class="acct-type-btn" onclick="selAcctType('loan',this)">🏛 貸款</button>
+        <button class="acct-type-btn" onclick="selAcctType('prepaid',this)">🎴 預付/儲值卡</button>
       </div>
       <div class="form-grid three">
         <div class="form-group"><label>帳戶名稱</label><input type="text" id="acct-name" placeholder="例：玉山銀行"></div>
@@ -332,7 +333,7 @@ const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質�
 const CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
 const CAT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#993556','#3B6D11','#634806','#5DCAA5','#5F5E5A'];
-const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙',loan:'🏛'};
+const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙',loan:'🏛',prepaid:'🎴'};
 const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,IDR:0.002};
 const KEY = 'ledger_v3';
 
@@ -434,7 +435,7 @@ function deleteAccount(id){
 }
 function editAccount(id){
   const a=accounts.find(x=>x.id===id); if(!a) return;
-  const typeOpts=[['bank','🏦 銀行帳戶'],['cash','💵 現金'],['credit','💳 信用卡'],['invest','📈 投資帳戶'],['crypto','🪙 加密貨幣'],['loan','🏛 貸款']]
+  const typeOpts=[['bank','🏦 銀行帳戶'],['cash','💵 現金'],['credit','💳 信用卡'],['invest','📈 投資帳戶'],['crypto','🪙 加密貨幣'],['loan','🏛 貸款'],['prepaid','🎴 預付/儲值卡']]
     .map(([v,l])=>`<option value="${v}"${a.type===v?' selected':''}>${l}</option>`).join('');
   const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC']
     .map(c=>`<option${c===a.currency?' selected':''}>${c}</option>`).join('');
@@ -773,38 +774,58 @@ function renderTotalAssets(){
   const el=document.getElementById('total-asset-bar');
   if(!accounts.length){el.innerHTML='<span style="font-size:14px;color:var(--text2)">前往帳戶頁新增帳戶以計算總資產</span>';return;}
 
-  // group by currency
-  const byCur={};
-  accounts.forEach(a=>{
-    const bal=acctBalance(a);
-    if(!byCur[a.currency]) byCur[a.currency]=0;
-    byCur[a.currency]+=bal;
-  });
+  const bankTotal  =accounts.filter(a=>a.type==='bank') .reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
+  const cashTotal  =accounts.filter(a=>a.type==='cash'||a.type==='prepaid') .reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
+  const investTotal=accounts.filter(a=>a.type==='invest').reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
+  const cryptoTotal=accounts.filter(a=>a.type==='crypto').reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
+  const totalAsset =bankTotal+cashTotal+investTotal+cryptoTotal;
 
-  // total in TWD (approx)
-  const totalTWD=accounts.reduce((s,a)=>s+twdEq(acctBalance(a),a.currency),0);
+  const creditDebt=accounts.filter(a=>a.type==='credit').reduce((s,a)=>{const b=acctBalance(a);return s+(b<0?Math.abs(twdEq(b,a.currency)):0);},0);
+  const loanDebt  =accounts.filter(a=>a.type==='loan')  .reduce((s,a)=>{const b=acctBalance(a);return s+(b<0?Math.abs(twdEq(b,a.currency)):0);},0);
+  const totalLiab =creditDebt+loanDebt;
+  const net=totalAsset-totalLiab;
+  const ratio=totalAsset>0?Math.min(100,(net/totalAsset)*100):0;
 
-  // liability (credit cards with negative balance = debt)
-  const liability=accounts.filter(a=>a.type==='credit'||a.type==='loan').reduce((s,a)=>{
-    const b=acctBalance(a); return s+(b<0?Math.abs(twdEq(b,a.currency)):0);
-  },0);
-  const netAsset=totalTWD-liability;
+  function row(icon,label,val,color){
+    if(Math.abs(val)<0.5) return '';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:13px;color:var(--text2)">'+icon+' '+label+'</span><span style="font-size:13px;font-weight:500;color:'+(color||'var(--text)')+'">'+Math.round(val).toLocaleString()+'</span></div>';
+  }
 
-  // breakdown by currency (excluding TWD if zero)
-  const breakdown=Object.entries(byCur)
-    .filter(([c,v])=>Math.abs(v)>0.0001)
-    .map(([c,v])=>`<span style="font-size:12px;color:var(--text2);background:var(--bg2);padding:3px 10px;border-radius:10px;white-space:nowrap">${fmt(v,c)}</span>`)
-    .join('');
-
-  el.innerHTML=`
-    <div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">淨資產（約TWD）</div>
-      <div style="font-size:28px;font-weight:700;color:${netAsset>=0?'var(--green)':'var(--red)'}">${Math.round(netAsset).toLocaleString()}</div>
-      ${liability>0?`<div style="font-size:12px;color:var(--text2);margin-top:2px">資產 ${Math.round(totalTWD).toLocaleString()} － 負債 ${Math.round(liability).toLocaleString()}</div>`:''}
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">${breakdown}</div>`;
+  el.style.cssText='border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:0;margin-bottom:14px;overflow:hidden;background:var(--bg)';
+  el.innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;width:100%">'+
+    '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
+      '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">資產</div>'+
+      row('🏦','銀行',bankTotal)+
+      row('💵','現金 / 儲值',cashTotal)+
+      row('📈','投資',investTotal)+
+      row('🪙','加密貨幣',cryptoTotal)+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
+        '<span style="font-size:12px;color:var(--text2)">小計</span>'+
+        '<span style="font-size:17px;font-weight:700;color:var(--green)">'+Math.round(totalAsset).toLocaleString()+'</span>'+
+      '</div>'+
+    '</div>'+
+    '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
+      '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">負債</div>'+
+      row('💳','信用卡',creditDebt,'var(--red)')+
+      row('🏛','貸款',loanDebt,'var(--red)')+
+      (totalLiab<0.5?'<div style="font-size:13px;color:var(--text3);padding:5px 0">無負債</div>':'')+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
+        '<span style="font-size:12px;color:var(--text2)">小計</span>'+
+        '<span style="font-size:17px;font-weight:700;color:'+(totalLiab>0?'var(--red)':'var(--text2)')+'">'+Math.round(totalLiab).toLocaleString()+'</span>'+
+      '</div>'+
+    '</div>'+
+    '<div style="padding:16px 18px;background:'+(net>=0?'var(--green-bg)':'var(--red-bg)')+'">'+
+      '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">淨資產</div>'+
+      '<div style="font-size:28px;font-weight:700;color:'+(net>=0?'var(--green)':'var(--red)')+'">'+Math.round(net).toLocaleString()+'</div>'+
+      '<div style="font-size:11px;color:var(--text2);margin-top:4px;margin-bottom:12px">≈ TWD</div>'+
+      '<div style="height:5px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden">'+
+        '<div style="height:100%;border-radius:3px;background:'+(net>=0?'var(--green)':'var(--red)')+'transition:width .4s;width:'+ratio.toFixed(1)+'%"></div>'+
+      '</div>'+
+      '<div style="font-size:11px;color:var(--text2);margin-top:5px">'+ratio.toFixed(1)+'% 資產負債比</div>'+
+    '</div>'+
+    '</div>';
 }
-
 /* ── dashboard ── */
 function renderDashboard(){
   renderTotalAssets();
