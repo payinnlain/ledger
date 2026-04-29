@@ -22,6 +22,7 @@
   <p>這個頁面會直接讀取你瀏覽器裡的記帳資料並匯出，不需要密碼。</p>
   <button class="btn" onclick="exportData()">⬇ 匯出資料備份</button>
   <button class="btn secondary" onclick="checkData()">檢查資料狀態</button>
+  <button class="btn secondary" onclick="migrateData()" style="margin-top:0">🔧 直接修復（同步到記帳本）</button>
   <div class="status" id="status"></div>
   <div class="warn" id="warn"></div>
 </div>
@@ -73,6 +74,43 @@ function exportData() {
   } catch(e) {
     document.getElementById('status').style.color = '#D85A30';
     document.getElementById('status').textContent = '匯出失敗：' + e.message;
+  }
+}
+
+function migrateData() {
+  const KEY = 'ledger_v3';
+  // Try all possible keys
+  const keys = ['ledger_v3', 'lg_txns2', 'lg_ar2', 'lg_budgets2', 'lg_accounts2'];
+  const el = document.getElementById('status');
+  const warn = document.getElementById('warn');
+  
+  // First check if ledger_v3 exists
+  const existing = localStorage.getItem(KEY);
+  if (existing) {
+    try {
+      const d = JSON.parse(existing);
+      el.style.color = '#1D9E75';
+      el.textContent = '資料已在正確位置！帳戶 ' + (d.accounts||[]).length + ' 個、交易 ' + (d.txns||[]).length + ' 筆';
+      warn.textContent = '請直接開記帳本頁面，資料應該都在';
+      return;
+    } catch(e) {}
+  }
+
+  // Try old keys (lg_txns2 etc)
+  const txns = JSON.parse(localStorage.getItem('lg_txns2') || '[]');
+  const arItems = JSON.parse(localStorage.getItem('lg_ar2') || '[]');
+  const budgets = JSON.parse(localStorage.getItem('lg_budgets2') || '{}');
+  const accounts = JSON.parse(localStorage.getItem('lg_accounts2') || '[]');
+  
+  if (txns.length || accounts.length) {
+    localStorage.setItem(KEY, JSON.stringify({txns, arItems, budgets, accounts}));
+    el.style.color = '#1D9E75';
+    el.textContent = '✓ 修復成功！帳戶 ' + accounts.length + ' 個、交易 ' + txns.length + ' 筆';
+    warn.textContent = '現在可以開記帳本頁面了';
+  } else {
+    el.style.color = '#D85A30';
+    el.textContent = '找不到舊資料可以遷移';
+    warn.textContent = '請用「匯出資料備份」下載 JSON，再到記帳本頁面匯入';
   }
 }
 
