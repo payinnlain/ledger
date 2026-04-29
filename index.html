@@ -306,7 +306,7 @@
 
 <script>
 /* ── 密碼設定（修改這裡）── */
-const APP_PASSWORD = '5212';
+const APP_PASSWORD = '1234';
 
 function unlock(){
   const val = document.getElementById('lock-input').value;
@@ -318,12 +318,6 @@ function unlock(){
     document.getElementById('lock-input').value='';
     document.getElementById('lock-input').focus();
   }
-}
-
-if(sessionStorage.getItem('ledger_unlocked')==='1'){
-  document.getElementById('lock-screen').style.display='none';
-} else {
-  setTimeout(()=>{ const el=document.getElementById('lock-input'); if(el){ el.focus(); } }, 300);
 }
 
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
@@ -918,6 +912,13 @@ function switchTab(t,el){
 }
 
 // init
+// 密碼保護：在所有內容載入後執行
+if(sessionStorage.getItem('ledger_unlocked')==='1'){
+  document.getElementById('lock-screen').style.display='none';
+} else {
+  setTimeout(()=>{ const el=document.getElementById('lock-input'); if(el){ el.focus(); } }, 300);
+}
+
 loadAll();
 document.getElementById('txn-date').value=todayStr();
 document.getElementById('filter-month').value=thisMonth();
