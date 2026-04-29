@@ -136,12 +136,82 @@
   .footer-note { text-align: center; font-size: 12px; color: var(--text3); padding: 20px 0 0; }
 
   @media (max-width: 640px) {
-    .summary-grid { grid-template-columns: 1fr 1fr; }
+    /* 基本佈局 */
+    .app { padding: 0 12px 80px; }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
+    .topbar h1 { font-size: 17px; }
+    .topbar-right { width: 100%; justify-content: space-between; }
+
+    /* 底部導覽列 */
+    .nav-tabs {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg); border-top: 0.5px solid var(--border);
+      border-radius: 0; padding: 6px 4px;
+      display: flex; justify-content: space-around;
+      z-index: 1000; gap: 0;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+    }
+    .nav-tabs .tab-btn {
+      flex: 1; padding: 6px 2px; font-size: 11px;
+      border-radius: 6px; text-align: center;
+    }
+    .nav-tabs .tab-btn.active {
+      background: var(--bg2); border: none;
+    }
+
+    /* 匯出匯入按鈕縮小 */
+    .btn-data { padding: 5px 8px; font-size: 11px; }
+    #sync-status { font-size: 11px; }
+
+    /* 格線 */
+    .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
     .form-grid, .form-grid.three, .form-grid.four { grid-template-columns: 1fr; }
     .two-col { grid-template-columns: 1fr; }
-    .acct-type-grid { grid-template-columns: repeat(2,1fr); }
-    .nav-tabs .tab-btn { padding: 6px 8px; font-size: 12px; }
-    .topbar { flex-direction: column; align-items: flex-start; }
+    .acct-type-grid { grid-template-columns: repeat(3,1fr); }
+    .acct-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
+
+    /* 卡片 */
+    .card { padding: 14px 12px; }
+    .metric { padding: 12px 12px; }
+    .metric-value { font-size: 17px; }
+    .metric-label { font-size: 11px; }
+
+    /* 帳戶卡片 */
+    .acct-card { padding: 12px; }
+    .acct-card-bal { font-size: 16px; }
+
+    /* 輸入框加大點選區域 */
+    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+      font-size: 16px !important; /* 防止 iOS 自動縮放 */
+      padding: 10px 10px;
+    }
+
+    /* 按鈕 */
+    .btn-primary { padding: 11px 20px; font-size: 14px; width: 100%; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .type-btn { padding: 10px 6px; font-size: 12px; }
+    .acct-type-btn { padding: 10px 4px; font-size: 11px; }
+
+    /* 交易列表 */
+    .txn-item { padding: 10px 10px; gap: 8px; }
+    .txn-desc { font-size: 13px; }
+    .txn-sub { font-size: 11px; }
+    .txn-amount { font-size: 14px; }
+    .txn-icon { width: 28px; height: 28px; font-size: 12px; flex-shrink: 0; }
+
+    /* AR items */
+    .ar-item { padding: 10px 10px; gap: 8px; flex-wrap: wrap; }
+
+    /* 區段標題 */
+    .section-title { font-size: 13px; }
+    .section-header { margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+
+    /* 篩選列 */
+    .filter-row { gap: 6px; }
+    .filter-row select, .filter-row input[type=month] { font-size: 12px; padding: 6px 8px; max-width: 120px; }
+    .asset-grid { grid-template-columns: 1fr !important; }
+    .asset-grid > div { border-right: none !important; border-bottom: 0.5px solid var(--border); }
+    .asset-grid > div:last-child { border-bottom: none; }
   }
 </style>
 </head>
@@ -242,6 +312,16 @@
         <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
       </div>
       <div class="form-grid">
+        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
+          <option value="">全部</option>
+          <option value="bank">🏦 銀行帳戶</option>
+          <option value="cash">💵 現金</option>
+          <option value="credit">💳 信用卡</option>
+          <option value="invest">📈 投資帳戶</option>
+          <option value="crypto">🪙 加密貨幣</option>
+          <option value="loan">🏛 貸款</option>
+          <option value="prepaid">🎴 預付/儲值卡</option>
+        </select></div>
         <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
         <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
         <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
@@ -636,11 +716,26 @@ function renderAccounts(){
     </div>`;
   }).join('');
 }
+function getFilteredAccts(){
+  const typeFilter = document.getElementById('txn-acct-type')?.value || '';
+  return typeFilter ? accounts.filter(a=>a.type===typeFilter) : accounts;
+}
+function filterAcctByType(){
+  const filtered = getFilteredAccts();
+  const opts = filtered.length
+    ? filtered.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
+    : '<option value="">（此類型無帳戶）</option>';
+  const el = document.getElementById('txn-acct');
+  if(el){ el.innerHTML=opts; populateCats(); }
+}
 function refreshAcctSelects(){
-  const opts=accounts.length
+  const allOpts=accounts.length
     ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
     :'<option value="">（先至帳戶頁新增）</option>';
-  ['txn-acct','txn-to-acct'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=opts;});
+  // txn-acct: show filtered, txn-to-acct: show all
+  filterAcctByType();
+  const toEl=document.getElementById('txn-to-acct');
+  if(toEl) toEl.innerHTML=allOpts;
   const ta=document.getElementById('txn-acct');
   if(ta) ta.onchange=populateCats;
   const fa=document.getElementById('filter-acct');
@@ -694,6 +789,14 @@ function setType(t,el){
   populateCats();
   document.getElementById('txn-acct-label').textContent=t==='xfer'?'轉出帳戶':'帳戶';
   document.getElementById('txn-to-wrap').style.display=t==='xfer'?'':'none';
+  // For transfer, show all accounts
+  if(t==='xfer'){
+    const allOpts=accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('');
+    const fromEl=document.getElementById('txn-acct');
+    const toEl=document.getElementById('txn-to-acct');
+    if(fromEl) fromEl.innerHTML=allOpts;
+    if(toEl) toEl.innerHTML=allOpts;
+  }
 }
 function setArType(t,el){
   currentArType=t;
@@ -958,9 +1061,9 @@ function renderTotalAssets(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:13px;color:var(--text2)">'+icon+' '+label+'</span><span style="font-size:13px;font-weight:500;color:'+(color||'var(--text)')+'">'+Math.round(val).toLocaleString()+'</span></div>';
   }
 
-  el.style.cssText='border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:0;margin-bottom:14px;overflow:hidden;background:var(--bg)';
+  el.style.cssText='border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:0;margin-bottom:14px;overflow:hidden;background:var(--bg);width:100%';
   el.innerHTML=
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;width:100%">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;width:100%" class="asset-grid">'+
     '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">資產</div>'+
       row('🏦','銀行',bankTotal)+
@@ -969,7 +1072,7 @@ function renderTotalAssets(){
       row('🪙','加密貨幣',cryptoTotal)+
       '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
         '<span style="font-size:12px;color:var(--text2)">小計</span>'+
-        '<span style="font-size:17px;font-weight:700;color:var(--green)">'+Math.round(totalAsset).toLocaleString()+'</span>'+
+        '<span style="font-size:17px;font-weight:700;color:var(--green)">'+Math.round(totalAsset).toLocaleString('zh-TW')+'</span>'+
       '</div>'+
     '</div>'+
     '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
