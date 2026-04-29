@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記帳本</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeece8;
+    --text: #1a1a1a; --text2: #6b6b6b; --text3: #999;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 8px; --radius-lg: 12px;
+    --green: #1D9E75; --red: #D85A30; --amber: #BA7517; --blue: #185FA5; --purple: #534AB7;
+    --green-bg: #E1F5EE; --red-bg: #FAECE7; --amber-bg: #FAEEDA; --blue-bg: #E6F1FB; --purple-bg: #EEEDFE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
+      --text: #f5f5f0; --text2: #a0a09a; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --green-bg: #0a3324; --red-bg: #3b1a10; --amber-bg: #3b2a08; --blue-bg: #0c2440; --purple-bg: #1e1a40;
+    }
+  }
+  html, body { height: 100%; background: var(--bg3); font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: var(--text); }
+  .app { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+
+  /* topbar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 16px; flex-wrap: wrap; gap: 10px; }
+  .topbar h1 { font-size: 20px; font-weight: 600; }
+  .topbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .nav-tabs { display: flex; gap: 3px; background: var(--bg2); border-radius: var(--radius); padding: 3px; }
+  .tab-btn { padding: 6px 12px; font-size: 13px; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; transition: all .15s; white-space: nowrap; }
+  .tab-btn.active { background: var(--bg); color: var(--text); font-weight: 500; border: 0.5px solid var(--border2); }
+
+  /* data buttons */
+  .btn-data { padding: 6px 12px; font-size: 12px; border: 0.5px solid var(--border2); background: var(--bg); border-radius: var(--radius); cursor: pointer; color: var(--text2); font-family: inherit; }
+  .btn-data:hover { background: var(--bg2); }
+
+  /* cards */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; }
+  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+  /* summary grid */
+  .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: 600; }
+
+  /* account cards */
+  .acct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .acct-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; position: relative; }
+  .acct-card-icon { font-size: 22px; margin-bottom: 8px; }
+  .acct-card-name { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+  .acct-card-bal { font-size: 18px; font-weight: 600; }
+  .acct-card-cur { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .acct-del { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; opacity: 0; transition: opacity .15s; }
+  .acct-card:hover .acct-del { opacity: 1; }
+
+  /* forms */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 12px; color: var(--text2); }
+  input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+    font-family: inherit; font-size: 14px; padding: 8px 10px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text); outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--text2); }
+
+  /* type toggles */
+  .type-toggle { display: flex; border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border2); margin-bottom: 12px; }
+  .type-btn { flex: 1; padding: 9px 8px; font-size: 13px; border: none; cursor: pointer; font-family: inherit; background: var(--bg); color: var(--text2); transition: all .15s; }
+  .type-btn.active-in   { background: var(--green-bg); color: var(--green); font-weight: 500; }
+  .type-btn.active-out  { background: var(--red-bg);   color: var(--red);   font-weight: 500; }
+  .type-btn.active-xfer { background: var(--purple-bg);color: var(--purple);font-weight: 500; }
+  .type-btn.active-ar   { background: var(--blue-bg);  color: var(--blue);  font-weight: 500; }
+  .type-btn.active-ap   { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
+
+  .acct-type-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 12px; }
+  .acct-type-btn { padding: 9px 4px; font-size: 12px; border: 0.5px solid var(--border); background: var(--bg); border-radius: var(--radius); cursor: pointer; font-family: inherit; color: var(--text2); text-align: center; }
+  .acct-type-btn.selected { background: var(--bg2); color: var(--text); border-color: var(--border2); font-weight: 500; }
+
+  /* buttons */
+  .btn-primary { background: var(--text); color: var(--bg); border: none; padding: 9px 22px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .btn-primary:hover { opacity: .85; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border: 0.5px solid var(--border2); background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; white-space: nowrap; }
+  .btn-sm:hover { background: var(--bg2); }
+  .btn-sm.danger:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+  /* list items */
+  .txn-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; background: var(--bg); }
+  .txn-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .txn-meta { flex: 1; min-width: 0; }
+  .txn-desc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .txn-amount { font-size: 15px; font-weight: 600; flex-shrink: 0; }
+
+  /* badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .badge-in     { background: var(--green-bg);  color: var(--green); }
+  .badge-out    { background: var(--red-bg);    color: var(--red); }
+  .badge-xfer   { background: var(--purple-bg); color: var(--purple); }
+  .badge-paid   { background: #EAF3DE; color: #3B6D11; }
+  .badge-unpaid { background: var(--amber-bg);  color: var(--amber); }
+  .badge-overdue{ background: #FCEBEB; color: #A32D2D; }
+
+  /* ar items */
+  .ar-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; }
+  .ar-meta { flex: 1; min-width: 0; }
+
+  /* budget bars */
+  .budget-bar-wrap { margin-bottom: 12px; }
+  .budget-bar-info { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+  .budget-bar-track { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+
+  /* charts */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .chart-wrap { position: relative; width: 100%; height: 220px; margin-top: 8px; }
+
+  /* panel */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .empty-state { text-align: center; padding: 2.5rem; color: var(--text2); font-size: 14px; }
+
+  /* filter row */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* footer note */
+  .footer-note { text-align: center; font-size: 12px; color: var(--text3); padding: 20px 0 0; }
+
+  @media (max-width: 640px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .form-grid, .form-grid.three, .form-grid.four { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .acct-type-grid { grid-template-columns: repeat(2,1fr); }
+    .nav-tabs .tab-btn { padding: 6px 8px; font-size: 12px; }
+    .topbar { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>記帳本</h1>
+    <div class="topbar-right">
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('dashboard',this)">總覽</button>
+        <button class="tab-btn" onclick="switchTab('txn',this)">收支</button>
+        <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
+        <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
+        <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
+      </div>
+      <button class="btn-data" onclick="exportJSON()" title="備份資料">⬇ 匯出</button>
+      <label class="btn-data" style="cursor:pointer" title="還原資料">⬆ 匯入<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+      <button class="btn-data" onclick="exportCSV()" title="匯出收支明細">📊 CSV</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="panel active">
+    <div id="acct-overview" class="acct-grid"></div>
+    <div class="summary-grid" id="summary-cards"></div>
+    <div class="two-col">
+      <div class="card">
+        <div class="section-header"><span class="section-title">本月支出分類</span></div>
+        <div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-header"><span class="section-title">近6個月收支</span></div>
+        <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-header"><span class="section-title">最近10筆記錄</span></div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+
+  <!-- TXN -->
+  <div id="tab-txn" class="panel">
+    <div class="card">
+      <div class="section-title">新增記錄</div>
+      <div class="type-toggle" id="txn-type-toggle">
+        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
+        <button class="type-btn" onclick="setType('out',this)">支出</button>
+        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
+      </div>
+      <div class="form-grid four" style="margin-bottom:10px">
+        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01"></div>
+        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>CNY</option><option>HKD</option><option>GBP</option></select></div>
+        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
+        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
+        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
+        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+      </div>
+      <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">收支記錄</span>
+        <div class="filter-row">
+          <input type="month" id="filter-month" onchange="renderTxnList()">
+          <select id="filter-acct" onchange="renderTxnList()"><option value="">全部帳戶</option></select>
+          <select id="filter-type" onchange="renderTxnList()"><option value="">全部</option><option value="in">收入</option><option value="out">支出</option><option value="xfer">轉帳</option></select>
+        </div>
+      </div>
+      <div id="txn-list"></div>
+    </div>
+  </div>
+
+  <!-- AR/AP -->
+  <div id="tab-ar" class="panel">
+    <div class="card">
+      <div class="section-title">新增應收 / 應付</div>
+      <div class="type-toggle">
+        <button class="type-btn active-ar" onclick="setArType('ar',this)">應收</button>
+        <button class="type-btn" onclick="setArType('ap',this)">應付</button>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px">
+        <div class="form-group"><label>對象名稱</label><input type="text" id="ar-name" placeholder="公司或個人"></div>
+        <div class="form-group"><label>金額</label><input type="number" id="ar-amount" placeholder="0" min="0"></div>
+        <div class="form-group"><label>幣別</label><select id="ar-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>CNY</option><option>HKD</option><option>GBP</option></select></div>
+        <div class="form-group"><label>到期日</label><input type="date" id="ar-due"></div>
+        <div class="form-group"><label>備註</label><input type="text" id="ar-note" placeholder="選填"></div>
+      </div>
+      <div style="text-align:right"><button class="btn-primary" onclick="addAr()">新增</button></div>
+    </div>
+    <div class="two-col">
+      <div class="card"><div class="section-header"><span class="section-title" style="color:var(--blue)">應收帳款</span></div><div id="ar-list"></div></div>
+      <div class="card"><div class="section-header"><span class="section-title" style="color:var(--amber)">應付帳款</span></div><div id="ap-list"></div></div>
+    </div>
+  </div>
+
+  <!-- BUDGET -->
+  <div id="tab-budget" class="panel">
+    <div class="card">
+      <div class="section-title">設定月度預算（TWD）</div>
+      <div id="budget-form"></div>
+      <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="saveBudgets()">儲存預算</button></div>
+    </div>
+    <div class="card"><div class="section-header"><span class="section-title">本月預算使用狀況</span></div><div id="budget-progress"></div></div>
+  </div>
+
+  <!-- ACCOUNTS -->
+  <div id="tab-accounts" class="panel">
+    <div class="card">
+      <div class="section-title">新增帳戶</div>
+      <div class="acct-type-grid">
+        <button class="acct-type-btn selected" onclick="selAcctType('bank',this)">🏦 銀行帳戶</button>
+        <button class="acct-type-btn" onclick="selAcctType('cash',this)">💵 現金</button>
+        <button class="acct-type-btn" onclick="selAcctType('credit',this)">💳 信用卡</button>
+        <button class="acct-type-btn" onclick="selAcctType('invest',this)">📈 投資帳戶</button>
+      </div>
+      <div class="form-grid three">
+        <div class="form-group"><label>帳戶名稱</label><input type="text" id="acct-name" placeholder="例：玉山銀行"></div>
+        <div class="form-group"><label>起始餘額</label><input type="number" id="acct-balance" placeholder="0" step="0.01"></div>
+        <div class="form-group"><label>幣別</label><select id="acct-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>CNY</option><option>HKD</option><option>GBP</option></select></div>
+      </div>
+      <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="addAccount()">新增帳戶</button></div>
+    </div>
+    <div class="card"><div class="section-title" style="margin-bottom:12px">我的帳戶</div><div id="acct-manage-list"></div></div>
+  </div>
+
+  <div class="footer-note">資料存在此瀏覽器 · 定期點「匯出」備份 JSON 以防資料遺失</div>
+</div>
+
+<script>
+const CATS_IN  = ['薪資','投資','兼職','獎金','其他收入'];
+const CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','其他支出'];
+const CAT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#993556','#3B6D11','#634806','#5DCAA5','#5F5E5A'];
+const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈'};
+const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41};
+const KEY = 'ledger_v3';
+
+function ld(k,d){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} }
+function sv(){ localStorage.setItem(KEY, JSON.stringify({txns,arItems,budgets,accounts})); }
+function loadAll(){
+  const d=ld(KEY,null);
+  if(d){ txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; }
+}
+
+let txns=[], arItems=[], budgets={}, accounts=[];
+let currentType='in', currentArType='ar', currentAcctType='bank';
+let pieInst=null, barInst=null;
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function thisMonth(){ return todayStr().slice(0,7); }
+function twdEq(a,c){ return a*(RATES[c]||1); }
+function fmt(a,c){
+  const n=parseFloat(a); if(isNaN(n)) return '-';
+  if(c==='JPY') return c+' '+Math.round(n).toLocaleString();
+  return c+' '+n.toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+
+/* ── export / import ── */
+function exportJSON(){
+  const data = JSON.stringify({txns,arItems,budgets,accounts}, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download = '記帳本備份_' + todayStr() + '.json';
+  a.click();
+}
+function importJSON(e){
+  const file = e.target.files[0]; if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if(!confirm('確定要匯入？這會覆蓋目前所有資料。')) return;
+      txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
+      sv(); refreshAcctSelects(); renderDashboard(); alert('匯入成功！');
+    } catch { alert('檔案格式錯誤，請選擇正確的備份 JSON 檔。'); }
+  };
+  r.readAsText(file);
+  e.target.value='';
+}
+function exportCSV(){
+  const rows=[['日期','類型','類別','金額','幣別','帳戶','備註']];
+  txns.forEach(t=>{
+    const aName=accounts.find(a=>a.id===t.acctId)?.name||'';
+    const type=t.type==='in'?'收入':t.type==='out'?'支出':'轉帳';
+    rows.push([t.date,type,t.cat,t.amount,t.currency,aName,t.note||'']);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='收支明細_'+todayStr()+'.csv';
+  a.click();
+}
+
+/* ── accounts ── */
+function acctBalance(acct){
+  let bal=acct.initBalance||0;
+  txns.filter(t=>t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id)).forEach(t=>{
+    if(t.type==='in'  &&t.acctId===acct.id)   bal+=t.amount;
+    if(t.type==='out' &&t.acctId===acct.id)   bal-=t.amount;
+    if(t.type==='xfer'&&t.acctId===acct.id)   bal-=t.amount;
+    if(t.type==='xfer'&&t.toAcctId===acct.id) bal+=t.amount;
+  });
+  return bal;
+}
+function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
+function addAccount(){
+  const name=document.getElementById('acct-name').value.trim();
+  const bal=parseFloat(document.getElementById('acct-balance').value)||0;
+  const cur=document.getElementById('acct-currency').value;
+  if(!name){alert('請輸入帳戶名稱');return;}
+  accounts.push({id:Date.now(),type:currentAcctType,name,initBalance:bal,currency:cur});
+  sv(); renderAccounts(); refreshAcctSelects();
+  document.getElementById('acct-name').value='';
+  document.getElementById('acct-balance').value='';
+}
+function deleteAccount(id){
+  if(!confirm('確定刪除此帳戶？')) return;
+  accounts=accounts.filter(a=>a.id!==id); sv(); renderAccounts(); refreshAcctSelects();
+}
+function selAcctType(t,el){
+  currentAcctType=t;
+  document.querySelectorAll('.acct-type-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function renderAccounts(){
+  const el=document.getElementById('acct-manage-list');
+  if(!accounts.length){el.innerHTML='<div class="empty-state">尚未新增帳戶</div>';return;}
+  el.innerHTML=accounts.map(a=>{
+    const bal=acctBalance(a);
+    const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--text)':'var(--red)');
+    return `<div class="txn-item">
+      <div style="font-size:22px;width:36px;text-align:center">${ICONS[a.type]||'🏦'}</div>
+      <div class="txn-meta"><div class="txn-desc">${a.name}</div><div class="txn-sub">起始餘額 ${fmt(a.initBalance,a.currency)} · ${a.currency}</div></div>
+      <div class="txn-amount" style="color:${c}">${fmt(bal,a.currency)}</div>
+      <button class="btn-sm danger" onclick="deleteAccount(${a.id})">刪除</button>
+    </div>`;
+  }).join('');
+}
+function refreshAcctSelects(){
+  const opts=accounts.length
+    ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
+    :'<option value="">（先至帳戶頁新增）</option>';
+  ['txn-acct','txn-to-acct'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=opts;});
+  const fa=document.getElementById('filter-acct');
+  if(fa) fa.innerHTML='<option value="">全部帳戶</option>'+accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+}
+function renderAcctOverview(){
+  const el=document.getElementById('acct-overview');
+  if(!accounts.length){el.innerHTML='';return;}
+  el.innerHTML=accounts.map(a=>{
+    const bal=acctBalance(a);
+    const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
+    return `<div class="acct-card">
+      <button class="acct-del" onclick="deleteAccount(${a.id})">✕</button>
+      <div class="acct-card-icon">${ICONS[a.type]||'🏦'}</div>
+      <div class="acct-card-name">${a.name}</div>
+      <div class="acct-card-bal" style="color:${c}">${fmt(bal,a.currency)}</div>
+      <div class="acct-card-cur">${a.currency}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── txn ── */
+function setType(t,el){
+  currentType=t;
+  document.querySelectorAll('#txn-type-toggle .type-btn').forEach(b=>b.className='type-btn');
+  el.className='type-btn active-'+t;
+  populateCats();
+  document.getElementById('txn-acct-label').textContent=t==='xfer'?'轉出帳戶':'帳戶';
+  document.getElementById('txn-to-wrap').style.display=t==='xfer'?'':'none';
+}
+function setArType(t,el){
+  currentArType=t;
+  document.querySelectorAll('#tab-ar .type-btn').forEach(b=>b.className='type-btn');
+  el.className='type-btn active-'+t;
+}
+function populateCats(){
+  const cats=currentType==='in'?CATS_IN:currentType==='xfer'?['轉帳']:CATS_OUT;
+  document.getElementById('txn-cat').innerHTML=cats.map(c=>`<option>${c}</option>`).join('');
+}
+function addTxn(){
+  const amt=parseFloat(document.getElementById('txn-amount').value);
+  if(!amt||amt<=0){alert('請輸入有效金額');return;}
+  const acctId=parseInt(document.getElementById('txn-acct').value)||null;
+  const toAcctId=currentType==='xfer'?(parseInt(document.getElementById('txn-to-acct').value)||null):null;
+  if(currentType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
+  txns.unshift({id:Date.now(),type:currentType,amount:amt,
+    currency:document.getElementById('txn-currency').value,
+    cat:document.getElementById('txn-cat').value,
+    date:document.getElementById('txn-date').value||todayStr(),
+    note:document.getElementById('txn-note').value,
+    acctId,toAcctId});
+  sv();
+  document.getElementById('txn-amount').value='';
+  document.getElementById('txn-note').value='';
+  renderTxnList(); renderAcctOverview();
+}
+function deleteTxn(id){
+  txns=txns.filter(t=>t.id!==id); sv(); renderTxnList(); renderAcctOverview(); renderDashboard();
+}
+function renderTxnList(){
+  const m=document.getElementById('filter-month').value;
+  const fa=document.getElementById('filter-acct').value;
+  const ft=document.getElementById('filter-type').value;
+  let list=txns;
+  if(m)  list=list.filter(t=>t.date.startsWith(m));
+  if(fa) list=list.filter(t=>String(t.acctId)===fa||String(t.toAcctId)===fa);
+  if(ft) list=list.filter(t=>t.type===ft);
+  const el=document.getElementById('txn-list');
+  if(!list.length){el.innerHTML='<div class="empty-state">尚無記錄</div>';return;}
+  el.innerHTML=list.map(t=>{
+    const bg=t.type==='in'?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
+    const ic=t.type==='in'?'+':t.type==='out'?'-':'⇄';
+    const c=t.type==='in'?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
+    const s=t.type==='in'?'+':t.type==='out'?'-':'';
+    const badge=`<span class="badge badge-${t.type}">${t.type==='in'?'收入':t.type==='out'?'支出':'轉帳'}</span>`;
+    const an=t.acctId?acctName(t.acctId):'';
+    const tn=t.toAcctId?' → '+acctName(t.toAcctId):'';
+    return `<div class="txn-item">
+      <div class="txn-icon" style="background:${bg}">${ic}</div>
+      <div class="txn-meta">
+        <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
+        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}</div>
+      </div>
+      <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+      <button class="btn-sm danger" onclick="deleteTxn(${t.id})">刪除</button>
+    </div>`;
+  }).join('');
+}
+
+/* ── AR/AP ── */
+function addAr(){
+  const amt=parseFloat(document.getElementById('ar-amount').value);
+  const name=document.getElementById('ar-name').value.trim();
+  if(!amt||!name){alert('請輸入對象與金額');return;}
+  arItems.unshift({id:Date.now(),type:currentArType,name,amount:amt,
+    currency:document.getElementById('ar-currency').value,
+    due:document.getElementById('ar-due').value,
+    note:document.getElementById('ar-note').value,status:'unpaid'});
+  sv();
+  document.getElementById('ar-name').value='';
+  document.getElementById('ar-amount').value='';
+  document.getElementById('ar-note').value='';
+  renderAr();
+}
+function markArPaid(id){
+  const a=arItems.find(a=>a.id===id);
+  if(a) a.status=a.status==='paid'?'unpaid':'paid';
+  sv(); renderAr();
+}
+function deleteAr(id){ arItems=arItems.filter(a=>a.id!==id); sv(); renderAr(); }
+function arBadge(a){
+  if(a.status==='paid') return '<span class="badge badge-paid">已結清</span>';
+  if(a.due&&a.due<todayStr()) return '<span class="badge badge-overdue">已逾期</span>';
+  return '<span class="badge badge-unpaid">待結清</span>';
+}
+function renderArList(type,elId){
+  const list=arItems.filter(a=>a.type===type);
+  const el=document.getElementById(elId);
+  if(!list.length){el.innerHTML='<div class="empty-state" style="padding:1.5rem">尚無記錄</div>';return;}
+  const c=type==='ar'?'var(--blue)':'var(--amber)';
+  el.innerHTML=list.map(a=>`<div class="ar-item">
+    <div class="ar-meta">
+      <div style="font-size:14px;font-weight:500">${a.name}</div>
+      <div style="font-size:12px;color:var(--text2)">${a.due?'到期：'+a.due:'未設到期'}${a.note?' · '+a.note:''} ${arBadge(a)}</div>
+    </div>
+    <div style="font-size:15px;font-weight:600;color:${c};flex-shrink:0">${fmt(a.amount,a.currency)}</div>
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn-sm" onclick="markArPaid(${a.id})">${a.status==='paid'?'取消':'結清'}</button>
+      <button class="btn-sm danger" onclick="deleteAr(${a.id})">刪除</button>
+    </div>
+  </div>`).join('');
+}
+function renderAr(){ renderArList('ar','ar-list'); renderArList('ap','ap-list'); }
+
+/* ── budget ── */
+function renderBudget(){
+  document.getElementById('budget-form').innerHTML='<div class="form-grid">'+
+    CATS_OUT.map(c=>`<div class="form-group"><label>${c}</label>
+    <input type="number" id="bgt-${c}" value="${budgets[c]||''}" placeholder="0" min="0" step="100"></div>`).join('')+'</div>';
+  const m=thisMonth(), spent={};
+  txns.filter(t=>t.type==='out'&&t.date.startsWith(m)&&t.currency==='TWD').forEach(t=>{spent[t.cat]=(spent[t.cat]||0)+t.amount;});
+  const prog=document.getElementById('budget-progress');
+  const bCats=CATS_OUT.filter(c=>budgets[c]>0);
+  if(!bCats.length){prog.innerHTML='<div class="empty-state">請先設定預算</div>';return;}
+  prog.innerHTML=bCats.map(c=>{
+    const b=budgets[c]||0,s=spent[c]||0,pct=b>0?Math.min(100,(s/b)*100):0,over=s>b;
+    const col=pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
+    return `<div class="budget-bar-wrap">
+      <div class="budget-bar-info"><span>${c}</span><span style="color:${over?'var(--red)':'var(--text2)'}">${s.toLocaleString()} / ${b.toLocaleString()} TWD${over?' (超支)':''}</span></div>
+      <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+}
+function saveBudgets(){
+  CATS_OUT.forEach(c=>{const v=parseFloat(document.getElementById('bgt-'+c)?.value);if(v>0)budgets[c]=v;else delete budgets[c];});
+  sv(); renderBudget(); alert('預算已儲存');
+}
+
+/* ── dashboard ── */
+function renderDashboard(){
+  renderAcctOverview();
+  const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
+  const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOut=mT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const arTotal =arItems.filter(a=>a.type==='ar'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
+  const apTotal =arItems.filter(a=>a.type==='ap'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
+  const net=totalIn-totalOut;
+  document.getElementById('summary-cards').innerHTML=`
+    <div class="metric"><div class="metric-label">本月收入 (約TWD)</div><div class="metric-value" style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOut).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">本月結餘 (約TWD)</div><div class="metric-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
+
+  const catSpend={};
+  mT.filter(t=>t.type==='out').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
+  const cL=Object.keys(catSpend), cV=cL.map(c=>Math.round(catSpend[c]));
+  if(pieInst) pieInst.destroy();
+  if(cL.length){
+    pieInst=new Chart(document.getElementById('pieChart'),{type:'doughnut',
+      data:{labels:cL,datasets:[{data:cV,backgroundColor:CAT_COLORS.slice(0,cL.length),borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12},boxWidth:12,padding:8}}}}});
+  }
+  const months=[];
+  for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
+  const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
+  if(barInst) barInst.destroy();
+  barInst=new Chart(document.getElementById('barChart'),{type:'bar',
+    data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
+      {label:'收入',data:bIn,backgroundColor:'#5DCAA5',borderRadius:4},
+      {label:'支出',data:bOut,backgroundColor:'#F0997B',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:12},boxWidth:12}}},
+      scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:12},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}}}});
+
+  const recentEl=document.getElementById('recent-list');
+  if(!txns.length){recentEl.innerHTML='<div class="empty-state">尚無記錄，前往收支頁新增</div>';return;}
+  recentEl.innerHTML=txns.slice(0,10).map(t=>{
+    const bg=t.type==='in'?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
+    const c=t.type==='in'?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
+    const s=t.type==='in'?'+':t.type==='out'?'-':'';
+    return `<div class="txn-item">
+      <div class="txn-icon" style="background:${bg};font-size:12px">${t.type==='in'?'+':t.type==='out'?'-':'⇄'}</div>
+      <div class="txn-meta"><div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div><div class="txn-sub">${t.date}${t.acctId?' · '+acctName(t.acctId):''}</div></div>
+      <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+    </div>`;
+  }).join('');
+}
+
+function switchTab(t,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  el.classList.add('active');
+  if(t==='dashboard') renderDashboard();
+  if(t==='txn'){ refreshAcctSelects(); renderTxnList(); }
+  if(t==='ar') renderAr();
+  if(t==='budget') renderBudget();
+  if(t==='accounts') renderAccounts();
+}
+
+// init
+loadAll();
+document.getElementById('txn-date').value=todayStr();
+document.getElementById('filter-month').value=thisMonth();
+populateCats();
+refreshAcctSelects();
+renderDashboard();
+</script>
+</body>
+</html>
