@@ -439,10 +439,9 @@
     <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-cat-chips"></div>
     <input type="hidden" id="sheet-cat">
   </div>
-  <div style="margin-bottom:12px" id="sheet-acct-wrap">
+  <div style="margin-bottom:12px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
-    <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-acct-chips"></div>
-    <select id="sheet-acct-sel" style="display:none;width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
+    <select id="sheet-acct-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
     <input type="hidden" id="sheet-acct">
   </div>
   <div id="sheet-to-wrap" style="display:none;margin-bottom:12px">
@@ -1581,16 +1580,6 @@ function setSheetType(t, el){
   });
   document.getElementById('sheet-acct-label').textContent = t==='xfer'?'轉出帳戶':'帳戶';
   document.getElementById('sheet-to-wrap').style.display = t==='xfer'?'block':'none';
-  // Switch between chips (in/out) and dropdown (xfer)
-  const chips = document.getElementById('sheet-acct-chips');
-  const sel = document.getElementById('sheet-acct-sel');
-  if(t==='xfer'){
-    if(chips) chips.style.display='none';
-    if(sel) sel.style.display='block';
-  } else {
-    if(chips) chips.style.display='flex';
-    if(sel) sel.style.display='none';
-  }
   renderSheetCatChips();
   renderSheetAcctChips();
 }
@@ -1609,28 +1598,17 @@ function selectSheetCat(cat, el){
 }
 function renderSheetAcctChips(){
   const curId = document.getElementById('sheet-acct').value;
-  const acctOpts = accounts.map(a=>
+  const acctOpts = '<option value="">選擇帳戶</option>' + accounts.map(a=>
     `<option value="${a.id}"${String(a.id)===String(curId)?' selected':''}>${ICONS[a.type]} ${a.name} (${a.currency})</option>`
   ).join('');
-  const noAcct = '<span style="font-size:13px;color:var(--text2)">請先新增帳戶</span>';
-
-  // Chips for in/out
-  const chipsEl = document.getElementById('sheet-acct-chips');
-  if(chipsEl){
-    chipsEl.innerHTML = accounts.length
-      ? accounts.map(a=>`<button onclick="selectSheetAcct(${a.id},this)" class="chip-btn${String(a.id)===String(curId)?' chip-active':''}">${ICONS[a.type]} ${a.name}</button>`).join('')
-      : noAcct;
-  }
-  // Dropdown for xfer from
   const selEl = document.getElementById('sheet-acct-sel');
   if(selEl){
-    selEl.innerHTML = '<option value="">選擇帳戶</option>' + acctOpts;
+    selEl.innerHTML = acctOpts;
     selEl.onchange = ()=>{ document.getElementById('sheet-acct').value = selEl.value; };
   }
-  // Dropdown for xfer to
   const toSel = document.getElementById('sheet-to-sel');
   if(toSel){
-    toSel.innerHTML = '<option value="">選擇帳戶</option>' + acctOpts;
+    toSel.innerHTML = acctOpts;
     toSel.onchange = ()=>{ document.getElementById('sheet-to-acct').value = toSel.value; };
   }
 }
@@ -1661,9 +1639,7 @@ function quickAddProjectSheet(){
 function addTxnFromSheet(){
   const amt=parseFloat(document.getElementById('sheet-amount').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
-  const acctId = sheetType==='xfer'
-    ? (parseInt(document.getElementById('sheet-acct-sel')?.value)||null)
-    : (parseInt(document.getElementById('sheet-acct').value)||null);
+  const acctId = parseInt(document.getElementById('sheet-acct-sel')?.value)||null;
   const toAcctId = sheetType==='xfer'
     ? (parseInt(document.getElementById('sheet-to-sel')?.value)||null)
     : null;
