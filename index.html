@@ -1596,19 +1596,38 @@ function selectSheetCat(cat, el){
   document.querySelectorAll('#sheet-cat-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
   el.classList.add('chip-active');
 }
+function buildAcctOptgroups(curId){
+  const groups = [
+    {type:'bank',   label:'🏦 銀行帳戶'},
+    {type:'cash',   label:'💵 現金'},
+    {type:'prepaid',label:'🎴 預付/儲值卡'},
+    {type:'credit', label:'💳 信用卡'},
+    {type:'invest', label:'📈 投資帳戶'},
+    {type:'crypto', label:'🪙 加密貨幣'},
+    {type:'loan',   label:'🏛 貸款'},
+  ];
+  let html = '<option value="">選擇帳戶</option>';
+  groups.forEach(g=>{
+    const list = accounts.filter(a=>a.type===g.type);
+    if(!list.length) return;
+    html += `<optgroup label="${g.label}">`;
+    list.forEach(a=>{
+      html += `<option value="${a.id}"${String(a.id)===String(curId)?' selected':''}>${a.name} (${a.currency})</option>`;
+    });
+    html += '</optgroup>';
+  });
+  return html;
+}
 function renderSheetAcctChips(){
   const curId = document.getElementById('sheet-acct').value;
-  const acctOpts = '<option value="">選擇帳戶</option>' + accounts.map(a=>
-    `<option value="${a.id}"${String(a.id)===String(curId)?' selected':''}>${ICONS[a.type]} ${a.name} (${a.currency})</option>`
-  ).join('');
   const selEl = document.getElementById('sheet-acct-sel');
   if(selEl){
-    selEl.innerHTML = acctOpts;
+    selEl.innerHTML = buildAcctOptgroups(curId);
     selEl.onchange = ()=>{ document.getElementById('sheet-acct').value = selEl.value; };
   }
   const toSel = document.getElementById('sheet-to-sel');
   if(toSel){
-    toSel.innerHTML = acctOpts;
+    toSel.innerHTML = buildAcctOptgroups(document.getElementById('sheet-to-acct').value);
     toSel.onchange = ()=>{ document.getElementById('sheet-to-acct').value = toSel.value; };
   }
 }
