@@ -419,7 +419,7 @@
 
 <!-- 底部新增面板 -->
 <div id="add-sheet-backdrop" onclick="closeAddSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1500;"></div>
-<div id="add-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 44px;z-index:1501;max-height:90vh;overflow-y:auto;">
+<div id="add-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 44px;z-index:1501;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
   <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;"></div>
   <div style="font-size:16px;font-weight:500;margin-bottom:14px;color:var(--text)">新增記錄</div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
@@ -427,10 +427,12 @@
     <button id="sheet-btn-out" onclick="setSheetType('out',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">－ 支出</button>
     <button id="sheet-btn-xfer" onclick="setSheetType('xfer',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⇄ 轉帳</button>
   </div>
-  <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:12px;align-items:end">
-    <div class="form-group"><label>金額</label><input type="number" id="sheet-amount" placeholder="0" min="0" step="0.01" style="font-size:20px;font-weight:600;padding:10px 12px"></div>
-    <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
-    <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px;width:100%"></div>
+    <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px;width:100%"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
+  </div>
+  <div style="margin-bottom:12px">
+    <div class="form-group"><label>金額</label><input type="number" id="sheet-amount" placeholder="0" min="0" step="0.01" style="font-size:24px;font-weight:600;padding:12px;width:100%"></div>
   </div>
   <div style="margin-bottom:12px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">類別</label>
