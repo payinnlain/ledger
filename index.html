@@ -257,6 +257,7 @@
         <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
         <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
         <button class="tab-btn" onclick="switchTab('projects',this)">專案</button>
+        <button class="tab-btn" onclick="switchTab('tags',this)">標籤</button>
         <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
       </div>
       <button class="btn-data" onclick="exportJSON()" title="備份資料">⬇ 匯出</button>
@@ -349,6 +350,10 @@
         <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
         <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
         <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+        <div class="form-group"><label>標籤</label>
+          <input type="text" id="txn-tag" placeholder="例：Uber" list="tag-suggestions2">
+          <datalist id="tag-suggestions2"></datalist>
+        </div>
         <div class="form-group"><label>專案</label>
           <div style="display:flex;gap:6px">
             <select id="txn-project" style="flex:1"><option value="">無</option></select>
@@ -415,6 +420,18 @@
       </div>
       <div id="budget-form"></div>
       <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="saveBudgets()">儲存預算</button></div>
+    </div>
+  </div>
+
+  <!-- TAGS -->
+  <div id="tab-tags" class="panel">
+    <div id="tag-list-panel"></div>
+    <div id="tag-detail-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <button onclick="backToTags()" class="btn-sm">← 返回</button>
+        <span id="tag-detail-title" style="font-size:15px;font-weight:500"></span>
+      </div>
+      <div id="tag-detail-content"></div>
     </div>
   </div>
 
@@ -511,6 +528,7 @@
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
     <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填"></div>
+    <div class="form-group"><label>標籤</label><input type="text" id="sheet-tag" placeholder="例：Uber" list="tag-suggestions"><datalist id="tag-suggestions"></datalist></div>
     <div class="form-group"><label>專案</label>
       <div style="display:flex;gap:6px">
         <select id="sheet-project" style="flex:1"><option value="">無</option></select>
@@ -624,6 +642,12 @@ async function loadAll(){
   }
   refreshAcctSelects();
   refreshProjectSelect();
+  // Update tag suggestions
+  const allTags=[...new Set(txns.map(t=>t.tag).filter(Boolean))];
+  ['tag-suggestions','tag-suggestions2'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(dl) dl.innerHTML=allTags.map(t=>`<option value="${t}">`).join('');
+  });
   renderDashboard();
 }
 
@@ -1105,6 +1129,7 @@ function addTxn(){
       cat:document.getElementById('txn-cat').value,
       date:document.getElementById('txn-date').value||todayStr(),
       note:document.getElementById('txn-note').value,
+      tag:document.getElementById('txn-tag')?.value.trim()||null,
       project:document.getElementById('txn-project').value||null,
       acctId,toAcctId});
   }
@@ -1281,7 +1306,7 @@ function renderTxnList(){
       <div class="txn-icon" style="background:${bg}">${ic}</div>
       <div class="txn-meta">
         <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
-        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.project?` · <span style="background:${(projects.find(p=>String(p.id)===String(t.project))||{}).color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${(projects.find(p=>String(p.id)===String(t.project))||{}).name||''}</span>`:''}</div>
+        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}${t.project?` · <span style="background:${(projects.find(p=>String(p.id)===String(t.project))||{}).color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${(projects.find(p=>String(p.id)===String(t.project))||{}).name||''}</span>`:''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
       <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
@@ -1885,6 +1910,7 @@ function addTxnFromSheet(){
   closeAddSheet();
   document.getElementById('sheet-amount').value='';
   document.getElementById('sheet-note').value='';
+  const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
   if(document.getElementById('sheet-inst-check')) document.getElementById('sheet-inst-check').checked=false;
   if(document.getElementById('sheet-inst-fields')) document.getElementById('sheet-inst-fields').style.display='none';
   renderCalendar(); renderTxnList(); renderAcctOverview();
@@ -1945,6 +1971,82 @@ function confirmLoanPayment(id){
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
   alert('還款記錄已新增！');
 }
+/* ── Tags ── */
+function getAllTags(){
+  const tags={};
+  txns.forEach(t=>{
+    if(!t.tag) return;
+    if(!tags[t.tag]) tags[t.tag]={tag:t.tag,txns:[]};
+    tags[t.tag].txns.push(t);
+  });
+  return Object.values(tags).sort((a,b)=>b.txns.length-a.txns.length);
+}
+function renderTags(){
+  const el=document.getElementById('tag-list-panel');
+  const detail=document.getElementById('tag-detail-panel');
+  if(detail) detail.style.display='none';
+  if(el) el.style.display='block';
+  const tags=getAllTags();
+  if(!tags.length){
+    el.innerHTML='<div class="card"><div class="empty-state">尚無標籤<br><span style="font-size:12px;color:var(--text3)">新增記錄時在標籤欄輸入關鍵字</span></div></div>';
+    return;
+  }
+  // Update datalist suggestions
+  const allTags=[...new Set(txns.map(t=>t.tag).filter(Boolean))];
+  ['tag-suggestions','tag-suggestions2'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(dl) dl.innerHTML=allTags.map(t=>`<option value="${t}">`).join('');
+  });
+  el.innerHTML='<div class="card">'+tags.map(g=>{
+    const totalOut=g.txns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    const totalIn=g.txns.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    return `<div onclick="showTagDetail('${g.tag}')" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500">#${g.tag}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${g.txns.length} 筆記錄</div>
+      </div>
+      <div style="text-align:right">
+        ${totalOut>0?`<div style="font-size:13px;color:var(--red)">-${Math.round(totalOut).toLocaleString()}</div>`:''}
+        ${totalIn>0?`<div style="font-size:13px;color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div>`:''}
+      </div>
+      <span style="color:var(--text3);font-size:16px">›</span>
+    </div>`;
+  }).join('')+'</div>';
+}
+function showTagDetail(tag){
+  document.getElementById('tag-list-panel').style.display='none';
+  const detail=document.getElementById('tag-detail-panel');
+  detail.style.display='block';
+  document.getElementById('tag-detail-title').textContent='#'+tag;
+  const list=txns.filter(t=>t.tag===tag).sort((a,b)=>b.date.localeCompare(a.date));
+  const totalOut=list.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalIn=list.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  document.getElementById('tag-detail-content').innerHTML=
+    `<div class="card" style="margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div><div style="font-size:11px;color:var(--text2)">筆數</div><div style="font-size:18px;font-weight:600">${list.length}</div></div>
+        <div><div style="font-size:11px;color:var(--text2)">支出</div><div style="font-size:18px;font-weight:600;color:var(--red)">${Math.round(totalOut).toLocaleString()}</div></div>
+        <div><div style="font-size:11px;color:var(--text2)">收入</div><div style="font-size:18px;font-weight:600;color:var(--green)">${Math.round(totalIn).toLocaleString()}</div></div>
+      </div>
+    </div>
+    <div class="card">`+
+    list.map(t=>{
+      const c=t.type==='in'?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
+      const s=t.type==='in'?'+':t.type==='out'?'-':'';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+        <div style="flex:1">
+          <div style="font-size:14px">${t.cat}${t.note?' · '+t.note:''}</div>
+          <div style="font-size:12px;color:var(--text2)">${t.date}${t.acctId?' · '+acctName(t.acctId):''}</div>
+        </div>
+        <div style="font-size:14px;font-weight:500;color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+      </div>`;
+    }).join('')+
+    '</div>';
+}
+function backToTags(){
+  document.getElementById('tag-detail-panel').style.display='none';
+  document.getElementById('tag-list-panel').style.display='block';
+}
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1954,6 +2056,7 @@ function switchTab(t,el){
   if(t==='txn'){ refreshAcctSelects(); renderCalendar(); renderTxnList(); }
   if(t==='ar') renderAr();
   if(t==='budget') renderBudget();
+  if(t==='tags') renderTags();
   if(t==='projects'){ renderProjects(); refreshProjectSelect(); }
   if(t==='accounts') renderAccounts();
 }
