@@ -413,10 +413,51 @@
   <div class="footer-note">資料存在此瀏覽器 · 定期點「匯出」備份 JSON 以防資料遺失</div>
 </div>
 
-<!-- 浮動重整按鈕 -->
-<button onclick="debugData()" style="position:fixed;bottom:128px;right:16px;width:48px;height:48px;border-radius:50%;background:#185FA5;color:#fff;border:none;font-size:14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;">🔍</button>
-<button onclick="reloadData()" id="fab-reload"
-  style="position:fixed;bottom:72px;right:16px;width:48px;height:48px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">↻</button>
+<!-- 浮動按鈕群 -->
+<button onclick="reloadData()" id="fab-reload" style="position:fixed;bottom:72px;right:16px;width:44px;height:44px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:18px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">↻</button>
+<button onclick="openAddSheet()" id="fab-add" style="position:fixed;bottom:124px;right:16px;width:54px;height:54px;border-radius:50%;background:#1D9E75;color:#fff;border:none;font-size:26px;cursor:pointer;box-shadow:0 4px 20px rgba(29,158,117,0.4);z-index:999;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1;">＋</button>
+
+<!-- 底部新增面板 -->
+<div id="add-sheet-backdrop" onclick="closeAddSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1500;"></div>
+<div id="add-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 44px;z-index:1501;max-height:90vh;overflow-y:auto;">
+  <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;"></div>
+  <div style="font-size:16px;font-weight:500;margin-bottom:14px;color:var(--text)">新增記錄</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <button id="sheet-btn-in" onclick="setSheetType('in',this)" style="padding:10px;border:1.5px solid var(--green);background:var(--green-bg);color:var(--green);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">＋ 收入</button>
+    <button id="sheet-btn-out" onclick="setSheetType('out',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">－ 支出</button>
+    <button id="sheet-btn-xfer" onclick="setSheetType('xfer',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⇄ 轉帳</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:12px;align-items:end">
+    <div class="form-group"><label>金額</label><input type="number" id="sheet-amount" placeholder="0" min="0" step="0.01" style="font-size:20px;font-weight:600;padding:10px 12px"></div>
+    <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
+    <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px"></div>
+  </div>
+  <div style="margin-bottom:12px">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">類別</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-cat-chips"></div>
+    <input type="hidden" id="sheet-cat">
+  </div>
+  <div style="margin-bottom:12px">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-acct-chips"></div>
+    <input type="hidden" id="sheet-acct">
+  </div>
+  <div id="sheet-to-wrap" style="display:none;margin-bottom:12px">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">轉入帳戶</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-to-chips"></div>
+    <input type="hidden" id="sheet-to-acct">
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填"></div>
+    <div class="form-group"><label>專案</label>
+      <div style="display:flex;gap:6px">
+        <select id="sheet-project" style="flex:1"><option value="">無</option></select>
+        <button type="button" onclick="quickAddProjectSheet()" class="btn-sm" style="white-space:nowrap">＋</button>
+      </div>
+    </div>
+  </div>
+  <button onclick="addTxnFromSheet()" style="width:100%;padding:14px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">新增</button>
+</div>
 
 <!-- 編輯 Modal -->
 <div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;"></div>
