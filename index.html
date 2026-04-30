@@ -311,6 +311,57 @@
       <input type="month" id="filter-month" style="display:none" onchange="renderTxnList()">
       <div id="txn-list"></div>
     </div>
+
+    <!-- 新增記錄表單（電腦版） -->
+    <div class="card" style="margin-top:14px">
+      <div class="section-title" style="margin-bottom:14px">新增記錄</div>
+      <div class="type-toggle" id="txn-type-toggle">
+        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
+        <button class="type-btn" onclick="setType('out',this)">支出</button>
+        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
+      </div>
+      <div class="form-grid four" style="margin-bottom:10px">
+        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
+        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
+        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
+        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
+      </div>
+      <div class="form-grid" style="margin-bottom:10px">
+        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
+          <option value="">全部</option>
+          <option value="bank">🏦 銀行帳戶</option>
+          <option value="cash">💵 現金</option>
+          <option value="credit">💳 信用卡</option>
+          <option value="invest">📈 投資帳戶</option>
+          <option value="crypto">🪙 加密貨幣</option>
+          <option value="loan">🏛 貸款</option>
+          <option value="prepaid">🎴 預付/儲值卡</option>
+        </select></div>
+        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
+        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
+        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+        <div class="form-group"><label>專案</label>
+          <div style="display:flex;gap:6px">
+            <select id="txn-project" style="flex:1"><option value="">無</option></select>
+            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
+          </div>
+        </div>
+      </div>
+      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
+        <div class="form-grid three">
+          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
+          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
+          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
+        </label>
+        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+      </div>
+    </div>
   </div>
 
   <!-- AR/AP -->
@@ -456,6 +507,16 @@
         <select id="sheet-project" style="flex:1"><option value="">無</option></select>
         <button type="button" onclick="quickAddProjectSheet()" class="btn-sm" style="white-space:nowrap">＋</button>
       </div>
+    </div>
+  </div>
+  <div id="sheet-inst-wrap" style="display:none;margin-bottom:14px;padding:12px;background:var(--bg2);border-radius:var(--radius)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px">
+      <input type="checkbox" id="sheet-inst-check" onchange="toggleSheetInst()"> 信用卡分期
+    </label>
+    <div id="sheet-inst-fields" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label>期數</label><input type="number" id="sheet-inst-count" value="12" min="2" max="84" oninput="calcSheetInstEach()"></div>
+      <div class="form-group"><label>起始月份</label><input type="month" id="sheet-inst-start"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>每期金額（自動計算）</label><input type="number" id="sheet-inst-each" readonly style="background:var(--bg3);color:var(--text2)"></div>
     </div>
   </div>
   <button onclick="addTxnFromSheet()" style="width:100%;padding:14px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">新增</button>
@@ -1647,6 +1708,8 @@ function openAddSheet(){
   // Set default date
   const d = calSelectedDate || todayStr();
   document.getElementById('sheet-date').value = d;
+  const instStart = document.getElementById('sheet-inst-start');
+  if(instStart) instStart.value = thisMonth();
   // Render chips
   renderSheetCatChips();
   renderSheetAcctChips();
@@ -1675,11 +1738,16 @@ function renderSheetCatChips(){
   const cats = sheetType==='in'?CATS_IN:sheetType==='xfer'?['轉帳']:CATS_OUT;
   const cur = document.getElementById('sheet-cat').value || cats[0];
   document.getElementById('sheet-cat').value = cats.includes(cur)?cur:cats[0];
+  const curVal = document.getElementById('sheet-cat').value;
   document.getElementById('sheet-cat-chips').innerHTML = cats.map(cat=>
-    `<button onclick="selectSheetCat('${cat}',this)" class="chip-btn${cat===document.getElementById('sheet-cat').value?' chip-active':''}">${cat}</button>`
+    `<button data-cat="${cat}" onclick="selectSheetCat(this)" class="chip-btn${cat===curVal?' chip-active':''}">${cat}</button>`
   ).join('');
+  // Show/hide installment option
+  const instWrap = document.getElementById('sheet-inst-wrap');
+  if(instWrap) instWrap.style.display = sheetType==='out'?'block':'none';
 }
-function selectSheetCat(cat, el){
+function selectSheetCat(el){
+  const cat = el.dataset.cat;
   document.getElementById('sheet-cat').value = cat;
   document.querySelectorAll('#sheet-cat-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
   el.classList.add('chip-active');
@@ -1743,6 +1811,19 @@ function quickAddProjectSheet(){
   sv(); refreshSheetProjectSelect();
   document.getElementById('sheet-project').value=projects[projects.length-1].id;
 }
+function toggleSheetInst(){
+  const checked = document.getElementById('sheet-inst-check').checked;
+  const fields = document.getElementById('sheet-inst-fields');
+  if(fields) fields.style.display = checked?'grid':'none';
+  if(checked) calcSheetInstEach();
+}
+function calcSheetInstEach(){
+  const amt = parseFloat(document.getElementById('sheet-amount').value)||0;
+  const count = parseInt(document.getElementById('sheet-inst-count').value)||1;
+  const each = count>0?Math.ceil(amt/count):0;
+  const el = document.getElementById('sheet-inst-each');
+  if(el) el.value = each>0?each:'';
+}
 function addTxnFromSheet(){
   const amt=parseFloat(document.getElementById('sheet-amount').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
@@ -1752,21 +1833,39 @@ function addTxnFromSheet(){
     : null;
   if(sheetType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
   const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
-  txns.unshift({
-    id:Date.now(), type:sheetType, amount:amt,
-    currency:document.getElementById('sheet-currency').value,
-    cat, date:document.getElementById('sheet-date').value||todayStr(),
-    note:document.getElementById('sheet-note').value,
-    project:document.getElementById('sheet-project').value||null,
-    acctId, toAcctId
-  });
+  const cur=document.getElementById('sheet-currency').value;
+  const date=document.getElementById('sheet-date').value||todayStr();
+  const note=document.getElementById('sheet-note').value;
+  const proj=document.getElementById('sheet-project').value||null;
+  const isInst=document.getElementById('sheet-inst-check')?.checked && sheetType==='out';
+
+  if(isInst){
+    const count=parseInt(document.getElementById('sheet-inst-count').value)||1;
+    const startMonth=document.getElementById('sheet-inst-start').value||thisMonth();
+    const each=Math.ceil(amt/count);
+    const instId=Date.now();
+    for(let i=0;i<count;i++){
+      const d=new Date(startMonth+'-01');
+      d.setMonth(d.getMonth()+i);
+      const dateStr=d.toISOString().slice(0,7)+'-01';
+      const periodAmt=i===count-1?(amt-(each*(count-1))):each;
+      txns.unshift({id:instId+i,type:'out',amount:periodAmt,currency:cur,cat,
+        date:dateStr,note:note?(note+' ('+(i+1)+'/'+count+')'):'分期'+(i+1)+'/'+count,
+        acctId,toAcctId:null,project:proj,
+        installmentGroup:instId,installmentIdx:i+1,installmentTotal:count});
+    }
+    txns.sort((a,b)=>b.date.localeCompare(a.date));
+    alert('已新增 '+count+' 筆分期（每期 '+each+' '+cur+'）');
+  } else {
+    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId});
+  }
   sv();
   closeAddSheet();
   document.getElementById('sheet-amount').value='';
   document.getElementById('sheet-note').value='';
-  renderCalendar();
-  renderTxnList();
-  renderAcctOverview();
+  if(document.getElementById('sheet-inst-check')) document.getElementById('sheet-inst-check').checked=false;
+  if(document.getElementById('sheet-inst-fields')) document.getElementById('sheet-inst-fields').style.display='none';
+  renderCalendar(); renderTxnList(); renderAcctOverview();
 }
 
 function switchTab(t,el){
