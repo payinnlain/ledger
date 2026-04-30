@@ -303,408 +303,6 @@
   <!-- TXN -->
   <div id="tab-txn" class="panel">
 
-    <div class="card">
-      <div class="section-title">新增記錄</div>
-      <div class="type-toggle" id="txn-type-toggle">
-        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
-        <button class="type-btn" onclick="setType('out',this)">支出</button>
-        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
-      </div>
-      <div class="form-grid four" style="margin-bottom:10px">
-        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
-        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
-        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
-        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
-          <option value="">全部</option>
-          <option value="bank">🏦 銀行帳戶</option>
-          <option value="cash">💵 現金</option>
-          <option value="credit">💳 信用卡</option>
-          <option value="invest">📈 投資帳戶</option>
-          <option value="crypto">🪙 加密貨幣</option>
-          <option value="loan">🏛 貸款</option>
-          <option value="prepaid">🎴 預付/儲值卡</option>
-        </select></div>
-        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
-        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
-        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
-        <div class="form-group"><label>專案</label>
-          <div style="display:flex;gap:6px">
-            <select id="txn-project" style="flex:1"><option value="">無</option></select>
-            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
-          </div>
-        </div>
-      </div>
-      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
-        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
-        <div class="form-grid three">
-          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
-          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
-          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
-        </div>
-      </div>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
-        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
-        </label>
-        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
-      </div>
-    </div>
-TYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>記帳本</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeece8;
-    --text: #1a1a1a; --text2: #6b6b6b; --text3: #999;
-    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
-    --radius: 8px; --radius-lg: 12px;
-    --green: #1D9E75; --red: #D85A30; --amber: #BA7517; --blue: #185FA5; --purple: #534AB7;
-    --green-bg: #E1F5EE; --red-bg: #FAECE7; --amber-bg: #FAEEDA; --blue-bg: #E6F1FB; --purple-bg: #EEEDFE;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
-      --text: #f5f5f0; --text2: #a0a09a; --text3: #666;
-      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
-      --green-bg: #0a3324; --red-bg: #3b1a10; --amber-bg: #3b2a08; --blue-bg: #0c2440; --purple-bg: #1e1a40;
-    }
-  }
-  html, body { height: 100%; background: var(--bg3); font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: var(--text); }
-  .app { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
-
-  /* topbar */
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 16px; flex-wrap: wrap; gap: 10px; }
-  .topbar h1 { font-size: 20px; font-weight: 600; }
-  .topbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .nav-tabs { display: flex; gap: 3px; background: var(--bg2); border-radius: var(--radius); padding: 3px; }
-  .tab-btn { padding: 6px 12px; font-size: 13px; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; transition: all .15s; white-space: nowrap; }
-  .tab-btn.active { background: var(--bg); color: var(--text); font-weight: 500; border: 0.5px solid var(--border2); }
-
-  /* data buttons */
-  .btn-data { padding: 6px 12px; font-size: 12px; border: 0.5px solid var(--border2); background: var(--bg); border-radius: var(--radius); cursor: pointer; color: var(--text2); font-family: inherit; }
-  .btn-data:hover { background: var(--bg2); }
-
-  /* cards */
-  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; }
-  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
-  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-
-  /* summary grid */
-  .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
-  .metric { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
-  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
-  .metric-value { font-size: 20px; font-weight: 600; }
-
-  /* account cards */
-  .acct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; margin-bottom: 14px; }
-  .acct-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; position: relative; }
-  .acct-card-icon { font-size: 22px; margin-bottom: 8px; }
-  .acct-card-name { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
-  .acct-card-bal { font-size: 18px; font-weight: 600; }
-  .acct-card-cur { font-size: 11px; color: var(--text3); margin-top: 3px; }
-  .acct-del { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; opacity: 0; transition: opacity .15s; }
-  .acct-card:hover .acct-del { opacity: 1; }
-
-  /* forms */
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .form-grid.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-group label { font-size: 12px; color: var(--text2); }
-  input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
-    font-family: inherit; font-size: 14px; padding: 8px 10px;
-    border: 0.5px solid var(--border2); border-radius: var(--radius);
-    background: var(--bg); color: var(--text); outline: none;
-    transition: border-color .15s;
-  }
-  input:focus, select:focus { border-color: var(--text2); }
-
-  /* type toggles */
-  .type-toggle { display: flex; border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border2); margin-bottom: 12px; }
-  .type-btn { flex: 1; padding: 9px 8px; font-size: 13px; border: none; cursor: pointer; font-family: inherit; background: var(--bg); color: var(--text2); transition: all .15s; }
-  .type-btn.active-in   { background: var(--green-bg); color: var(--green); font-weight: 500; }
-  .type-btn.active-out  { background: var(--red-bg);   color: var(--red);   font-weight: 500; }
-  .type-btn.active-xfer { background: var(--purple-bg);color: var(--purple);font-weight: 500; }
-  .type-btn.active-ar   { background: var(--blue-bg);  color: var(--blue);  font-weight: 500; }
-  .type-btn.active-ap   { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
-
-  .acct-type-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 12px; }
-  .acct-type-btn { padding: 9px 4px; font-size: 12px; border: 0.5px solid var(--border); background: var(--bg); border-radius: var(--radius); cursor: pointer; font-family: inherit; color: var(--text2); text-align: center; }
-  .acct-type-btn.selected { background: var(--bg2); color: var(--text); border-color: var(--border2); font-weight: 500; }
-
-  /* buttons */
-  .btn-primary { background: var(--text); color: var(--bg); border: none; padding: 9px 22px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
-  .btn-primary:hover { opacity: .85; }
-  .btn-sm { padding: 4px 10px; font-size: 12px; border: 0.5px solid var(--border2); background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; white-space: nowrap; }
-  .btn-sm:hover { background: var(--bg2); }
-  .btn-sm.danger:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
-
-  /* list items */
-  .txn-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; background: var(--bg); }
-  .txn-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-  .txn-meta { flex: 1; min-width: 0; }
-  .txn-desc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .txn-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
-  .txn-amount { font-size: 15px; font-weight: 600; flex-shrink: 0; }
-
-  /* badges */
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
-  .badge-in     { background: var(--green-bg);  color: var(--green); }
-  .badge-out    { background: var(--red-bg);    color: var(--red); }
-  .badge-xfer   { background: var(--purple-bg); color: var(--purple); }
-  .badge-paid   { background: #EAF3DE; color: #3B6D11; }
-  .badge-unpaid { background: var(--amber-bg);  color: var(--amber); }
-  .badge-overdue{ background: #FCEBEB; color: #A32D2D; }
-
-  /* ar items */
-  .ar-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; }
-  .ar-meta { flex: 1; min-width: 0; }
-
-  /* budget bars */
-  .budget-bar-wrap { margin-bottom: 12px; }
-  .budget-bar-info { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
-  .budget-bar-track { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
-  .budget-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
-
-  /* charts */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .chart-wrap { position: relative; width: 100%; height: 220px; margin-top: 8px; }
-
-  /* panel */
-  .panel { display: none; }
-  .panel.active { display: block; }
-  .empty-state { text-align: center; padding: 2.5rem; color: var(--text2); font-size: 14px; }
-
-  /* filter row */
-  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-
-  /* footer note */
-  .footer-note { text-align: center; font-size: 12px; color: var(--text3); padding: 20px 0 0; }
-
-  @media (max-width: 640px) {
-    /* 基本佈局 */
-    .app { padding: 0 12px 80px; }
-    .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
-    .topbar h1 { font-size: 17px; }
-    .topbar-right { width: 100%; justify-content: space-between; }
-
-    /* 底部導覽列 */
-    .nav-tabs {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--bg); border-top: 0.5px solid var(--border);
-      border-radius: 0; padding: 6px 4px;
-      display: flex; justify-content: space-around;
-      z-index: 1000; gap: 0;
-      box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
-    }
-    .nav-tabs .tab-btn {
-      flex: 1; padding: 6px 2px; font-size: 11px;
-      border-radius: 6px; text-align: center;
-    }
-    .nav-tabs .tab-btn.active {
-      background: var(--bg2); border: none;
-    }
-
-    /* 匯出匯入按鈕縮小 */
-    .btn-data { padding: 5px 8px; font-size: 11px; }
-    #sync-status { font-size: 11px; }
-
-    /* 格線 */
-    .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .form-grid, .form-grid.three, .form-grid.four { grid-template-columns: 1fr; }
-    .two-col { grid-template-columns: 1fr; }
-    .acct-type-grid { grid-template-columns: repeat(3,1fr); }
-    .acct-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
-
-    /* 卡片 */
-    .card { padding: 14px 12px; }
-    .metric { padding: 12px 12px; }
-    .metric-value { font-size: 17px; }
-    .metric-label { font-size: 11px; }
-
-    /* 帳戶卡片 */
-    .acct-card { padding: 12px; }
-    .acct-card-bal { font-size: 16px; }
-
-    /* 輸入框加大點選區域 */
-    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
-      font-size: 16px !important; /* 防止 iOS 自動縮放 */
-      padding: 10px 10px;
-    }
-
-    /* 按鈕 */
-    .btn-primary { padding: 11px 20px; font-size: 14px; width: 100%; }
-    .btn-sm { padding: 6px 10px; font-size: 12px; }
-    .type-btn { padding: 10px 6px; font-size: 12px; }
-    .acct-type-btn { padding: 10px 4px; font-size: 11px; }
-
-    /* 交易列表 */
-    .txn-item { padding: 10px 10px; gap: 8px; }
-    .txn-desc { font-size: 13px; }
-    .txn-sub { font-size: 11px; }
-    .txn-amount { font-size: 14px; }
-    .txn-icon { width: 28px; height: 28px; font-size: 12px; flex-shrink: 0; }
-
-    /* AR items */
-    .ar-item { padding: 10px 10px; gap: 8px; flex-wrap: wrap; }
-
-    /* 區段標題 */
-    .section-title { font-size: 13px; }
-    .section-header { margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
-
-    /* 篩選列 */
-    .filter-row { gap: 6px; }
-    .filter-row select, .filter-row input[type=month] { font-size: 12px; padding: 6px 8px; max-width: 120px; }
-    .asset-grid { grid-template-columns: 1fr !important; }
-    .asset-grid > div { border-right: none !important; border-bottom: 0.5px solid var(--border); }
-    .asset-grid > div:last-child { border-bottom: none; }
-  }
-</style>
-</head>
-<body>
-
-<div id="lock-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f0efec;z-index:99999;display:flex;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:40px 32px;width:300px;max-width:90vw;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
-    <div style="font-size:40px;margin-bottom:12px">🔒</div>
-    <div style="font-size:17px;font-weight:600;color:#111;margin-bottom:20px">記帳本</div>
-    <input id="pw" type="password" placeholder="輸入密碼"
-      style="width:100%;padding:12px;font-size:16px;border:1.5px solid #ddd;border-radius:8px;text-align:center;font-family:inherit;background:#fafafa;color:#111;display:block;"
-      onkeydown="if(event.key==='Enter')tryUnlock()">
-    <div id="pw-err" style="color:#c0392b;font-size:12px;margin:8px 0;min-height:16px"></div>
-    <button onclick="tryUnlock()"
-      style="width:100%;padding:12px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">進入</button>
-  </div>
-</div>
-
-<script>
-(function(){
-  var PW = '5212';
-  window.tryUnlock = function(){
-    var val = document.getElementById('pw').value;
-    if(val === PW){
-      document.getElementById('lock-screen').style.display='none';
-      sessionStorage.setItem('_unlocked','yes');
-    } else {
-      document.getElementById('pw-err').textContent='密碼錯誤';
-      document.getElementById('pw').value='';
-      document.getElementById('pw').focus();
-    }
-  };
-  if(sessionStorage.getItem('_unlocked')==='yes'){
-    document.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('lock-screen').style.display='none';
-    });
-  } else {
-    document.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('pw').focus();
-    });
-  }
-})();
-</script>
-
-
-<div class="app">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;margin-bottom:4px">
-    <span id="sync-status" style="font-size:12px;color:#BA7517">載入中...</span>
-    <button onclick="reloadData()" class="btn-data" style="font-size:12px;padding:5px 12px">↻ 重整</button>
-  </div>
-  <div class="topbar">
-    <h1>記帳本</h1>
-    <div class="topbar-right">
-      <div class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('dashboard',this)">總覽</button>
-        <button class="tab-btn" onclick="switchTab('txn',this)">收支</button>
-        <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
-        <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
-        <button class="tab-btn" onclick="switchTab('projects',this)">專案</button>
-        <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
-      </div>
-      <button class="btn-data" onclick="exportJSON()" title="備份資料">⬇ 匯出</button>
-      <label class="btn-data" style="cursor:pointer" title="還原資料">⬆ 匯入<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
-      <button class="btn-data" onclick="exportCSV()" title="匯出收支明細">📊 CSV</button>
-    </div>
-  </div>
-
-  <!-- DASHBOARD -->
-  <div id="tab-dashboard" class="panel active">
-    <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
-    <div id="acct-overview" class="acct-grid"></div>
-    <div class="summary-grid" id="summary-cards"></div>
-    <div class="two-col">
-      <div class="card">
-        <div class="section-header"><span class="section-title">本月支出分類</span></div>
-        <div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
-      </div>
-      <div class="card">
-        <div class="section-header"><span class="section-title">近6個月收支</span></div>
-        <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="section-header"><span class="section-title">最近10筆記錄</span></div>
-      <div id="recent-list"></div>
-    </div>
-  </div>
-
-  <!-- TXN -->
-  <div id="tab-txn" class="panel">
-    <div class="card">
-      <div class="section-title">新增記錄</div>
-      <div class="type-toggle" id="txn-type-toggle">
-        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
-        <button class="type-btn" onclick="setType('out',this)">支出</button>
-        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
-      </div>
-      <div class="form-grid four" style="margin-bottom:10px">
-        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
-        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
-        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
-        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
-          <option value="">全部</option>
-          <option value="bank">🏦 銀行帳戶</option>
-          <option value="cash">💵 現金</option>
-          <option value="credit">💳 信用卡</option>
-          <option value="invest">📈 投資帳戶</option>
-          <option value="crypto">🪙 加密貨幣</option>
-          <option value="loan">🏛 貸款</option>
-          <option value="prepaid">🎴 預付/儲值卡</option>
-        </select></div>
-        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
-        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
-        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
-        <div class="form-group"><label>專案</label>
-          <div style="display:flex;gap:6px">
-            <select id="txn-project" style="flex:1"><option value="">無</option></select>
-            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
-          </div>
-        </div>
-      </div>
-      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
-        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
-        <div class="form-grid three">
-          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
-          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
-          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
-        </div>
-      </div>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
-        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
-        </label>
-        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
-      </div>
-    </div>
     <div class="card" style="padding:14px 12px">
       <!-- Calendar header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1958,3 +1556,406 @@ renderDashboard();
 </script>
 </body>
 </html>
+    <div class="card">
+      <div class="section-title">新增記錄</div>
+      <div class="type-toggle" id="txn-type-toggle">
+        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
+        <button class="type-btn" onclick="setType('out',this)">支出</button>
+        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
+      </div>
+      <div class="form-grid four" style="margin-bottom:10px">
+        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
+        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
+        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
+        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
+          <option value="">全部</option>
+          <option value="bank">🏦 銀行帳戶</option>
+          <option value="cash">💵 現金</option>
+          <option value="credit">💳 信用卡</option>
+          <option value="invest">📈 投資帳戶</option>
+          <option value="crypto">🪙 加密貨幣</option>
+          <option value="loan">🏛 貸款</option>
+          <option value="prepaid">🎴 預付/儲值卡</option>
+        </select></div>
+        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
+        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
+        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+        <div class="form-group"><label>專案</label>
+          <div style="display:flex;gap:6px">
+            <select id="txn-project" style="flex:1"><option value="">無</option></select>
+            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
+          </div>
+        </div>
+      </div>
+      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
+        <div class="form-grid three">
+          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
+          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
+          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
+        </label>
+        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+      </div>
+    </div>
+TYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記帳本</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeece8;
+    --text: #1a1a1a; --text2: #6b6b6b; --text3: #999;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 8px; --radius-lg: 12px;
+    --green: #1D9E75; --red: #D85A30; --amber: #BA7517; --blue: #185FA5; --purple: #534AB7;
+    --green-bg: #E1F5EE; --red-bg: #FAECE7; --amber-bg: #FAEEDA; --blue-bg: #E6F1FB; --purple-bg: #EEEDFE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e; --bg2: #2c2c2e; --bg3: #3a3a3c;
+      --text: #f5f5f0; --text2: #a0a09a; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --green-bg: #0a3324; --red-bg: #3b1a10; --amber-bg: #3b2a08; --blue-bg: #0c2440; --purple-bg: #1e1a40;
+    }
+  }
+  html, body { height: 100%; background: var(--bg3); font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; color: var(--text); }
+  .app { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+
+  /* topbar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 16px; flex-wrap: wrap; gap: 10px; }
+  .topbar h1 { font-size: 20px; font-weight: 600; }
+  .topbar-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .nav-tabs { display: flex; gap: 3px; background: var(--bg2); border-radius: var(--radius); padding: 3px; }
+  .tab-btn { padding: 6px 12px; font-size: 13px; border: none; background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; transition: all .15s; white-space: nowrap; }
+  .tab-btn.active { background: var(--bg); color: var(--text); font-weight: 500; border: 0.5px solid var(--border2); }
+
+  /* data buttons */
+  .btn-data { padding: 6px 12px; font-size: 12px; border: 0.5px solid var(--border2); background: var(--bg); border-radius: var(--radius); cursor: pointer; color: var(--text2); font-family: inherit; }
+  .btn-data:hover { background: var(--bg2); }
+
+  /* cards */
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; }
+  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+  /* summary grid */
+  .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .metric-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: 600; }
+
+  /* account cards */
+  .acct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .acct-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; position: relative; }
+  .acct-card-icon { font-size: 22px; margin-bottom: 8px; }
+  .acct-card-name { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+  .acct-card-bal { font-size: 18px; font-weight: 600; }
+  .acct-card-cur { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .acct-del { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; opacity: 0; transition: opacity .15s; }
+  .acct-card:hover .acct-del { opacity: 1; }
+
+  /* forms */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 12px; color: var(--text2); }
+  input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+    font-family: inherit; font-size: 14px; padding: 8px 10px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--bg); color: var(--text); outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { border-color: var(--text2); }
+
+  /* type toggles */
+  .type-toggle { display: flex; border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border2); margin-bottom: 12px; }
+  .type-btn { flex: 1; padding: 9px 8px; font-size: 13px; border: none; cursor: pointer; font-family: inherit; background: var(--bg); color: var(--text2); transition: all .15s; }
+  .type-btn.active-in   { background: var(--green-bg); color: var(--green); font-weight: 500; }
+  .type-btn.active-out  { background: var(--red-bg);   color: var(--red);   font-weight: 500; }
+  .type-btn.active-xfer { background: var(--purple-bg);color: var(--purple);font-weight: 500; }
+  .type-btn.active-ar   { background: var(--blue-bg);  color: var(--blue);  font-weight: 500; }
+  .type-btn.active-ap   { background: var(--amber-bg); color: var(--amber); font-weight: 500; }
+
+  .acct-type-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 12px; }
+  .acct-type-btn { padding: 9px 4px; font-size: 12px; border: 0.5px solid var(--border); background: var(--bg); border-radius: var(--radius); cursor: pointer; font-family: inherit; color: var(--text2); text-align: center; }
+  .acct-type-btn.selected { background: var(--bg2); color: var(--text); border-color: var(--border2); font-weight: 500; }
+
+  /* buttons */
+  .btn-primary { background: var(--text); color: var(--bg); border: none; padding: 9px 22px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .btn-primary:hover { opacity: .85; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border: 0.5px solid var(--border2); background: transparent; border-radius: 6px; cursor: pointer; color: var(--text2); font-family: inherit; white-space: nowrap; }
+  .btn-sm:hover { background: var(--bg2); }
+  .btn-sm.danger:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+  /* list items */
+  .txn-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; background: var(--bg); }
+  .txn-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .txn-meta { flex: 1; min-width: 0; }
+  .txn-desc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-sub  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .txn-amount { font-size: 15px; font-weight: 600; flex-shrink: 0; }
+
+  /* badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .badge-in     { background: var(--green-bg);  color: var(--green); }
+  .badge-out    { background: var(--red-bg);    color: var(--red); }
+  .badge-xfer   { background: var(--purple-bg); color: var(--purple); }
+  .badge-paid   { background: #EAF3DE; color: #3B6D11; }
+  .badge-unpaid { background: var(--amber-bg);  color: var(--amber); }
+  .badge-overdue{ background: #FCEBEB; color: #A32D2D; }
+
+  /* ar items */
+  .ar-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; }
+  .ar-meta { flex: 1; min-width: 0; }
+
+  /* budget bars */
+  .budget-bar-wrap { margin-bottom: 12px; }
+  .budget-bar-info { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+  .budget-bar-track { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; }
+  .budget-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+
+  /* charts */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .chart-wrap { position: relative; width: 100%; height: 220px; margin-top: 8px; }
+
+  /* panel */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .empty-state { text-align: center; padding: 2.5rem; color: var(--text2); font-size: 14px; }
+
+  /* filter row */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* footer note */
+  .footer-note { text-align: center; font-size: 12px; color: var(--text3); padding: 20px 0 0; }
+
+  @media (max-width: 640px) {
+    /* 基本佈局 */
+    .app { padding: 0 12px 80px; }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
+    .topbar h1 { font-size: 17px; }
+    .topbar-right { width: 100%; justify-content: space-between; }
+
+    /* 底部導覽列 */
+    .nav-tabs {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--bg); border-top: 0.5px solid var(--border);
+      border-radius: 0; padding: 6px 4px;
+      display: flex; justify-content: space-around;
+      z-index: 1000; gap: 0;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+    }
+    .nav-tabs .tab-btn {
+      flex: 1; padding: 6px 2px; font-size: 11px;
+      border-radius: 6px; text-align: center;
+    }
+    .nav-tabs .tab-btn.active {
+      background: var(--bg2); border: none;
+    }
+
+    /* 匯出匯入按鈕縮小 */
+    .btn-data { padding: 5px 8px; font-size: 11px; }
+    #sync-status { font-size: 11px; }
+
+    /* 格線 */
+    .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .form-grid, .form-grid.three, .form-grid.four { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .acct-type-grid { grid-template-columns: repeat(3,1fr); }
+    .acct-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
+
+    /* 卡片 */
+    .card { padding: 14px 12px; }
+    .metric { padding: 12px 12px; }
+    .metric-value { font-size: 17px; }
+    .metric-label { font-size: 11px; }
+
+    /* 帳戶卡片 */
+    .acct-card { padding: 12px; }
+    .acct-card-bal { font-size: 16px; }
+
+    /* 輸入框加大點選區域 */
+    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+      font-size: 16px !important; /* 防止 iOS 自動縮放 */
+      padding: 10px 10px;
+    }
+
+    /* 按鈕 */
+    .btn-primary { padding: 11px 20px; font-size: 14px; width: 100%; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .type-btn { padding: 10px 6px; font-size: 12px; }
+    .acct-type-btn { padding: 10px 4px; font-size: 11px; }
+
+    /* 交易列表 */
+    .txn-item { padding: 10px 10px; gap: 8px; }
+    .txn-desc { font-size: 13px; }
+    .txn-sub { font-size: 11px; }
+    .txn-amount { font-size: 14px; }
+    .txn-icon { width: 28px; height: 28px; font-size: 12px; flex-shrink: 0; }
+
+    /* AR items */
+    .ar-item { padding: 10px 10px; gap: 8px; flex-wrap: wrap; }
+
+    /* 區段標題 */
+    .section-title { font-size: 13px; }
+    .section-header { margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+
+    /* 篩選列 */
+    .filter-row { gap: 6px; }
+    .filter-row select, .filter-row input[type=month] { font-size: 12px; padding: 6px 8px; max-width: 120px; }
+    .asset-grid { grid-template-columns: 1fr !important; }
+    .asset-grid > div { border-right: none !important; border-bottom: 0.5px solid var(--border); }
+    .asset-grid > div:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="lock-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#f0efec;z-index:99999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:40px 32px;width:300px;max-width:90vw;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+    <div style="font-size:40px;margin-bottom:12px">🔒</div>
+    <div style="font-size:17px;font-weight:600;color:#111;margin-bottom:20px">記帳本</div>
+    <input id="pw" type="password" placeholder="輸入密碼"
+      style="width:100%;padding:12px;font-size:16px;border:1.5px solid #ddd;border-radius:8px;text-align:center;font-family:inherit;background:#fafafa;color:#111;display:block;"
+      onkeydown="if(event.key==='Enter')tryUnlock()">
+    <div id="pw-err" style="color:#c0392b;font-size:12px;margin:8px 0;min-height:16px"></div>
+    <button onclick="tryUnlock()"
+      style="width:100%;padding:12px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">進入</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var PW = '5212';
+  window.tryUnlock = function(){
+    var val = document.getElementById('pw').value;
+    if(val === PW){
+      document.getElementById('lock-screen').style.display='none';
+      sessionStorage.setItem('_unlocked','yes');
+    } else {
+      document.getElementById('pw-err').textContent='密碼錯誤';
+      document.getElementById('pw').value='';
+      document.getElementById('pw').focus();
+    }
+  };
+  if(sessionStorage.getItem('_unlocked')==='yes'){
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('lock-screen').style.display='none';
+    });
+  } else {
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('pw').focus();
+    });
+  }
+})();
+</script>
+
+
+<div class="app">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;margin-bottom:4px">
+    <span id="sync-status" style="font-size:12px;color:#BA7517">載入中...</span>
+    <button onclick="reloadData()" class="btn-data" style="font-size:12px;padding:5px 12px">↻ 重整</button>
+  </div>
+  <div class="topbar">
+    <h1>記帳本</h1>
+    <div class="topbar-right">
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('dashboard',this)">總覽</button>
+        <button class="tab-btn" onclick="switchTab('txn',this)">收支</button>
+        <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
+        <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
+        <button class="tab-btn" onclick="switchTab('projects',this)">專案</button>
+        <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
+      </div>
+      <button class="btn-data" onclick="exportJSON()" title="備份資料">⬇ 匯出</button>
+      <label class="btn-data" style="cursor:pointer" title="還原資料">⬆ 匯入<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+      <button class="btn-data" onclick="exportCSV()" title="匯出收支明細">📊 CSV</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="panel active">
+    <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
+    <div id="acct-overview" class="acct-grid"></div>
+    <div class="summary-grid" id="summary-cards"></div>
+    <div class="two-col">
+      <div class="card">
+        <div class="section-header"><span class="section-title">本月支出分類</span></div>
+        <div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-header"><span class="section-title">近6個月收支</span></div>
+        <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-header"><span class="section-title">最近10筆記錄</span></div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+
+  <!-- TXN -->
+  <div id="tab-txn" class="panel">
+    <div class="card">
+      <div class="section-title">新增記錄</div>
+      <div class="type-toggle" id="txn-type-toggle">
+        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
+        <button class="type-btn" onclick="setType('out',this)">支出</button>
+        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
+      </div>
+      <div class="form-grid four" style="margin-bottom:10px">
+        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
+        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
+        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
+        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
+          <option value="">全部</option>
+          <option value="bank">🏦 銀行帳戶</option>
+          <option value="cash">💵 現金</option>
+          <option value="credit">💳 信用卡</option>
+          <option value="invest">📈 投資帳戶</option>
+          <option value="crypto">🪙 加密貨幣</option>
+          <option value="loan">🏛 貸款</option>
+          <option value="prepaid">🎴 預付/儲值卡</option>
+        </select></div>
+        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
+        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
+        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+        <div class="form-group"><label>專案</label>
+          <div style="display:flex;gap:6px">
+            <select id="txn-project" style="flex:1"><option value="">無</option></select>
+            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
+          </div>
+        </div>
+      </div>
+      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
+        <div class="form-grid three">
+          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
+          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
+          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
+        </label>
+        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+      </div>
+    </div>
+
