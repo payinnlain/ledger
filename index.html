@@ -351,15 +351,35 @@
         <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
       </div>
     </div>
-    <div class="card">
-      <div class="section-header">
-        <span class="section-title">收支記錄</span>
-        <div class="filter-row">
-          <input type="month" id="filter-month" onchange="renderTxnList()">
-          <select id="filter-acct" onchange="renderTxnList()"><option value="">全部帳戶</option></select>
-          <select id="filter-type" onchange="renderTxnList()"><option value="">全部</option><option value="in">收入</option><option value="out">支出</option><option value="xfer">轉帳</option></select>
+    <div class="card" style="padding:14px 12px">
+      <!-- Calendar header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button onclick="calPrevMonth()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px;color:var(--text2)">‹</button>
+        <span id="cal-title" style="font-size:15px;font-weight:600"></span>
+        <button onclick="calNextMonth()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px;color:var(--text2)">›</button>
+      </div>
+      <!-- Day of week headers -->
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px">
+        <div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">日</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">一</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">二</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">三</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">四</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">五</div><div style="font-size:11px;color:var(--text2);padding:2px;text-align:center">六</div>
+      </div>
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:14px"></div>
+
+      <!-- Selected day summary -->
+      <div id="cal-day-summary" style="display:none;background:var(--bg2);border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span id="cal-day-label" style="font-size:13px;font-weight:500"></span>
+        <div style="display:flex;gap:12px">
+          <span id="cal-day-in" style="font-size:12px;color:var(--green)"></span>
+          <span id="cal-day-out" style="font-size:12px;color:var(--red)"></span>
         </div>
       </div>
+
+      <!-- Filter row -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <select id="filter-acct" onchange="renderTxnList()" style="font-size:12px;padding:5px 8px;font-family:inherit"><option value="">全部帳戶</option></select>
+        <select id="filter-type" onchange="renderTxnList()" style="font-size:12px;padding:5px 8px;font-family:inherit"><option value="">全部</option><option value="in">收入</option><option value="out">支出</option><option value="xfer">轉帳</option></select>
+        <button onclick="clearCalSel()" id="cal-clear-btn" style="display:none;font-size:12px;padding:5px 10px;border:0.5px solid var(--border2);background:transparent;border-radius:6px;cursor:pointer;color:var(--text2);font-family:inherit">✕ 清除篩選</button>
+      </div>
+      <input type="month" id="filter-month" style="display:none" onchange="renderTxnList()">
       <div id="txn-list"></div>
     </div>
   </div>
@@ -1089,12 +1109,107 @@ function saveEdit(id){
 function closeEdit(){
   document.getElementById('edit-modal').style.display='none';
 }
+/* ── Calendar ── */
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+let calSelectedDate = null;
+
+function calPrevMonth(){
+  calMonth--; if(calMonth<0){calMonth=11;calYear--;}
+  calSelectedDate=null;
+  renderCalendar(); renderTxnList();
+}
+function calNextMonth(){
+  calMonth++; if(calMonth>11){calMonth=0;calYear++;}
+  calSelectedDate=null;
+  renderCalendar(); renderTxnList();
+}
+function clearCalSel(){
+  calSelectedDate=null;
+  renderCalendar(); renderTxnList();
+}
+function calSelectDay(dateStr, el){
+  calSelectedDate = calSelectedDate===dateStr ? null : dateStr;
+  renderCalendar();
+  renderTxnList();
+}
+function renderCalendar(){
+  const grid = document.getElementById('cal-grid');
+  const title = document.getElementById('cal-title');
+  if(!grid||!title) return;
+
+  title.textContent = calYear+'年'+(calMonth+1)+'月';
+
+  // Build date -> txn map
+  const monthStr = calYear+'-'+(String(calMonth+1).padStart(2,'0'));
+  document.getElementById('filter-month').value = monthStr;
+
+  const dayMap = {};
+  txns.filter(t=>t.date&&t.date.startsWith(monthStr)).forEach(t=>{
+    const d = t.date.slice(0,10);
+    if(!dayMap[d]) dayMap[d]={in:0,out:0};
+    if(t.type==='in') dayMap[d].in+=twdEq(t.amount,t.currency);
+    if(t.type==='out') dayMap[d].out+=twdEq(t.amount,t.currency);
+  });
+
+  const firstDay = new Date(calYear,calMonth,1).getDay();
+  const daysInMonth = new Date(calYear,calMonth+1,0).getDate();
+  const today = todayStr();
+
+  let html = '';
+  // Empty cells before first day
+  for(let i=0;i<firstDay;i++) html+='<div></div>';
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const hasTxn = dayMap[dateStr];
+    const isToday = dateStr===today;
+    const isSelected = dateStr===calSelectedDate;
+    const hasIn = hasTxn&&hasTxn.in>0;
+    const hasOut = hasTxn&&hasTxn.out>0;
+
+    html += `<div onclick="calSelectDay('${dateStr}',this)" style="
+      text-align:center;padding:4px 2px;border-radius:8px;cursor:pointer;
+      background:${isSelected?'var(--text)':isToday?'var(--bg2)':'transparent'};
+      color:${isSelected?'var(--bg)':isToday?'var(--text)':'var(--text)'};
+      border:${isToday&&!isSelected?'1.5px solid var(--border2)':'1.5px solid transparent'};
+      transition:all .1s;
+    ">
+      <div style="font-size:13px;font-weight:${isToday?'600':'400'}">${d}</div>
+      <div style="display:flex;justify-content:center;gap:2px;margin-top:2px;min-height:6px">
+        ${hasIn?'<div style="width:5px;height:5px;border-radius:50%;background:var(--green)"></div>':''}
+        ${hasOut?'<div style="width:5px;height:5px;border-radius:50%;background:var(--red)"></div>':''}
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+
+  // Update day summary
+  const sumEl = document.getElementById('cal-day-summary');
+  const labelEl = document.getElementById('cal-day-label');
+  const inEl = document.getElementById('cal-day-in');
+  const outEl = document.getElementById('cal-day-out');
+  const clearBtn = document.getElementById('cal-clear-btn');
+
+  if(calSelectedDate && dayMap[calSelectedDate]){
+    const d = dayMap[calSelectedDate];
+    if(sumEl) sumEl.style.display='flex';
+    if(labelEl) labelEl.textContent = calSelectedDate;
+    if(inEl) inEl.textContent = d.in>0?'+'+Math.round(d.in).toLocaleString():'';
+    if(outEl) outEl.textContent = d.out>0?'-'+Math.round(d.out).toLocaleString():'';
+    if(clearBtn) clearBtn.style.display='';
+  } else {
+    if(sumEl) sumEl.style.display='none';
+    if(clearBtn) clearBtn.style.display='none';
+  }
+}
+
 function renderTxnList(){
-  const m=document.getElementById('filter-month').value;
   const fa=document.getElementById('filter-acct').value;
   const ft=document.getElementById('filter-type').value;
-  let list=txns;
-  if(m)  list=list.filter(t=>t.date.startsWith(m));
+  const monthStr = calYear+'-'+String(calMonth+1).padStart(2,'0');
+  let list=txns.filter(t=>t.date&&t.date.startsWith(monthStr));
+  if(calSelectedDate) list=list.filter(t=>t.date&&t.date.startsWith(calSelectedDate));
   if(fa) list=list.filter(t=>String(t.acctId)===fa||String(t.toAcctId)===fa);
   if(ft) list=list.filter(t=>t.type===ft);
   const el=document.getElementById('txn-list');
@@ -1469,7 +1584,7 @@ function switchTab(t,el){
   document.getElementById('tab-'+t).classList.add('active');
   el.classList.add('active');
   if(t==='dashboard') renderDashboard();
-  if(t==='txn'){ refreshAcctSelects(); renderTxnList(); }
+  if(t==='txn'){ refreshAcctSelects(); renderCalendar(); renderTxnList(); }
   if(t==='ar') renderAr();
   if(t==='budget') renderBudget();
   if(t==='projects'){ renderProjects(); refreshProjectSelect(); }
@@ -1481,6 +1596,8 @@ loadAll();
 document.getElementById('txn-date').value=todayStr();
 document.getElementById('txn-inst-start').value=thisMonth();
 document.getElementById('filter-month').value=thisMonth();
+// init calendar
+setTimeout(()=>renderCalendar(), 100);
 populateCats();
 refreshAcctSelects();
 renderDashboard();
