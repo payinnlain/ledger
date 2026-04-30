@@ -1837,31 +1837,7 @@ TYPE html>
   </div>
 </div>
 
-<script>
-(function(){
-  var PW = '5212';
-  window.tryUnlock = function(){
-    var val = document.getElementById('pw').value;
-    if(val === PW){
-      document.getElementById('lock-screen').style.display='none';
-      sessionStorage.setItem('_unlocked','yes');
-    } else {
-      document.getElementById('pw-err').textContent='密碼錯誤';
-      document.getElementById('pw').value='';
-      document.getElementById('pw').focus();
-    }
-  };
-  if(sessionStorage.getItem('_unlocked')==='yes'){
-    document.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('lock-screen').style.display='none';
-    });
-  } else {
-    document.addEventListener('DOMContentLoaded', function(){
-      document.getElementById('pw').focus();
-    });
-  }
-})();
-</script>
+
 
 
 <div class="app">
