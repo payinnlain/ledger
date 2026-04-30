@@ -1953,6 +1953,7 @@ function addTxnFromSheet(){
   const date=document.getElementById('sheet-date').value||todayStr();
   const note=document.getElementById('sheet-note').value;
   const proj=document.getElementById('sheet-project').value||null;
+  const tag=document.getElementById('sheet-tag')?.value.trim()||null;
   const isInst=document.getElementById('sheet-inst-check')?.checked && sheetType==='out';
 
   if(isInst){
@@ -1973,13 +1974,13 @@ function addTxnFromSheet(){
       const periodAmt=i===0&&firstAmt>0?firstAmt:(i===count-1?(amt-firstAmt-(each*(count-2>0?count-2:0))):each);
       txns.unshift({id:instId+i,type:'out',amount:periodAmt,currency:cur,cat,
         date:dateStr,note:note?(note+' ('+(i+1)+'/'+count+')'):'分期'+(i+1)+'/'+count,
-        acctId,toAcctId:null,project:proj,
+        acctId,toAcctId:null,project:proj,tag,
         installmentGroup:instId,installmentIdx:i+1,installmentTotal:count});
     }
     txns.sort((a,b)=>b.date.localeCompare(a.date));
     alert('已新增 '+count+' 筆分期（每期 '+each+' '+cur+'）');
   } else {
-    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId});
+    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag});
   }
   sv();
   closeAddSheet();
