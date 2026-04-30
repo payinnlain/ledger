@@ -270,6 +270,7 @@
         <button class="tab-btn" onclick="switchTab('txn',this)">收支</button>
         <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
         <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
+        <button class="tab-btn" onclick="switchTab('projects',this)">專案</button>
         <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
       </div>
       <button class="btn-data" onclick="exportJSON()" title="備份資料">⬇ 匯出</button>
@@ -328,6 +329,7 @@
         <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
         <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
         <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
+        <div class="form-group"><label>專案</label><select id="txn-project"><option value="">無</option></select></div>
       </div>
       <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
         <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
@@ -399,6 +401,21 @@
       <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="saveBudgets()">儲存預算</button></div>
     </div>
     <div class="card"><div class="section-header"><span class="section-title">本月預算使用狀況</span></div><div id="budget-progress"></div></div>
+  </div>
+
+  <!-- PROJECTS -->
+  <div id="tab-projects" class="panel">
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title">專案管理</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="new-project-name" placeholder="專案名稱（例：日本旅遊）" style="flex:1">
+        <input type="number" id="new-project-budget" placeholder="預算（選填）" style="width:140px">
+        <button class="btn-primary" onclick="addProject()" style="white-space:nowrap">新增</button>
+      </div>
+    </div>
+    <div id="project-list"></div>
   </div>
 
   <!-- ACCOUNTS -->
@@ -530,7 +547,7 @@ async function loadAll(){
     const local = localStorage.getItem(KEY);
     if(local){
       const d = JSON.parse(local);
-      txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
+      txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
       if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut;
       setSyncStatus('err','離線模式（本地）');
     } else {
@@ -538,11 +555,12 @@ async function loadAll(){
     }
   }
   refreshAcctSelects();
+  refreshProjectSelect();
   renderDashboard();
 }
 
 function sv(){
-  const data = JSON.stringify({txns,arItems,budgets,accounts,catsOut:CATS_OUT});
+  const data = JSON.stringify({txns,arItems,budgets,accounts,projects,catsOut:CATS_OUT});
   localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
   clearTimeout(saveTimer);
@@ -575,7 +593,7 @@ async function saveToSupabase(data){
 
 function ld(k,d){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} }
 
-let txns=[], arItems=[], budgets={}, accounts=[];
+let txns=[], arItems=[], budgets={}, accounts=[], projects=[];
 let currentType='in', currentArType='ar', currentAcctType='bank';
 let pieInst=null, barInst=null;
 
@@ -995,7 +1013,7 @@ function addTxn(){
         currency:cur, cat, date:dateStr,
         note: note ? note+' ('+(i+1)+'/'+count+')' : '分期'+(i+1)+'/'+count,
         acctId, toAcctId:null,
-        installmentGroup:instId, installmentIdx:i+1, installmentTotal:count
+        installmentGroup:instId, installmentIdx:i+1, installmentTotal:count, project:projId
       });
     }
     txns.sort((a,b)=>b.date.localeCompare(a.date));
@@ -1006,6 +1024,7 @@ function addTxn(){
       cat:document.getElementById('txn-cat').value,
       date:document.getElementById('txn-date').value||todayStr(),
       note:document.getElementById('txn-note').value,
+      project:document.getElementById('txn-project').value||null,
       acctId,toAcctId});
   }
   sv();
@@ -1086,7 +1105,7 @@ function renderTxnList(){
       <div class="txn-icon" style="background:${bg}">${ic}</div>
       <div class="txn-meta">
         <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
-        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}</div>
+        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.project?` · <span style="background:${(projects.find(p=>String(p.id)===String(t.project))||{}).color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${(projects.find(p=>String(p.id)===String(t.project))||{}).name||''}</span>`:''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
       <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
@@ -1334,6 +1353,84 @@ function renderDashboard(){
   }).join('');
 }
 
+function addProject(){
+  const name = document.getElementById('new-project-name').value.trim();
+  if(!name){alert('請輸入專案名稱');return;}
+  if(projects.find(p=>p.name===name)){alert('此專案名稱已存在');return;}
+  const budget = parseFloat(document.getElementById('new-project-budget').value)||null;
+  projects.push({id:Date.now(), name, budget, color:PROJECT_COLORS[projects.length%PROJECT_COLORS.length]});
+  sv();
+  document.getElementById('new-project-name').value='';
+  document.getElementById('new-project-budget').value='';
+  renderProjects();
+  refreshProjectSelect();
+}
+function deleteProject(id){
+  if(!confirm('刪除此專案？相關交易的專案標籤會移除。')) return;
+  projects=projects.filter(p=>p.id!==id);
+  txns.forEach(t=>{ if(t.project==id) t.project=null; });
+  sv(); renderProjects(); refreshProjectSelect();
+}
+function refreshProjectSelect(){
+  const sel = document.getElementById('txn-project');
+  if(!sel) return;
+  sel.innerHTML='<option value="">無</option>'+
+    projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+function renderProjects(){
+  const el = document.getElementById('project-list');
+  if(!el) return;
+  if(!projects.length){el.innerHTML='<div class="empty-state">尚無專案，新增一個開始追蹤</div>';return;}
+  el.innerHTML = projects.map(p=>{
+    const ptxns = txns.filter(t=>String(t.project)===String(p.id));
+    const totalIn  = ptxns.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    const totalOut = ptxns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    const net = totalIn - totalOut;
+    const pct = p.budget ? Math.min(100,(totalOut/p.budget)*100) : null;
+    const col = pct===null?'var(--blue)':pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
+    return `<div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:12px;height:12px;border-radius:50%;background:${p.color||'var(--blue)'}"></div>
+          <span style="font-size:15px;font-weight:500">${p.name}</span>
+          <span style="font-size:12px;color:var(--text2)">${ptxns.length} 筆</span>
+        </div>
+        <button class="btn-sm danger" onclick="deleteProject(${p.id})">刪除</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:${pct!==null?'10px':'0'}">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--text2)">收入</div>
+          <div style="font-size:14px;font-weight:500;color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--text2)">支出</div>
+          <div style="font-size:14px;font-weight:500;color:var(--red)">-${Math.round(totalOut).toLocaleString()}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--text2)">結餘</div>
+          <div style="font-size:14px;font-weight:500;color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div>
+        </div>
+      </div>
+      ${pct!==null?`<div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
+          <span>預算使用 ${pct.toFixed(1)}%</span>
+          <span>${Math.round(totalOut).toLocaleString()} / ${Math.round(p.budget).toLocaleString()} TWD</span>
+        </div>
+        <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden">
+          <div style="height:100%;border-radius:3px;background:${col};width:${pct.toFixed(1)}%"></div>
+        </div>
+      </div>`:''}
+      ${ptxns.length?`<div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px">
+        ${ptxns.slice(0,3).map(t=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+          <span style="color:var(--text2)">${t.date} ${t.cat}</span>
+          <span style="color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}${fmt(t.amount,t.currency)}</span>
+        </div>`).join('')}
+        ${ptxns.length>3?`<div style="font-size:12px;color:var(--text2);margin-top:4px">...還有 ${ptxns.length-3} 筆</div>`:''}
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+const PROJECT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#3B6D11','#993556'];
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1343,6 +1440,7 @@ function switchTab(t,el){
   if(t==='txn'){ refreshAcctSelects(); renderTxnList(); }
   if(t==='ar') renderAr();
   if(t==='budget') renderBudget();
+  if(t==='projects'){ renderProjects(); refreshProjectSelect(); }
   if(t==='accounts') renderAccounts();
 }
 
