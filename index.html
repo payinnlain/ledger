@@ -1215,7 +1215,9 @@ function addAr(){
   arItems.unshift({id:Date.now(),type:currentArType,name,amount:amt,
     currency:document.getElementById('ar-currency').value,
     due:document.getElementById('ar-due').value,
-    note:document.getElementById('ar-note').value,status:'unpaid'});
+    note:document.getElementById('ar-note').value,
+    acctId:parseInt(document.getElementById('ar-acct').value)||null,
+    status:'unpaid'});
   sv();
   document.getElementById('ar-name').value='';
   document.getElementById('ar-amount').value='';
@@ -1223,9 +1225,74 @@ function addAr(){
   renderAr();
 }
 function markArPaid(id){
-  const a=arItems.find(a=>a.id===id);
-  if(a) a.status=a.status==='paid'?'unpaid':'paid';
-  sv(); renderAr();
+  const a=arItems.find(x=>x.id===id);
+  if(!a) return;
+  if(a.status==='paid'){
+    if(!confirm('取消結清？相關的收支記錄不會自動刪除。')) return;
+    a.status='unpaid';
+    sv(); renderAr(); return;
+  }
+  // Show account selection dialog
+  const acctOpts = buildArAcctOpts(a.acctId);
+  const modal = document.getElementById('edit-modal');
+  modal.innerHTML = `
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:15px;font-weight:500">確認結清</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
+      </div>
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
+        <div style="font-weight:500;margin-bottom:4px">${a.name}</div>
+        <div style="color:var(--text2)">${a.type==='ar'?'應收':'應付'} ${fmt(a.amount,a.currency)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+        <label style="font-size:12px;color:var(--text2)">連動帳戶（選擇後自動新增${a.type==='ar'?'收入':'支出'}記錄）</label>
+        <select id="ar-settle-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${acctOpts}</select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px">
+        <label style="font-size:12px;color:var(--text2)">結清日期</label>
+        <input type="date" id="ar-settle-date" value="${todayStr()}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+      <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmSettle(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+}
+function buildArAcctOpts(curId){
+  const groups=[
+    {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
+    {type:'prepaid',label:'🎴 預付/儲值卡'},{type:'credit',label:'💳 信用卡'},
+    {type:'invest',label:'📈 投資帳戶'},{type:'crypto',label:'🪙 加密貨幣'},
+  ];
+  let html='<option value="">不連動帳戶</option>';
+  groups.forEach(g=>{
+    const list=accounts.filter(a=>a.type===g.type);
+    if(!list.length) return;
+    html+=`<optgroup label="${g.label}">`;
+    list.forEach(a=>{html+=`<option value="${a.id}"${String(a.id)===String(curId)?' selected':''}>${a.name} (${a.currency})</option>`;});
+    html+='</optgroup>';
+  });
+  return html;
+}
+function confirmSettle(id){
+  const a=arItems.find(x=>x.id===id);
+  if(!a) return;
+  a.status='paid';
+  const acctId=parseInt(document.getElementById('ar-settle-acct').value)||null;
+  const date=document.getElementById('ar-settle-date').value||todayStr();
+  if(acctId){
+    txns.unshift({
+      id:Date.now(), type:a.type==='ar'?'in':'out',
+      amount:a.amount, currency:a.currency,
+      cat:a.type==='ar'?'其他收入':'其他支出',
+      date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
+      acctId, toAcctId:null, project:null
+    });
+  }
+  sv(); closeEdit(); renderAr(); renderAcctOverview();
+  if(acctId) renderDashboard();
 }
 function deleteAr(id){ arItems=arItems.filter(a=>a.id!==id); sv(); renderAr(); }
 function arBadge(a){
@@ -1250,7 +1317,28 @@ function renderArList(type,elId){
     </div>
   </div>`).join('');
 }
-function renderAr(){ renderArList('ar','ar-list'); renderArList('ap','ap-list'); }
+function renderAr(){
+  // Refresh account select in AR form
+  const sel=document.getElementById('ar-acct');
+  if(sel){
+    const groups=[
+      {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
+      {type:'prepaid',label:'🎴 預付/儲值卡'},{type:'credit',label:'💳 信用卡'},
+      {type:'invest',label:'📈 投資帳戶'},{type:'crypto',label:'🪙 加密貨幣'},
+    ];
+    let html='<option value="">不指定</option>';
+    groups.forEach(g=>{
+      const list=accounts.filter(a=>a.type===g.type);
+      if(!list.length) return;
+      html+=`<optgroup label="${g.label}">`;
+      list.forEach(a=>{html+=`<option value="${a.id}">${a.name} (${a.currency})</option>`;});
+      html+='</optgroup>';
+    });
+    sel.innerHTML=html;
+  }
+  renderArList('ar','ar-list');
+  renderArList('ap','ap-list');
+}
 
 /* ── budget ── */
 function toggleCatEdit(){
