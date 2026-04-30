@@ -513,11 +513,12 @@
   <div style="margin-bottom:12px">
     <div class="form-group"><label>金額</label><input type="number" id="sheet-amount" placeholder="0" min="0" step="0.01" style="font-size:24px;font-weight:600;padding:12px;width:100%"></div>
   </div>
-  <div style="margin-bottom:12px">
+  <div style="margin-bottom:10px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">類別</label>
     <div style="display:flex;flex-wrap:wrap;gap:6px" id="sheet-cat-chips"></div>
     <input type="hidden" id="sheet-cat">
   </div>
+  <div id="sheet-subcat-wrap" style="display:none;margin-bottom:10px;padding:10px;background:var(--bg2);border-radius:var(--radius)"></div>
   <div style="margin-bottom:12px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
     <select id="sheet-acct-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
@@ -557,7 +558,43 @@
 
 <script>
 const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
-let CATS_OUT = ['餐飲','交通','住宿','娛樂','購物','醫療','教育','通訊','水電','加密貨幣買入','手續費','其他支出'];
+let CATS_OUT = ['餐飲','交通','娛樂','購物','個人','醫療','家庭','生活','學習','其他支出'];
+const CATS_SUB = {
+  '餐飲': ['早餐','午餐','晚餐','麵包','爸爸餐費','點心','飲料','酒類','水果','食物'],
+  '交通': ['加油','停車','火車','捷運','計程車','公車','摩托車','單車','機票','船票','高鐵'],
+  '娛樂': ['電影','展覽','影音','音樂','遊戲','運動','健身','戲劇'],
+  '購物': ['市場','衣物','鞋子','配件','包包','美妝','禮物','電子產品','應用軟體'],
+  '個人': ['社交','通話','借款','投資','稅金','保險','捐款','郵寄','手續費'],
+  '醫療': ['門診','牙醫','藥品','醫療用品','住院','手術','健檢'],
+  '家庭': ['日常用品','水費','電費','燃料費','電話費','網路','房租','洗衣','修繕費','家具','訂閱','家電','管理費'],
+  '生活': ['美髮','泡湯','按摩','住宿','旅行','派對','精油'],
+  '學習': ['書籍','課程','教材','文具'],
+  '其他支出': ['其他','暫支','代墊'],
+};
+const CATS_COLOR = {
+  '餐飲':    {color:'#F97316',bg:'#FFF7ED',border:'#FDBA74'},
+  '交通':    {color:'#3B82F6',bg:'#EFF6FF',border:'#93C5FD'},
+  '娛樂':    {color:'#8B5CF6',bg:'#F5F3FF',border:'#C4B5FD'},
+  '購物':    {color:'#EC4899',bg:'#FDF2F8',border:'#F9A8D4'},
+  '個人':    {color:'#0EA5E9',bg:'#F0F9FF',border:'#7DD3FC'},
+  '醫療':    {color:'#EF4444',bg:'#FEF2F2',border:'#FCA5A5'},
+  '家庭':    {color:'#10B981',bg:'#ECFDF5',border:'#6EE7B7'},
+  '生活':    {color:'#F59E0B',bg:'#FFFBEB',border:'#FCD34D'},
+  '學習':    {color:'#6366F1',bg:'#EEF2FF',border:'#A5B4FC'},
+  '其他支出':{color:'#6B7280',bg:'#F9FAFB',border:'#D1D5DB'},
+};
+const CATS_ICON = {
+  '餐飲':    '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><line x1="7" y1="2" x2="7" y2="11"/><path d="M11 2a5 5 0 0 1 0 10"/>',
+  '交通':    '<rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  '娛樂':    '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>',
+  '購物':    '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  '個人':    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  '醫療':    '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  '家庭':    '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  '生活':    '<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>',
+  '學習':    '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 0 3-3h7z"/>',
+  '其他支出':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+};
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
 const CAT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#993556','#3B6D11','#634806','#5DCAA5','#5F5E5A'];
 const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙',loan:'🏛',prepaid:'🎴'};
@@ -1848,22 +1885,73 @@ function setSheetType(t, el){
   renderSheetAcctChips();
 }
 function renderSheetCatChips(){
-  const cats = sheetType==='in'?CATS_IN:sheetType==='xfer'?['轉帳']:CATS_OUT;
-  const cur = document.getElementById('sheet-cat').value || cats[0];
-  document.getElementById('sheet-cat').value = cats.includes(cur)?cur:cats[0];
-  const curVal = document.getElementById('sheet-cat').value;
-  document.getElementById('sheet-cat-chips').innerHTML = cats.map(cat=>
-    `<button data-cat="${cat}" onclick="selectSheetCat(this)" class="chip-btn${cat===curVal?' chip-active':''}">${cat}</button>`
-  ).join('');
-  // Show/hide installment option
-  const instWrap = document.getElementById('sheet-inst-wrap');
-  if(instWrap) instWrap.style.display = sheetType==='out'?'block':'none';
+  if(sheetType==='in'){
+    const cur=document.getElementById('sheet-cat').value||CATS_IN[0];
+    document.getElementById('sheet-cat').value=CATS_IN.includes(cur)?cur:CATS_IN[0];
+    document.getElementById('sheet-cat-chips').innerHTML=CATS_IN.map(cat=>
+      `<button data-cat="${cat}" onclick="selectSheetCat(this)" class="chip-btn${cat===document.getElementById('sheet-cat').value?' chip-active':''}">${cat}</button>`
+    ).join('');
+    const subWrap=document.getElementById('sheet-subcat-wrap'); if(subWrap) subWrap.style.display='none';
+  } else if(sheetType==='xfer'){
+    document.getElementById('sheet-cat').value='轉帳';
+    document.getElementById('sheet-cat-chips').innerHTML='<button class="chip-btn chip-active">轉帳</button>';
+    const subWrap=document.getElementById('sheet-subcat-wrap'); if(subWrap) subWrap.style.display='none';
+  } else {
+    const cur=document.getElementById('sheet-cat').value||CATS_OUT[0];
+    const mainCat=CATS_OUT.includes(cur)?cur:CATS_OUT[0];
+    document.getElementById('sheet-cat').value=mainCat;
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_OUT.map(cat=>{
+        const col=CATS_COLOR[cat]||{color:'#666',bg:'#f5f5f5',border:'#ddd'};
+        const icon=CATS_ICON[cat]||'';
+        const active=cat===mainCat;
+        return `<button data-cat="${cat}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${cat}</span>
+        </button>`;
+      }).join('')+
+      '</div>';
+    renderSheetSubCats(mainCat);
+  }
+  const instWrap=document.getElementById('sheet-inst-wrap');
+  if(instWrap) instWrap.style.display=sheetType==='out'?'block':'none';
+}
+function renderSheetSubCats(mainCat){
+  const subWrap=document.getElementById('sheet-subcat-wrap');
+  if(!subWrap) return;
+  const subs=CATS_SUB[mainCat]||[];
+  if(!subs.length){ subWrap.style.display='none'; return; }
+  const curTag=document.getElementById('sheet-tag')?.value||'';
+  const col=CATS_COLOR[mainCat]||{color:'#185FA5',bg:'#E6F1FB',border:'#93C5FD'};
+  subWrap.style.display='block';
+  subWrap.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:5px">細項（選填）</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:5px">'+
+    subs.map(s=>{
+      const active=s===curTag;
+      return `<button data-sub="${s}" onclick="selectSheetSub(this)"
+        style="padding:4px 10px;font-size:11px;border-radius:12px;cursor:pointer;font-family:inherit;
+        border:1px solid ${active?col.border:'var(--border2)'};
+        background:${active?col.bg:'var(--bg)'};
+        color:${active?col.color:'var(--text2)'};
+        font-weight:${active?'500':'400'}">${s}</button>`;
+    }).join('')+
+    '</div>';
+}
+function selectSheetSub(el){
+  const sub=el.dataset.sub;
+  const tagEl=document.getElementById('sheet-tag');
+  if(tagEl){ tagEl.value=tagEl.value===sub?'':sub; }
+  const mainCat=document.getElementById('sheet-cat').value;
+  renderSheetSubCats(mainCat);
 }
 function selectSheetCat(el){
-  const cat = el.dataset.cat;
-  document.getElementById('sheet-cat').value = cat;
+  const cat=el.dataset.cat;
+  document.getElementById('sheet-cat').value=cat;
   document.querySelectorAll('#sheet-cat-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
   el.classList.add('chip-active');
+  if(sheetType==='out') renderSheetSubCats(cat);
 }
 function buildAcctOptgroups(curId){
   const groups = [
