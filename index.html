@@ -309,7 +309,7 @@
         <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
       </div>
       <div class="form-grid four" style="margin-bottom:10px">
-        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01"></div>
+        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
         <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
         <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
         <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
@@ -329,7 +329,20 @@
         <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
         <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
       </div>
-      <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
+        <div class="form-grid three">
+          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
+          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
+          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
+        </label>
+        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
+      </div>
     </div>
     <div class="card">
       <div class="section-header">
@@ -830,6 +843,27 @@ function filterAcctByType(){
     : '<option value="">（此類型無帳戶）</option>';
   const el = document.getElementById('txn-acct');
   if(el){ el.innerHTML=opts; populateCats(); }
+  // Show installment toggle for credit card type
+  const typeFilter = document.getElementById('txn-acct-type')?.value||'';
+  const instLabel = document.getElementById('inst-toggle-label');
+  if(instLabel){
+    instLabel.style.display = typeFilter==='credit' ? 'flex' : 'none';
+    if(typeFilter!=='credit'){
+      document.getElementById('txn-installment').checked=false;
+      document.getElementById('installment-wrap').style.display='none';
+    }
+  }
+}
+function toggleInstallment(){
+  const checked = document.getElementById('txn-installment').checked;
+  document.getElementById('installment-wrap').style.display = checked ? 'block' : 'none';
+  if(checked) calcInstEach();
+}
+function calcInstEach(){
+  const amt = parseFloat(document.getElementById('txn-amount').value)||0;
+  const count = parseInt(document.getElementById('txn-inst-count').value)||1;
+  const each = count > 0 ? Math.ceil(amt/count) : 0;
+  document.getElementById('txn-inst-each').value = each > 0 ? each : '';
 }
 function refreshAcctSelects(){
   const allOpts=accounts.length
@@ -940,15 +974,45 @@ function addTxn(){
   const acctId=parseInt(document.getElementById('txn-acct').value)||null;
   const toAcctId=currentType==='xfer'?(parseInt(document.getElementById('txn-to-acct').value)||null):null;
   if(currentType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
-  txns.unshift({id:Date.now(),type:currentType,amount:amt,
-    currency:document.getElementById('txn-currency').value,
-    cat:document.getElementById('txn-cat').value,
-    date:document.getElementById('txn-date').value||todayStr(),
-    note:document.getElementById('txn-note').value,
-    acctId,toAcctId});
+
+  const isInstallment = document.getElementById('txn-installment')?.checked && currentType==='out';
+  if(isInstallment){
+    const count = parseInt(document.getElementById('txn-inst-count').value)||1;
+    const startMonth = document.getElementById('txn-inst-start').value || thisMonth();
+    const each = Math.ceil(amt/count);
+    const note = document.getElementById('txn-note').value;
+    const cat = document.getElementById('txn-cat').value;
+    const cur = document.getElementById('txn-currency').value;
+    const instId = Date.now(); // group id
+    for(let i=0;i<count;i++){
+      const d = new Date(startMonth+'-01');
+      d.setMonth(d.getMonth()+i);
+      const dateStr = d.toISOString().slice(0,7)+'-01';
+      // Last period gets remainder
+      const periodAmt = i===count-1 ? (amt-(each*(count-1))) : each;
+      txns.unshift({
+        id: instId+i, type:'out', amount:periodAmt,
+        currency:cur, cat, date:dateStr,
+        note: note ? note+' ('+(i+1)+'/'+count+')' : '分期'+(i+1)+'/'+count,
+        acctId, toAcctId:null,
+        installmentGroup:instId, installmentIdx:i+1, installmentTotal:count
+      });
+    }
+    txns.sort((a,b)=>b.date.localeCompare(a.date));
+    alert('已新增 '+count+' 筆分期記錄（'+each+' '+document.getElementById('txn-currency').value+'/期）');
+  } else {
+    txns.unshift({id:Date.now(),type:currentType,amount:amt,
+      currency:document.getElementById('txn-currency').value,
+      cat:document.getElementById('txn-cat').value,
+      date:document.getElementById('txn-date').value||todayStr(),
+      note:document.getElementById('txn-note').value,
+      acctId,toAcctId});
+  }
   sv();
   document.getElementById('txn-amount').value='';
   document.getElementById('txn-note').value='';
+  if(document.getElementById('txn-installment')) document.getElementById('txn-installment').checked=false;
+  document.getElementById('installment-wrap').style.display='none';
   renderTxnList(); renderAcctOverview();
 }
 function deleteTxn(id){
@@ -1285,6 +1349,7 @@ function switchTab(t,el){
 // init
 loadAll();
 document.getElementById('txn-date').value=todayStr();
+document.getElementById('txn-inst-start').value=thisMonth();
 document.getElementById('filter-month').value=thisMonth();
 populateCats();
 refreshAcctSelects();
