@@ -1984,9 +1984,101 @@ function selectSheetSub(el){
 function selectSheetCat(el){
   const cat=el.dataset.cat;
   document.getElementById('sheet-cat').value=cat;
-  document.querySelectorAll('#sheet-cat-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
-  el.classList.add('chip-active');
-  if(sheetType==='out') renderSheetSubCats(cat);
+  if(sheetType==='out'){
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_OUT.map(cat2=>{
+        const col=CATS_COLOR[cat2]||{color:'#666',bg:'#f5f5f5',border:'#ddd'};
+        const icon=CATS_ICON[cat2]||'';
+        const active=cat2===cat;
+        return `<button data-cat="${cat2}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${cat2}</span>
+        </button>`;
+      }).join('')+'</div>';
+    renderSheetSubCats(cat);
+  } else if(sheetType==='in'){
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_IN.map(cat2=>{
+        const col=CATS_IN_COLOR[cat2]||{color:'#10B981',bg:'#ECFDF5',border:'#6EE7B7'};
+        const icon=CATS_IN_ICON[cat2]||'';
+        const active=cat2===cat;
+        return `<button data-cat="${cat2}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${cat2}</span>
+        </button>`;
+      }).join('')+'</div>';
+  }
+}
+
+function renderSheetSubCats(mainCat){
+  const subWrap=document.getElementById('sheet-subcat-wrap');
+  if(!subWrap) return;
+  const subs=CATS_SUB[mainCat]||[];
+  if(!subs.length){ subWrap.style.display='none'; return; }
+  const curTag=document.getElementById('sheet-tag')?.value||'';
+  const col=CATS_COLOR[mainCat]||{color:'#185FA5',bg:'#E6F1FB',border:'#93C5FD'};
+  subWrap.style.display='block';
+  subWrap.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:5px">細項（選填）</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:5px">'+
+    subs.map(s=>{
+      const active=s===curTag;
+      return `<button data-sub="${s}" onclick="selectSheetSub(this)"
+        style="padding:4px 10px;font-size:11px;border-radius:12px;cursor:pointer;font-family:inherit;
+        border:1px solid ${active?col.border:'var(--border2)'};
+        background:${active?col.bg:'var(--bg)'};
+        color:${active?col.color:'var(--text2)'};
+        font-weight:${active?'500':'400'}">${s}</button>`;
+    }).join('')+
+    '</div>';
+}
+function selectSheetSub(el){
+  const sub=el.dataset.sub;
+  const tagEl=document.getElementById('sheet-tag');
+  if(tagEl){ tagEl.value=tagEl.value===sub?'':sub; }
+  const mainCat=document.getElementById('sheet-cat').value;
+  renderSheetSubCats(mainCat);
+}
+function selectSheetCat(el){
+  const cat=el.dataset.cat;
+  document.getElementById('sheet-cat').value=cat;
+  // Re-render to update active state properly (inline styles need full re-render)
+  if(sheetType==='out'){
+    // Re-render out cat grid
+    const mainCat=cat;
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_OUT.map(c=>{
+        const col=CATS_COLOR[c]||{color:'#666',bg:'#f5f5f5',border:'#ddd'};
+        const icon=CATS_ICON[c]||'';
+        const active=c===mainCat;
+        return `<button data-cat="${c}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${c}</span>
+        </button>`;
+      }).join('')+
+      '</div>';
+    renderSheetSubCats(cat);
+  } else if(sheetType==='in'){
+    const mainCat=cat;
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_IN.map(c=>{
+        const col=CATS_IN_COLOR[c]||{color:'#10B981',bg:'#ECFDF5',border:'#6EE7B7'};
+        const icon=CATS_IN_ICON[c]||'';
+        const active=c===mainCat;
+        return `<button data-cat="${c}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${c}</span>
+        </button>`;
+      }).join('')+
+      '</div>';
+  }
 }
 function buildAcctOptgroups(curId){
   const groups = [
