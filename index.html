@@ -1094,7 +1094,7 @@ function renderCalendar(){
 
   // Build date -> txn map
   const monthStr = calYear+'-'+(String(calMonth+1).padStart(2,'0'));
-  document.getElementById('filter-month').value = monthStr;
+  const fmEl2=document.getElementById('filter-month'); if(fmEl2) fmEl2.value=monthStr;
 
   const dayMap = {};
   txns.filter(t=>t.date&&t.date.startsWith(monthStr)).forEach(t=>{
@@ -1547,7 +1547,7 @@ function switchTab(t,el){
 loadAll();
 document.getElementById('txn-date').value=todayStr();
 document.getElementById('txn-inst-start').value=thisMonth();
-document.getElementById('filter-month').value=thisMonth();
+const fmEl=document.getElementById('filter-month'); if(fmEl) fmEl.value=thisMonth();
 // init calendar
 setTimeout(()=>renderCalendar(), 100);
 populateCats();
