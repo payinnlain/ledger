@@ -557,7 +557,7 @@
 <div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;"></div>
 
 <script>
-const CATS_IN  = ['薪資','投資','兼職','獎金','加密貨幣獲利','質押收益','空投','其他收入'];
+const CATS_IN  = ['薪資','獎金','投資','發票','利息','補助','二手','回饋','暫收','退款'];
 let CATS_OUT = ['餐飲','交通','娛樂','購物','個人','醫療','家庭','生活','學習','其他支出'];
 const CATS_SUB = {
   '餐飲': ['早餐','午餐','晚餐','麵包','爸爸餐費','點心','飲料','酒類','水果','食物'],
@@ -582,6 +582,30 @@ const CATS_COLOR = {
   '生活':    {color:'#F59E0B',bg:'#FFFBEB',border:'#FCD34D'},
   '學習':    {color:'#6366F1',bg:'#EEF2FF',border:'#A5B4FC'},
   '其他支出':{color:'#6B7280',bg:'#F9FAFB',border:'#D1D5DB'},
+};
+const CATS_IN_COLOR = {
+  '薪資': {color:'#10B981',bg:'#ECFDF5',border:'#6EE7B7'},
+  '獎金': {color:'#F59E0B',bg:'#FFFBEB',border:'#FCD34D'},
+  '投資': {color:'#3B82F6',bg:'#EFF6FF',border:'#93C5FD'},
+  '發票': {color:'#F97316',bg:'#FFF7ED',border:'#FDBA74'},
+  '利息': {color:'#8B5CF6',bg:'#F5F3FF',border:'#C4B5FD'},
+  '補助': {color:'#0EA5E9',bg:'#F0F9FF',border:'#7DD3FC'},
+  '二手': {color:'#EC4899',bg:'#FDF2F8',border:'#F9A8D4'},
+  '回饋': {color:'#EF4444',bg:'#FEF2F2',border:'#FCA5A5'},
+  '暫收': {color:'#6B7280',bg:'#F9FAFB',border:'#D1D5DB'},
+  '退款': {color:'#6366F1',bg:'#EEF2FF',border:'#A5B4FC'},
+};
+const CATS_IN_ICON = {
+  '薪資':  '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
+  '獎金':  '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>',
+  '投資':  '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  '發票':  '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/>',
+  '利息':  '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  '補助':  '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  '二手':  '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  '回饋':  '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/>',
+  '暫收':  '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  '退款':  '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.61"/>',
 };
 const CATS_ICON = {
   '餐飲':    '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><line x1="7" y1="2" x2="7" y2="11"/><path d="M11 2a5 5 0 0 1 0 10"/>',
@@ -1887,10 +1911,21 @@ function setSheetType(t, el){
 function renderSheetCatChips(){
   if(sheetType==='in'){
     const cur=document.getElementById('sheet-cat').value||CATS_IN[0];
-    document.getElementById('sheet-cat').value=CATS_IN.includes(cur)?cur:CATS_IN[0];
-    document.getElementById('sheet-cat-chips').innerHTML=CATS_IN.map(cat=>
-      `<button data-cat="${cat}" onclick="selectSheetCat(this)" class="chip-btn${cat===document.getElementById('sheet-cat').value?' chip-active':''}">${cat}</button>`
-    ).join('');
+    const mainCat=CATS_IN.includes(cur)?cur:CATS_IN[0];
+    document.getElementById('sheet-cat').value=mainCat;
+    document.getElementById('sheet-cat-chips').innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%">'+
+      CATS_IN.map(cat=>{
+        const col=CATS_IN_COLOR[cat]||{color:'#10B981',bg:'#ECFDF5',border:'#6EE7B7'};
+        const icon=CATS_IN_ICON[cat]||'';
+        const active=cat===mainCat;
+        return `<button data-cat="${cat}" onclick="selectSheetCat(this)"
+          style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:10px;cursor:pointer;border:${active?'2px':'1.5px'} solid ${active?col.border:'transparent'};background:${col.bg};transition:all .15s;font-family:inherit">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:${col.color};stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round">${icon}</svg>
+          <span style="font-size:10px;color:${col.color};font-weight:500;text-align:center;line-height:1.2">${cat}</span>
+        </button>`;
+      }).join('')+
+      '</div>';
     const subWrap=document.getElementById('sheet-subcat-wrap'); if(subWrap) subWrap.style.display='none';
   } else if(sheetType==='xfer'){
     document.getElementById('sheet-cat').value='轉帳';
