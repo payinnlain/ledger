@@ -363,10 +363,11 @@
       </div>
       <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
         <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
-        <div class="form-grid three">
+        <div class="form-grid four">
           <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
           <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
-          <div class="form-group"><label>每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
+          <div class="form-group"><label>第一期金額（選填）</label><input type="number" id="txn-inst-first" placeholder="同每期" min="0" step="0.01" oninput="calcInstEach()"></div>
+          <div class="form-group"><label>其餘每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
@@ -543,7 +544,8 @@
     <div id="sheet-inst-fields" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div class="form-group"><label>期數</label><input type="number" id="sheet-inst-count" value="12" min="2" max="84" oninput="calcSheetInstEach()"></div>
       <div class="form-group"><label>起始月份</label><input type="month" id="sheet-inst-start"></div>
-      <div class="form-group" style="grid-column:1/-1"><label>每期金額（自動計算）</label><input type="number" id="sheet-inst-each" readonly style="background:var(--bg3);color:var(--text2)"></div>
+      <div class="form-group"><label>第一期金額（選填）</label><input type="number" id="sheet-inst-first" placeholder="同每期" min="0" step="0.01" oninput="calcSheetInstEach()"></div>
+      <div class="form-group"><label>其餘每期金額</label><input type="number" id="sheet-inst-each" readonly style="background:var(--bg3);color:var(--text2)"></div>
     </div>
   </div>
   <button onclick="addTxnFromSheet()" style="width:100%;padding:14px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">新增</button>
@@ -972,7 +974,11 @@ function toggleInstallment(){
 function calcInstEach(){
   const amt = parseFloat(document.getElementById('txn-amount').value)||0;
   const count = parseInt(document.getElementById('txn-inst-count').value)||1;
-  const each = count > 0 ? Math.ceil(amt/count) : 0;
+  const first = parseFloat(document.getElementById('txn-inst-first')?.value)||0;
+  const remaining = count > 1 ? count - 1 : 1;
+  const each = first > 0
+    ? (amt - first > 0 ? Math.ceil((amt - first) / remaining) : 0)
+    : (count > 0 ? Math.ceil(amt / count) : 0);
   document.getElementById('txn-inst-each').value = each > 0 ? each : '';
 }
 function refreshAcctSelects(){
@@ -1867,7 +1873,11 @@ function toggleSheetInst(){
 function calcSheetInstEach(){
   const amt = parseFloat(document.getElementById('sheet-amount').value)||0;
   const count = parseInt(document.getElementById('sheet-inst-count').value)||1;
-  const each = count>0?Math.ceil(amt/count):0;
+  const first = parseFloat(document.getElementById('sheet-inst-first')?.value)||0;
+  const remaining = count > 1 ? count - 1 : 1;
+  const each = first > 0
+    ? (amt - first > 0 ? Math.ceil((amt - first) / remaining) : 0)
+    : (count > 0 ? Math.ceil(amt / count) : 0);
   const el = document.getElementById('sheet-inst-each');
   if(el) el.value = each>0?each:'';
 }
@@ -1889,13 +1899,14 @@ function addTxnFromSheet(){
   if(isInst){
     const count=parseInt(document.getElementById('sheet-inst-count').value)||1;
     const startMonth=document.getElementById('sheet-inst-start').value||thisMonth();
-    const each=Math.ceil(amt/count);
+    const firstAmt=parseFloat(document.getElementById('sheet-inst-first')?.value)||0;
+    const each=firstAmt>0?Math.ceil((amt-firstAmt)/(count-1||1)):Math.ceil(amt/count);
     const instId=Date.now();
     for(let i=0;i<count;i++){
       const d=new Date(startMonth+'-01');
       d.setMonth(d.getMonth()+i);
       const dateStr=d.toISOString().slice(0,7)+'-01';
-      const periodAmt=i===count-1?(amt-(each*(count-1))):each;
+      const periodAmt=i===0&&firstAmt>0?firstAmt:(i===count-1?(amt-firstAmt-(each*(count-2>0?count-2:0))):each);
       txns.unshift({id:instId+i,type:'out',amount:periodAmt,currency:cur,cat,
         date:dateStr,note:note?(note+' ('+(i+1)+'/'+count+')'):'分期'+(i+1)+'/'+count,
         acctId,toAcctId:null,project:proj,
@@ -1912,6 +1923,7 @@ function addTxnFromSheet(){
   document.getElementById('sheet-note').value='';
   const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
   if(document.getElementById('sheet-inst-check')) document.getElementById('sheet-inst-check').checked=false;
+  const sif=document.getElementById('sheet-inst-first'); if(sif) sif.value='';
   if(document.getElementById('sheet-inst-fields')) document.getElementById('sheet-inst-fields').style.display='none';
   renderCalendar(); renderTxnList(); renderAcctOverview();
 }
