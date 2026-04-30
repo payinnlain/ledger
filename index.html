@@ -333,7 +333,7 @@
       <div class="form-grid four" style="margin-bottom:10px">
         <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
         <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
-        <div class="form-group"><label>日期</label><input type="date" id="txn-date"></div>
+        <div class="form-group"><label>日期</label><input type="date" id="txn-date" onchange="const is=document.getElementById('txn-inst-start');if(is)is.value=this.value.slice(0,7)"></div>
         <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
       </div>
       <div class="form-grid" style="margin-bottom:10px">
@@ -506,7 +506,7 @@
     <button id="sheet-btn-xfer" onclick="setSheetType('xfer',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⇄ 轉帳</button>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-    <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px;width:100%"></div>
+    <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px;width:100%" onchange="const is=document.getElementById('sheet-inst-start');if(is)is.value=this.value.slice(0,7)"></div>
     <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px;width:100%"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
   </div>
   <div style="margin-bottom:12px">
@@ -1147,7 +1147,63 @@ function addTxn(){
   renderTxnList(); renderAcctOverview();
 }
 function deleteTxn(id){
-  txns=txns.filter(t=>t.id!==id); sv(); renderTxnList(); renderAcctOverview(); renderDashboard();
+  const t=txns.find(x=>x.id===id);
+  if(!t) return;
+  if(t.installmentGroup){
+    const today=todayStr();
+    const group=txns.filter(x=>x.installmentGroup===t.installmentGroup);
+    const future=group.filter(x=>x.date>=today&&x.id!==id);
+    const past=group.filter(x=>x.date<today&&x.id!==id);
+    // Build dialog options
+    let msg=`這是分期交易（第 ${t.installmentIdx}/${t.installmentTotal} 期）\n\n`;
+    msg+=`同分期共 ${group.length} 筆，其中：\n`;
+    if(future.length>0) msg+=`・未來期數：${future.length} 筆\n`;
+    if(past.length>0) msg+=`・過去期數：${past.length} 筆\n`;
+    msg+=`\n請選擇刪除方式：`;
+    const modal=document.getElementById('edit-modal');
+    modal.innerHTML=`
+      <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+        <div style="font-size:15px;font-weight:500;margin-bottom:12px">刪除分期交易</div>
+        <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:var(--text2)">
+          第 ${t.installmentIdx}/${t.installmentTotal} 期・${t.date}・${fmt(t.amount,t.currency)}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+          <button onclick="doDeleteTxn(${id},'single')" style="padding:12px;text-align:left;border:0.5px solid var(--border2);background:var(--bg);border-radius:var(--radius);cursor:pointer;font-family:inherit;font-size:13px">
+            <div style="font-weight:500;margin-bottom:2px">只刪除這一筆</div>
+            <div style="color:var(--text2);font-size:12px">第 ${t.installmentIdx} 期，其餘不影響</div>
+          </button>
+          ${future.length>0?`<button onclick="doDeleteTxn(${id},'future')" style="padding:12px;text-align:left;border:0.5px solid var(--border2);background:var(--bg);border-radius:var(--radius);cursor:pointer;font-family:inherit;font-size:13px">
+            <div style="font-weight:500;margin-bottom:2px">刪除這筆及之後 ${future.length} 期</div>
+            <div style="color:var(--text2);font-size:12px">共刪除 ${future.length+1} 筆（${today} 起未來期數）</div>
+          </button>`:''}
+          <button onclick="doDeleteTxn(${id},'all')" style="padding:12px;text-align:left;border:0.5px solid var(--red-bg);background:var(--red-bg);border-radius:var(--radius);cursor:pointer;font-family:inherit;font-size:13px">
+            <div style="font-weight:500;color:var(--red);margin-bottom:2px">刪除全部 ${group.length} 筆</div>
+            <div style="color:var(--red);font-size:12px;opacity:0.8">包含所有過去及未來期數</div>
+          </button>
+        </div>
+        <div style="text-align:right">
+          <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        </div>
+      </div>`;
+    modal.style.display='flex';
+  } else {
+    if(!confirm('確定刪除此記錄？')) return;
+    txns=txns.filter(x=>x.id!==id);
+    sv(); renderTxnList(); renderAcctOverview(); renderDashboard();
+  }
+}
+function doDeleteTxn(id, mode){
+  const t=txns.find(x=>x.id===id);
+  if(!t) return;
+  const today=todayStr();
+  if(mode==='single'){
+    txns=txns.filter(x=>x.id!==id);
+  } else if(mode==='future'){
+    txns=txns.filter(x=>!(x.installmentGroup===t.installmentGroup&&x.date>=today));
+  } else if(mode==='all'){
+    txns=txns.filter(x=>x.installmentGroup!==t.installmentGroup);
+  }
+  sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
 }
 function editTxn(id){
   const t=txns.find(x=>x.id===id); if(!t) return;
@@ -1762,7 +1818,7 @@ function openAddSheet(){
   const d = calSelectedDate || todayStr();
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
-  if(instStart) instStart.value = thisMonth();
+  if(instStart) instStart.value = d.slice(0,7); // use selected date's month
   // Render chips
   renderSheetCatChips();
   renderSheetAcctChips();
@@ -1902,10 +1958,15 @@ function addTxnFromSheet(){
     const firstAmt=parseFloat(document.getElementById('sheet-inst-first')?.value)||0;
     const each=firstAmt>0?Math.ceil((amt-firstAmt)/(count-1||1)):Math.ceil(amt/count);
     const instId=Date.now();
+    const baseDate=document.getElementById('sheet-date').value||todayStr();
+    const baseDay=parseInt(baseDate.split('-')[2])||1;
     for(let i=0;i<count;i++){
       const d=new Date(startMonth+'-01');
       d.setMonth(d.getMonth()+i);
-      const dateStr=d.toISOString().slice(0,7)+'-01';
+      // Use same day as base date, capped at month end
+      const daysInMonth=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+      const day=Math.min(baseDay,daysInMonth);
+      const dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
       const periodAmt=i===0&&firstAmt>0?firstAmt:(i===count-1?(amt-firstAmt-(each*(count-2>0?count-2:0))):each);
       txns.unshift({id:instId+i,type:'out',amount:periodAmt,currency:cur,cat,
         date:dateStr,note:note?(note+' ('+(i+1)+'/'+count+')'):'分期'+(i+1)+'/'+count,
