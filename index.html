@@ -405,7 +405,8 @@
       <div id="budget-form"></div>
       <div style="margin-top:14px;text-align:right"><button class="btn-primary" onclick="saveBudgets()">儲存預算</button></div>
     </div>
-    <div class="card"><div class="section-header"><span class="section-title">本月預算使用狀況</span></div><div id="budget-progress"></div></div>
+    <div id="budget-summary" style="margin-bottom:14px"></div>
+    <div class="card"><div class="section-header"><span class="section-title">本月各項預算</span></div><div id="budget-progress"></div></div>
   </div>
 
   <!-- PROJECTS -->
@@ -1202,7 +1203,12 @@ function renderBudget(){
   txns.filter(t=>t.type==='out'&&t.date.startsWith(m)&&t.currency==='TWD').forEach(t=>{spent[t.cat]=(spent[t.cat]||0)+t.amount;});
   const prog=document.getElementById('budget-progress');
   const bCats=CATS_OUT.filter(c=>budgets[c]>0);
-  if(!bCats.length){prog.innerHTML='<div class="empty-state">請先設定預算</div>';return;}
+  const sumEl = document.getElementById('budget-summary');
+  if(!bCats.length){
+    prog.innerHTML='<div class="empty-state">請先設定預算</div>';
+    if(sumEl) sumEl.innerHTML='';
+    return;
+  }
   // 加總
   const totalBudget = bCats.reduce((s,c)=>s+(budgets[c]||0),0);
   const totalSpent  = bCats.reduce((s,c)=>s+(spent[c]||0),0);
@@ -1210,24 +1216,30 @@ function renderBudget(){
   const totalOver   = totalSpent>totalBudget;
   const totalCol    = totalPct<70?'var(--green)':totalPct<90?'var(--amber)':'var(--red)';
 
-  const summary = `<div style="background:var(--bg2);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <span style="font-size:14px;font-weight:500">本月預算總計</span>
-      <span style="font-size:13px;color:${totalOver?'var(--red)':'var(--text2)'}">
-        ${totalSpent.toLocaleString()} / ${totalBudget.toLocaleString()} TWD
-        ${totalOver?' (超支)':''}
-      </span>
-    </div>
-    <div class="budget-bar-track" style="height:10px;margin-bottom:8px">
-      <div class="budget-bar-fill" style="width:${totalPct.toFixed(1)}%;background:${totalCol}"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
-      <span>已使用 <strong style="color:${totalCol}">${totalPct.toFixed(1)}%</strong></span>
-      <span>剩餘 <strong style="color:${totalOver?'var(--red)':'var(--green)'}">${(totalBudget-totalSpent).toLocaleString()} TWD</strong></span>
-    </div>
-  </div>`;
+  // Render top summary card
+  if(sumEl){
+    const netBudget = totalBudget - totalSpent;
+    const sumColor = totalOver?'var(--red)':totalPct>70?'var(--amber)':'var(--green)';
+    sumEl.innerHTML = `<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px">
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">本月預算</div>
+        <div style="font-size:22px;font-weight:600">${totalBudget.toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text2)">TWD</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">已使用</div>
+        <div style="font-size:22px;font-weight:600;color:${sumColor}">${totalSpent.toLocaleString()}</div>
+        <div style="font-size:11px;color:${sumColor}">${totalPct.toFixed(1)}%</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${totalOver?'超支':'剩餘'}</div>
+        <div style="font-size:22px;font-weight:600;color:${totalOver?'var(--red)':'var(--green)'}">${Math.abs(netBudget).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text2)">TWD</div>
+      </div>
+    </div>`;
+  }
 
-  prog.innerHTML = summary + bCats.map(c=>{
+  prog.innerHTML = bCats.map(c=>{
     const b=budgets[c]||0,s=spent[c]||0,pct=b>0?Math.min(100,(s/b)*100):0,over=s>b;
     const col=pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
     return `<div class="budget-bar-wrap">
