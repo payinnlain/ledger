@@ -1507,6 +1507,107 @@ function renderProjects(){
   }).join('');
 }
 const PROJECT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#3B6D11','#993556'];
+/* ── Add Sheet ── */
+let sheetType = 'in';
+
+function openAddSheet(){
+  document.getElementById('add-sheet-backdrop').style.display='block';
+  document.getElementById('add-sheet').style.display='block';
+  // Set default date
+  const d = calSelectedDate || todayStr();
+  document.getElementById('sheet-date').value = d;
+  // Render chips
+  renderSheetCatChips();
+  renderSheetAcctChips();
+  refreshSheetProjectSelect();
+}
+function closeAddSheet(){
+  document.getElementById('add-sheet-backdrop').style.display='none';
+  document.getElementById('add-sheet').style.display='none';
+}
+function setSheetType(t, el){
+  sheetType = t;
+  const colors = {in:'var(--green)',out:'var(--red)',xfer:'var(--purple)'};
+  const bgs = {in:'var(--green-bg)',out:'var(--red-bg)',xfer:'var(--purple-bg)'};
+  ['in','out','xfer'].forEach(type=>{
+    const btn = document.getElementById('sheet-btn-'+type);
+    if(!btn) return;
+    if(type===t){ btn.style.borderColor=colors[t]; btn.style.background=bgs[t]; btn.style.color=colors[t]; }
+    else { btn.style.borderColor='var(--border)'; btn.style.background='var(--bg)'; btn.style.color='var(--text2)'; }
+  });
+  document.getElementById('sheet-acct-label').textContent = t==='xfer'?'轉出帳戶':'帳戶';
+  document.getElementById('sheet-to-wrap').style.display = t==='xfer'?'block':'none';
+  renderSheetCatChips();
+}
+function renderSheetCatChips(){
+  const cats = sheetType==='in'?CATS_IN:sheetType==='xfer'?['轉帳']:CATS_OUT;
+  const cur = document.getElementById('sheet-cat').value || cats[0];
+  document.getElementById('sheet-cat').value = cats.includes(cur)?cur:cats[0];
+  document.getElementById('sheet-cat-chips').innerHTML = cats.map(cat=>
+    `<button onclick="selectSheetCat('${cat}',this)" class="chip-btn${cat===document.getElementById('sheet-cat').value?' chip-active':''}">${cat}</button>`
+  ).join('');
+}
+function selectSheetCat(cat, el){
+  document.getElementById('sheet-cat').value = cat;
+  document.querySelectorAll('#sheet-cat-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
+  el.classList.add('chip-active');
+}
+function renderSheetAcctChips(){
+  const curId = document.getElementById('sheet-acct').value;
+  const chips = accounts.map(a=>
+    `<button onclick="selectSheetAcct(${a.id},this)" class="chip-btn${String(a.id)===String(curId)?' chip-active':''}">${ICONS[a.type]} ${a.name}</button>`
+  ).join('') || '<span style="font-size:13px;color:var(--text2)">請先新增帳戶</span>';
+  document.getElementById('sheet-acct-chips').innerHTML = chips;
+  document.getElementById('sheet-to-chips').innerHTML = chips.replace(/onclick="selectSheetAcct/g,'onclick="selectSheetToAcct');
+}
+function selectSheetAcct(id, el){
+  document.getElementById('sheet-acct').value = id;
+  document.querySelectorAll('#sheet-acct-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
+  el.classList.add('chip-active');
+}
+function selectSheetToAcct(id, el){
+  document.getElementById('sheet-to-acct').value = id;
+  document.querySelectorAll('#sheet-to-chips .chip-btn').forEach(b=>b.classList.remove('chip-active'));
+  el.classList.add('chip-active');
+}
+function refreshSheetProjectSelect(){
+  const sel = document.getElementById('sheet-project');
+  if(!sel) return;
+  sel.innerHTML='<option value="">無</option>'+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+function quickAddProjectSheet(){
+  const name=prompt('請輸入專案名稱：');
+  if(!name||!name.trim()) return;
+  if(projects.find(p=>p.name===name.trim())){alert('此專案名稱已存在');return;}
+  const budget=prompt('預算金額（選填）：');
+  projects.push({id:Date.now(),name:name.trim(),budget:parseFloat(budget)||null,color:PROJECT_COLORS[projects.length%PROJECT_COLORS.length]});
+  sv(); refreshSheetProjectSelect();
+  document.getElementById('sheet-project').value=projects[projects.length-1].id;
+}
+function addTxnFromSheet(){
+  const amt=parseFloat(document.getElementById('sheet-amount').value);
+  if(!amt||amt<=0){alert('請輸入有效金額');return;}
+  const acctId=parseInt(document.getElementById('sheet-acct').value)||null;
+  const toAcctId=sheetType==='xfer'?(parseInt(document.getElementById('sheet-to-acct').value)||null):null;
+  if(sheetType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
+  const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
+  txns.unshift({
+    id:Date.now(), type:sheetType, amount:amt,
+    currency:document.getElementById('sheet-currency').value,
+    cat, date:document.getElementById('sheet-date').value||todayStr(),
+    note:document.getElementById('sheet-note').value,
+    project:document.getElementById('sheet-project').value||null,
+    acctId, toAcctId
+  });
+  sv();
+  closeAddSheet();
+  document.getElementById('sheet-amount').value='';
+  document.getElementById('sheet-note').value='';
+  renderCalendar();
+  renderTxnList();
+  renderAcctOverview();
+}
+
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
