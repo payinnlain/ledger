@@ -1012,12 +1012,25 @@ function renderAcctOverview(){
   el.innerHTML=accounts.map(a=>{
     const bal=acctBalance(a);
     const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
+    const loanBtn=a.type==='loan'&&a.loanPayment
+      ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:8px;width:100%;padding:6px;background:var(--text);color:var(--bg);border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">還款 ${fmt(a.loanPayment,a.currency)}</button>`
+      :'';
+    const loanInfo=a.type==='loan'&&a.loanDay
+      ?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${nextLoanPayment(a)}</div>`
+      :'';
+    const creditInfo=a.type==='credit'&&a.billDay
+      ?`<div style="font-size:11px;color:var(--text3);margin-top:4px">${nextBillInfo(a)}</div>`
+      :'';
+    const availCredit=a.type==='credit'&&a.creditLimit
+      ?`<div style="font-size:11px;color:var(--text2);margin-top:2px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</div>`
+      :'';
     return `<div class="acct-card">
       <button class="acct-del" onclick="deleteAccount(${a.id})">✕</button>
       <div class="acct-card-icon">${ICONS[a.type]||'🏦'}</div>
       <div class="acct-card-name">${a.name}</div>
       <div class="acct-card-bal" style="color:${c}">${fmt(bal,a.currency)}</div>
       <div class="acct-card-cur">${a.currency}</div>
+      ${availCredit}${loanInfo}${creditInfo}${loanBtn}
     </div>`;
   }).join('');
 }
