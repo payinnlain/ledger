@@ -1159,24 +1159,27 @@ function renderAcctOverview(){
   typeOrder.forEach(type=>{
     const group=accounts.filter(a=>a.type===type);
     if(!group.length) return;
-    html+=`<div style="font-size:11px;color:var(--text2);font-weight:500;padding:10px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:6px">${typeLabel[type]}</div>`;
-    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+    html+=`<div style="font-size:11px;color:var(--text2);font-weight:500;padding:10px 0 6px;border-bottom:0.5px solid var(--border);margin-bottom:8px">${typeLabel[type]}</div>`;
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px">';
     group.forEach(a=>{
       const bal=acctBalance(a);
       const balColor=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
-      const loanInfo=a.type==='loan'&&a.loanDay?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${nextLoanPayment(a)}</div>`:'';
-      const creditInfo=a.type==='credit'&&a.billDay?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${nextBillInfo(a)}</div>`:'';
-      const availCredit=a.type==='credit'&&a.creditLimit?`<div style="font-size:11px;color:var(--text2);margin-top:1px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</div>`:'';
+      const loanInfo=a.type==='loan'&&a.loanDay?`<div style="font-size:10px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nextLoanPayment(a)}</div>`:'';
+      const creditInfo=a.type==='credit'&&a.billDay?`<div style="font-size:10px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nextBillInfo(a)}</div>`:'';
+      const availCredit=a.type==='credit'&&a.creditLimit?`<div style="font-size:10px;color:var(--text2);margin-top:1px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</div>`:'';
       const loanBtn=a.type==='loan'&&a.loanPayment
-        ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:var(--text);color:var(--bg);border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">還款 ${fmt(a.loanPayment,a.currency)}</button>`:'';
+        ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:8px;width:100%;padding:5px;background:var(--text);color:var(--bg);border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:var(--text2);border:0.5px solid var(--border2);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">調整餘額</button>`:'';
-      html+=`<div style="background:var(--bg2);border-radius:var(--radius);padding:10px 12px;position:relative">
-        <button onclick="deleteAccount(${a.id})" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px">✕</button>
-        <div style="font-size:13px;font-weight:500;color:var(--text);padding-right:16px">${a.name}</div>
-        <div style="font-size:16px;font-weight:600;color:${balColor};margin-top:4px">${fmt(bal,a.currency)}</div>
-        <div style="font-size:11px;color:var(--text2)">${a.currency}</div>
-        ${loanInfo}${creditInfo}${availCredit}${loanBtn}${adjBtn}
+        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:8px;width:100%;padding:5px;background:transparent;color:var(--text2);border:0.5px solid var(--border2);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">調整餘額</button>`:'';
+      html+=`<div style="background:var(--bg2);border-radius:var(--radius);padding:10px 12px;position:relative;min-height:90px;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <button onclick="deleteAccount(${a.id})" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:2px;line-height:1">✕</button>
+          <div style="font-size:13px;font-weight:500;color:var(--text);padding-right:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+          <div style="font-size:17px;font-weight:600;color:${balColor};margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmt(bal,a.currency)}</div>
+          <div style="font-size:10px;color:var(--text2)">${a.currency}</div>
+          ${loanInfo}${creditInfo}${availCredit}
+        </div>
+        <div>${loanBtn}${adjBtn}</div>
       </div>`;
     });
     html+='</div>';
