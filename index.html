@@ -1552,18 +1552,20 @@ function markArPaid(id){
     a.status='unpaid';
     sv(); renderAr(); return;
   }
-  // Show account selection dialog
   const acctOpts = buildArAcctOpts(a.acctId);
+  const isAp = a.type==='ap';
+  const cats = isAp ? CATS_OUT : CATS_IN;
+  const catOpts = cats.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('');
   const modal = document.getElementById('edit-modal');
   modal.innerHTML = `
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:420px;max-width:94vw">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">確認結清</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
       </div>
       <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
         <div style="font-weight:500;margin-bottom:4px">${a.name}</div>
-        <div style="color:var(--text2)">${a.type==='ar'?'應收':'應付'} ${fmt(a.amount,a.currency)}</div>
+        <div style="color:var(--text2)">${isAp?'應付':'應收'} ${fmt(a.amount,a.currency)}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -1575,25 +1577,24 @@ function markArPaid(id){
           <input type="date" id="ar-settle-date" value="${todayStr()}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
       </div>
-      ${a.type==='ap'?`<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text2)">支出分類</label>
-        <select id="ar-settle-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-          ${CATS_OUT.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('')}
-        </select>
-      </div>`:''}
-      ${a.type==='ar'?`<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
-        <label style="font-size:12px;color:var(--text2)">收入分類</label>
-        <select id="ar-settle-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-          ${CATS_IN.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('')}
-        </select>
-      </div>`:''}
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
+        <label style="font-size:12px;color:var(--text2)">${isAp?'支出':'收入'}分類</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <select id="ar-settle-cat" onchange="updateArSettleSub(this.value)" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${catOpts}</select>
+          <select id="ar-settle-sub" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">細項（選填）</option>
+          </select>
+        </div>
+      </div>
       <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
         <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
         <button onclick="confirmSettle(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
       </div>
     </div>`;
   modal.style.display='flex';
+  setTimeout(()=>{ const cs=document.getElementById('ar-settle-cat'); if(cs) updateArSettleSub(cs.value); }, 50);
 }
+
 function buildArAcctOpts(curId){
   const groups=[
     {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
@@ -1610,6 +1611,13 @@ function buildArAcctOpts(curId){
   });
   return html;
 }
+function updateArSettleSub(mainCat, type){
+  const subSel = document.getElementById('ar-settle-sub');
+  if(!subSel) return;
+  const subs = CATS_SUB[mainCat] || [];
+  subSel.innerHTML = '<option value="">細項（選填）</option>' +
+    subs.map(s => '<option value="'+s+'">'+s+'</option>').join('');
+}
 function confirmSettle(id){
   const a=arItems.find(x=>x.id===id);
   if(!a) return;
@@ -1618,11 +1626,12 @@ function confirmSettle(id){
   const date=document.getElementById('ar-settle-date').value||todayStr();
   if(acctId){
     const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
+    const sub=document.getElementById('ar-settle-sub')?.value||null;
     txns.unshift({
       id:Date.now(), type:a.type==='ar'?'in':'out',
       amount:a.amount, currency:a.currency,
       cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
-      acctId, toAcctId:null, project:null
+      tag:sub||null, acctId, toAcctId:null, project:null
     });
   }
   // Auto-generate next recurring item
