@@ -322,60 +322,28 @@
       <div id="txn-list"></div>
     </div>
 
-    <!-- 新增記錄表單（電腦版） -->
-    <div class="card" style="margin-top:14px">
-      <div class="section-title" style="margin-bottom:14px">新增記錄</div>
-      <div class="type-toggle" id="txn-type-toggle">
-        <button class="type-btn active-in" onclick="setType('in',this)">收入</button>
-        <button class="type-btn" onclick="setType('out',this)">支出</button>
-        <button class="type-btn" onclick="setType('xfer',this)">轉帳</button>
-      </div>
-      <div class="form-grid four" style="margin-bottom:10px">
-        <div class="form-group"><label>金額</label><input type="number" id="txn-amount" placeholder="0" min="0" step="0.01" oninput="calcInstEach()"></div>
-        <div class="form-group"><label>幣別</label><select id="txn-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option><option>BNB</option><option>XRP</option></optgroup></select></div>
-        <div class="form-group"><label>日期</label><input type="date" id="txn-date" onchange="const is=document.getElementById('txn-inst-start');if(is)is.value=this.value.slice(0,7)"></div>
-        <div class="form-group"><label>類別</label><select id="txn-cat"></select></div>
-      </div>
-      <div class="form-grid" style="margin-bottom:10px">
-        <div class="form-group"><label>帳戶類型</label><select id="txn-acct-type" onchange="filterAcctByType()">
-          <option value="">全部</option>
-          <option value="bank">🏦 銀行帳戶</option>
-          <option value="cash">💵 現金</option>
-          <option value="credit">💳 信用卡</option>
-          <option value="invest">📈 投資帳戶</option>
-          <option value="crypto">🪙 加密貨幣</option>
-          <option value="loan">🏛 貸款</option>
-          <option value="prepaid">🎴 預付/儲值卡</option>
-        </select></div>
-        <div class="form-group"><label id="txn-acct-label">帳戶</label><select id="txn-acct"></select></div>
-        <div class="form-group" id="txn-to-wrap" style="display:none"><label>轉入帳戶</label><select id="txn-to-acct"></select></div>
-        <div class="form-group"><label>備註</label><input type="text" id="txn-note" placeholder="選填"></div>
-        <div class="form-group"><label>標籤</label>
-          <input type="text" id="txn-tag" placeholder="例：Uber" list="tag-suggestions2">
-          <datalist id="tag-suggestions2"></datalist>
-        </div>
-        <div class="form-group"><label>專案</label>
-          <div style="display:flex;gap:6px">
-            <select id="txn-project" style="flex:1"><option value="">無</option></select>
-            <button type="button" onclick="quickAddProject()" class="btn-sm" style="white-space:nowrap;flex-shrink:0">＋新增</button>
-          </div>
-        </div>
-      </div>
-      <div id="installment-wrap" style="display:none;margin-top:10px;padding:12px 14px;background:var(--bg2);border-radius:var(--radius)">
-        <div style="font-size:13px;font-weight:500;margin-bottom:10px">分期設定</div>
-        <div class="form-grid four">
-          <div class="form-group"><label>分期期數</label><input type="number" id="txn-inst-count" placeholder="例：12" min="2" max="84" step="1" value="6" oninput="calcInstEach()"></div>
-          <div class="form-group"><label>起始月份</label><input type="month" id="txn-inst-start"></div>
-          <div class="form-group"><label>第一期金額（選填）</label><input type="number" id="txn-inst-first" placeholder="同每期" min="0" step="0.01" oninput="calcInstEach()"></div>
-          <div class="form-group"><label>其餘每期金額</label><input type="number" id="txn-inst-each" placeholder="自動計算" readonly style="background:var(--bg3);color:var(--text2)"></div>
-        </div>
-      </div>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;justify-content:space-between">
-        <label id="inst-toggle-label" style="display:none;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-          <input type="checkbox" id="txn-installment" onchange="toggleInstallment()"> 信用卡分期
-        </label>
-        <div style="margin-left:auto"><button class="btn-primary" onclick="addTxn()">新增</button></div>
-      </div>
+    <!-- 桌面版隱藏表單欄位（保留供JS使用） -->
+    <div style="display:none">
+      <input type="number" id="txn-amount">
+      <select id="txn-currency"><option>TWD</option></select>
+      <input type="date" id="txn-date">
+      <select id="txn-cat"></select>
+      <select id="txn-acct-type"></select>
+      <select id="txn-acct"></select>
+      <select id="txn-to-acct"></select>
+      <input type="text" id="txn-note">
+      <input type="text" id="txn-tag">
+      <datalist id="tag-suggestions2"></datalist>
+      <select id="txn-project"></select>
+      <input type="checkbox" id="txn-installment">
+      <input type="number" id="txn-inst-count" value="6">
+      <input type="month" id="txn-inst-start">
+      <input type="number" id="txn-inst-first">
+      <input type="number" id="txn-inst-each">
+      <div id="txn-to-wrap"></div>
+      <div id="installment-wrap"></div>
+      <label id="inst-toggle-label"></label>
+      <label id="txn-acct-label"></label>
     </div>
   </div>
 
@@ -680,7 +648,6 @@ async function loadAll(){
         arItems  = d.arItems  || [];
         budgets  = d.budgets  || {};
         accounts = d.accounts || [];
-        if(d.catsOut && d.catsOut.length) CATS_OUT = d.catsOut;
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
       } else {
@@ -689,7 +656,6 @@ async function loadAll(){
         if(local){
           const d = JSON.parse(local);
           txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
-          if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut;
         }
         setSyncStatus('ok','已同步 ✓');
       }
@@ -701,7 +667,6 @@ async function loadAll(){
     if(local){
       const d = JSON.parse(local);
       txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
-      if(d.catsOut&&d.catsOut.length) CATS_OUT=d.catsOut;
       setSyncStatus('err','離線模式（本地）');
     } else {
       setSyncStatus('err','無法載入');
@@ -719,7 +684,7 @@ async function loadAll(){
 }
 
 function sv(){
-  const data = JSON.stringify({txns,arItems,budgets,accounts,projects,catsOut:CATS_OUT});
+  const data = JSON.stringify({txns,arItems,budgets,accounts,projects});
   localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
   clearTimeout(saveTimer);
@@ -1104,36 +1069,40 @@ function nextBillInfo(a){
 function renderAcctOverview(){
   const el=document.getElementById('acct-overview');
   if(!accounts.length){el.innerHTML='';return;}
-  el.innerHTML=accounts.map(a=>{
-    const bal=acctBalance(a);
-    const c=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
-    const loanBtn=a.type==='loan'&&a.loanPayment
-      ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:8px;width:100%;padding:6px;background:var(--text);color:var(--bg);border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">還款 ${fmt(a.loanPayment,a.currency)}</button>`
-      :'';
-    const adjustBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-      ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:8px;width:100%;padding:6px;background:transparent;color:var(--text2);border:0.5px solid var(--border2);border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">調整餘額</button>`
-      :'';
-    const loanInfo=a.type==='loan'&&a.loanDay
-      ?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${nextLoanPayment(a)}</div>`
-      :'';
-    const creditInfo=a.type==='credit'&&a.billDay
-      ?`<div style="font-size:11px;color:var(--text3);margin-top:4px">${nextBillInfo(a)}</div>`
-      :'';
-    const availCredit=a.type==='credit'&&a.creditLimit
-      ?`<div style="font-size:11px;color:var(--text2);margin-top:2px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</div>`
-      :'';
-    return `<div class="acct-card">
-      <button class="acct-del" onclick="deleteAccount(${a.id})">✕</button>
-      <div class="acct-card-icon">${ICONS[a.type]||'🏦'}</div>
-      <div class="acct-card-name">${a.name}</div>
-      <div class="acct-card-bal" style="color:${c}">${fmt(bal,a.currency)}</div>
-      <div class="acct-card-cur">${a.currency}</div>
-      ${availCredit}${loanInfo}${creditInfo}${loanBtn}${adjustBtn}
-    </div>`;
-  }).join('');
+  const typeOrder=['bank','cash','prepaid','credit','invest','crypto','loan'];
+  const typeLabel={'bank':'🏦 銀行帳戶','cash':'💵 現金','prepaid':'🎴 預付/儲值卡',
+    'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密貨幣','loan':'🏛 貸款'};
+  let html='';
+  typeOrder.forEach(type=>{
+    const group=accounts.filter(a=>a.type===type);
+    if(!group.length) return;
+    html+=`<div style="font-size:11px;color:var(--text2);font-weight:500;padding:8px 0 4px;border-bottom:0.5px solid var(--border)">${typeLabel[type]}</div>`;
+    group.forEach(a=>{
+      const bal=acctBalance(a);
+      const balColor=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
+      const loanInfo=a.type==='loan'&&a.loanDay?`<span style="font-size:11px;color:var(--text2);margin-left:6px">${nextLoanPayment(a)}</span>`:'';
+      const creditInfo=a.type==='credit'&&a.billDay?`<span style="font-size:11px;color:var(--text2);margin-left:6px">${nextBillInfo(a)}</span>`:'';
+      const availCredit=a.type==='credit'&&a.creditLimit?`<span style="font-size:11px;color:var(--text2);margin-left:6px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</span>`:'';
+      const loanBtn=a.type==='loan'&&a.loanPayment
+        ?`<button onclick="quickLoanPayment(${a.id})" style="padding:3px 10px;background:var(--text);color:var(--bg);border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">還款</button>`:'';
+      const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
+        ?`<button onclick="quickAdjustBalance(${a.id})" style="padding:3px 10px;background:transparent;color:var(--text2);border:0.5px solid var(--border2);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">調整</button>`:'';
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:500;color:var(--text)">${a.name}</div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;margin-top:1px">${loanInfo}${creditInfo}${availCredit}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:600;color:${balColor}">${fmt(bal,a.currency)}</div>
+          <div style="font-size:11px;color:var(--text2)">${a.currency}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">${loanBtn}${adjBtn}</div>
+        <button onclick="deleteAccount(${a.id})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px;flex-shrink:0">✕</button>
+      </div>`;
+    });
+  });
+  el.innerHTML=html;
 }
-
-/* ── txn ── */
 function setType(t,el){
   currentType=t;
   document.querySelectorAll('#txn-type-toggle .type-btn').forEach(b=>b.className='type-btn');
