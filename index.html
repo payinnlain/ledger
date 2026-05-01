@@ -1937,6 +1937,50 @@ const PROJECT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#3B6D
 /* ── Add Sheet ── */
 let sheetType = 'in';
 
+function buildAcctOptgroups(curId){
+  const groups=[
+    {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
+    {type:'prepaid',label:'🎴 預付/儲值卡'},{type:'credit',label:'💳 信用卡'},
+    {type:'invest',label:'📈 投資帳戶'},{type:'crypto',label:'🪙 加密貨幣'},
+    {type:'loan',label:'🏛 貸款'},
+  ];
+  let html='<option value="">選擇帳戶</option>';
+  groups.forEach(g=>{
+    const list=accounts.filter(a=>a.type===g.type);
+    if(!list.length) return;
+    html+=`<optgroup label="${g.label}">`;
+    list.forEach(a=>{html+=`<option value="${a.id}"${String(a.id)===String(curId)?' selected':''}>${a.name} (${a.currency})</option>`;});
+    html+='</optgroup>';
+  });
+  return html;
+}
+function renderSheetAcctChips(){
+  const curId=document.getElementById('sheet-acct')?.value||'';
+  const selEl=document.getElementById('sheet-acct-sel');
+  if(selEl){
+    selEl.innerHTML=buildAcctOptgroups(curId);
+    selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; };
+  }
+  const toSel=document.getElementById('sheet-to-sel');
+  if(toSel){
+    toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
+  }
+}
+function refreshSheetProjectSelect(){
+  const sel=document.getElementById('sheet-project');
+  if(!sel) return;
+  sel.innerHTML='<option value="">無</option>'+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+function quickAddProjectSheet(){
+  const name=prompt('請輸入專案名稱：');
+  if(!name||!name.trim()) return;
+  if(projects.find(p=>p.name===name.trim())){alert('此專案名稱已存在');return;}
+  const budget=prompt('預算金額（選填）：');
+  projects.push({id:Date.now(),name:name.trim(),budget:parseFloat(budget)||null,color:PROJECT_COLORS[projects.length%PROJECT_COLORS.length]});
+  sv(); refreshSheetProjectSelect();
+  document.getElementById('sheet-project').value=projects[projects.length-1].id;
+}
 function openAddSheet(){
   document.getElementById('add-sheet-backdrop').style.display='block';
   document.getElementById('add-sheet').style.display='block';
