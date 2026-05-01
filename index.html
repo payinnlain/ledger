@@ -489,7 +489,7 @@
     <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px;width:100%"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
   </div>
   <div style="margin-bottom:12px">
-    <div class="form-group"><label>金額</label><input type="number" id="sheet-amount" placeholder="0" min="0" step="0.01" inputmode="numeric" pattern="[0-9]*" style="font-size:24px;font-weight:600;padding:12px;width:100%"></div>
+    <div class="form-group"><label>金額</label><input type="text" id="sheet-amount" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="font-size:24px;font-weight:600;padding:12px;width:100%"></div>
   </div>
   <div style="margin-bottom:12px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
@@ -518,9 +518,9 @@
       <input type="checkbox" id="sheet-inst-check" onchange="toggleSheetInst()"> 信用卡分期
     </label>
     <div id="sheet-inst-fields" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="form-group"><label>期數</label><input type="number" id="sheet-inst-count" value="12" min="2" max="84" oninput="calcSheetInstEach()" inputmode="numeric"></div>
+      <div class="form-group"><label>期數</label><input type="text" id="sheet-inst-count" value="12" oninput="calcSheetInstEach()" inputmode="numeric" pattern="[0-9]*"></div>
       <div class="form-group"><label>起始月份</label><input type="month" id="sheet-inst-start"></div>
-      <div class="form-group"><label>第一期（選填）</label><input type="number" id="sheet-inst-first" placeholder="同每期" min="0" oninput="calcSheetInstEach()" inputmode="numeric"></div>
+      <div class="form-group"><label>第一期（選填）</label><input type="text" id="sheet-inst-first" placeholder="同每期" oninput="calcSheetInstEach()" inputmode="decimal" pattern="[0-9.]*"></div>
       <div class="form-group"><label>其餘每期</label><input type="number" id="sheet-inst-each" readonly style="background:var(--bg3);color:var(--text2)"></div>
     </div>
   </div>
@@ -2264,7 +2264,7 @@ function quickLoanPayment(id){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;color:var(--text2)">還款金額</label>
-          <input type="number" id="loan-pay-amt" value="${a.loanPayment||''}" min="0" step="0.01"
+          <input type="text" id="loan-pay-amt" inputmode="decimal" pattern="[0-9.]*" value="${a.loanPayment||''}" min="0" step="0.01"
             style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -2399,7 +2399,7 @@ function quickAdjustBalance(id){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1">
           <label style="font-size:12px;color:var(--text2)">調整後實際餘額</label>
-          <input type="number" id="adj-bal" placeholder="輸入今日實際餘額" step="0.01" inputmode="numeric" pattern="[0-9]*"
+          <input type="text" id="adj-bal" placeholder="輸入今日實際餘額" inputmode="decimal" pattern="[0-9.]*"
             style="font-family:inherit;font-size:16px;font-weight:500;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"
             oninput="previewAdj(${currentBal},'${a.currency}')">
         </div>
