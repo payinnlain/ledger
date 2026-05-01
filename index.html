@@ -851,7 +851,10 @@ function exportCSV(){
 /* ── accounts ── */
 function acctBalance(acct){
   let bal=acct.initBalance||0;
+  const today=todayStr();
   txns.filter(t=>t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id)).forEach(t=>{
+    // 信用卡只計算今天或之前的交易（避免未來分期計入）
+    if(acct.type==='credit' && t.date && t.date>today) return;
     if(t.type==='in'  &&t.acctId===acct.id)   bal+=t.amount;
     if(t.type==='out' &&t.acctId===acct.id)   bal-=t.amount;
     if(t.type==='xfer'&&t.acctId===acct.id)   bal-=t.amount;
