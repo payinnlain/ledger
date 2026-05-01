@@ -145,7 +145,7 @@
   .chip-btn.chip-active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
 
   @media (max-width: 640px) {
-  #acct-overview > div { grid-template-columns: repeat(2,1fr) !important; }
+  .acct-grid { grid-template-columns: repeat(2,1fr) !important; }
     /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
@@ -1164,7 +1164,7 @@ function renderAcctOverview(){
   const typeLabel={'bank':'🏦 銀行','cash':'💵 現金','prepaid':'🎴 儲值',
     'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密','loan':'🏛 貸款'};
 
-  let html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">'; 
+  let html='<div class="acct-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'; 
   typeOrder.forEach(type=>{
     const group=accounts.filter(a=>a.type===type);
     if(!group.length) return;
