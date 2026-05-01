@@ -1743,7 +1743,25 @@ function renderTotalAssets(){
   const cryptoTotal=accounts.filter(a=>a.type==='crypto').reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
   const totalAsset =bankTotal+cashTotal+investTotal+cryptoTotal;
 
-  const creditDebt=accounts.filter(a=>a.type==='credit').reduce((s,a)=>{const b=acctBalance(a);return s+(b<0?Math.abs(twdEq(b,a.currency)):0);},0);
+  // 信用卡：只在帳單日到付款截止日之間才計入負債
+  const today=new Date(); today.setHours(0,0,0,0);
+  const creditDebt=accounts.filter(a=>a.type==='credit').reduce((s,a)=>{
+    const b=acctBalance(a);
+    if(b>=0) return s;
+    // 如果有設定帳單日，才判斷是否到期
+    if(a.billDay){
+      const billDay=parseInt(a.billDay)||0;
+      if(billDay>0){
+        // 找最近的帳單日
+        const thisMonth=new Date(today.getFullYear(),today.getMonth(),billDay);
+        const lastMonth=new Date(today.getFullYear(),today.getMonth()-1,billDay);
+        const billDate=today>=thisMonth?thisMonth:lastMonth;
+        // 只有帳單日已到，才計入負債
+        if(today<billDate) return s;
+      }
+    }
+    return s+Math.abs(twdEq(b,a.currency));
+  },0);
   const loanDebt  =accounts.filter(a=>a.type==='loan')  .reduce((s,a)=>{const b=acctBalance(a);return s+(b<0?Math.abs(twdEq(b,a.currency)):0);},0);
   const totalLiab =creditDebt+loanDebt;
   const net=totalAsset-totalLiab;
