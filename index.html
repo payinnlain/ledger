@@ -1565,14 +1565,28 @@ function markArPaid(id){
         <div style="font-weight:500;margin-bottom:4px">${a.name}</div>
         <div style="color:var(--text2)">${a.type==='ar'?'應收':'應付'} ${fmt(a.amount,a.currency)}</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
-        <label style="font-size:12px;color:var(--text2)">連動帳戶（選擇後自動新增${a.type==='ar'?'收入':'支出'}記錄）</label>
-        <select id="ar-settle-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${acctOpts}</select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:12px;color:var(--text2)">連動帳戶</label>
+          <select id="ar-settle-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${acctOpts}</select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:12px;color:var(--text2)">結清日期</label>
+          <input type="date" id="ar-settle-date" value="${todayStr()}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px">
-        <label style="font-size:12px;color:var(--text2)">結清日期</label>
-        <input type="date" id="ar-settle-date" value="${todayStr()}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-      </div>
+      ${a.type==='ap'?`<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2)">支出分類</label>
+        <select id="ar-settle-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          ${CATS_OUT.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('')}
+        </select>
+      </div>`:''}
+      ${a.type==='ar'?`<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2)">收入分類</label>
+        <select id="ar-settle-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          ${CATS_IN.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('')}
+        </select>
+      </div>`:''}
       <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
         <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
         <button onclick="confirmSettle(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
@@ -1603,11 +1617,11 @@ function confirmSettle(id){
   const acctId=parseInt(document.getElementById('ar-settle-acct').value)||null;
   const date=document.getElementById('ar-settle-date').value||todayStr();
   if(acctId){
+    const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
     txns.unshift({
       id:Date.now(), type:a.type==='ar'?'in':'out',
       amount:a.amount, currency:a.currency,
-      cat:a.type==='ar'?'其他收入':'其他支出',
-      date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
+      cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
       acctId, toAcctId:null, project:null
     });
   }
