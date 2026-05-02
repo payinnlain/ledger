@@ -2053,6 +2053,10 @@ function renderDashboard(){
       </div>`;
     }).join(''):'<div style="font-size:12px;color:var(--text2)">本月無支出</div>';
   }
+  const months=[];
+  for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
+  const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   if(barInst) barInst.destroy();
   barInst=new Chart(document.getElementById('barChart'),{type:'bar',
     data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
