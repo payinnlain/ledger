@@ -276,7 +276,10 @@
     <div class="two-col">
       <div class="card">
         <div class="section-header"><span class="section-title">本月支出分類</span></div>
-        <div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="chart-wrap" style="width:160px;height:160px;flex-shrink:0"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
+          <div id="cat-spend-list" style="flex:1;overflow-y:auto;max-height:160px;padding-top:4px"></div>
+        </div>
       </div>
       <div class="card">
         <div class="section-header"><span class="section-title">近6個月收支</span></div>
@@ -2028,17 +2031,28 @@ function renderDashboard(){
 
   const catSpend={};
   mT.filter(t=>t.type==='out').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
-  const cL=Object.keys(catSpend), cV=cL.map(c=>Math.round(catSpend[c]));
+  const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
+  const cV=cL.map(cat=>Math.round(catSpend[cat]));
+  const totalCatOut=cV.reduce((s,v)=>s+v,0);
   if(pieInst) pieInst.destroy();
   if(cL.length){
     pieInst=new Chart(document.getElementById('pieChart'),{type:'doughnut',
       data:{labels:cL,datasets:[{data:cV,backgroundColor:CAT_COLORS.slice(0,cL.length),borderWidth:2}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12},boxWidth:12,padding:8}}}}});
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
   }
-  const months=[];
-  for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
-  const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
-  const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
+  const catListEl=document.getElementById('cat-spend-list');
+  if(catListEl){
+    catListEl.innerHTML=cL.length?cL.map((cat,i)=>{
+      const pct=totalCatOut>0?((cV[i]/totalCatOut)*100).toFixed(1):0;
+      const col=CAT_COLORS[i%CAT_COLORS.length];
+      return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:0.5px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0"></div>
+        <div style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cat}</div>
+        <div style="font-size:11px;color:var(--text2);flex-shrink:0">${pct}%</div>
+        <div style="font-size:12px;font-weight:600;color:var(--red);flex-shrink:0">${cV[i].toLocaleString()}</div>
+      </div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--text2)">本月無支出</div>';
+  }
   if(barInst) barInst.destroy();
   barInst=new Chart(document.getElementById('barChart'),{type:'bar',
     data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
