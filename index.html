@@ -1233,7 +1233,7 @@ function renderAcctOverview(){
       const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
       // This period = between last bill date and next bill date (excluding future installments)
       const thisBillTxns=a.type==='credit'&&lastBillStr&&nextBillStr
-        ?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=lastBillStr&&t.date<=nextBillStr&&!t.installmentGroup)
+        ?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=lastBillStr&&t.date<=nextBillStr)
         :[];
       const thisBillAmt=thisBillTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
       // Current used = total balance excluding future installments
