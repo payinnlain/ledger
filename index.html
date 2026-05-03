@@ -1239,6 +1239,7 @@ function renderAcctOverview(){
         <div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>
         <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
         ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}
+        ${a.type==='credit'&&a.payDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
         ${loanBtn}${adjBtn}
       </div>`;
     });
@@ -2805,6 +2806,40 @@ function confirmCreditAdj(id, currentAmt, currency){
     acctId:id, toAcctId:null, project:null, tag:'對帳調整'
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
+}
+function quickCreditPayment(id){
+  const a=accounts.find(x=>x.id===id);
+  if(!a) return;
+  const bal=acctBalance(a);
+  const currentUsed=Math.abs(Math.min(0,bal));
+  // Get future installments
+  const today2=todayStr();
+  const futureTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup);
+  const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
+  const thisPeriod=Math.max(0,currentUsed-futureAmt);
+
+  // Open add sheet with pre-filled values
+  openAddSheet();
+  setTimeout(()=>{
+    // Set to 支出
+    setSheetType('out', document.getElementById('sheet-btn-out'));
+    // Set amount
+    const amtEl=document.getElementById('sheet-amount');
+    if(amtEl) amtEl.value=thisPeriod>0?thisPeriod:'';
+    // Set account
+    const acctSel=document.getElementById('sheet-acct-sel');
+    if(acctSel){
+      acctSel.value=a.id;
+      document.getElementById('sheet-acct').value=a.id;
+    }
+    // Set note
+    const noteEl=document.getElementById('sheet-note');
+    if(noteEl) noteEl.value=a.name+'繳費';
+    // Set cat to 其他支出
+    document.getElementById('sheet-cat').value='其他支出';
+    renderSheetCatChips();
+    calcSheetInstEach();
+  }, 100);
 }
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
