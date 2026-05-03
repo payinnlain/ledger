@@ -1239,7 +1239,7 @@ function renderAcctOverview(){
         <div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>
         <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
         ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}
-        ${a.type==='credit'&&a.payDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
+        ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
         ${loanBtn}${adjBtn}
       </div>`;
     });
@@ -2817,6 +2817,16 @@ function quickCreditPayment(id){
   const futureTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup);
   const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
   const thisPeriod=Math.max(0,currentUsed-futureAmt);
+  // Calculate due date
+  let dueDateStr=todayStr();
+  if(a.billDay){
+    const today=new Date(); const d=today.getDate();
+    let bm=today.getMonth(), by=today.getFullYear();
+    if(d>=a.billDay){bm+=1; if(bm>11){bm=0;by+=1;}}
+    const billDate=new Date(by,bm,a.billDay);
+    if(a.dueDays){ billDate.setDate(billDate.getDate()+parseInt(a.dueDays)); }
+    dueDateStr=billDate.toISOString().slice(0,10);
+  }
 
   // Open add sheet with pre-filled values
   openAddSheet();
@@ -2835,6 +2845,8 @@ function quickCreditPayment(id){
     // Set note
     const noteEl=document.getElementById('sheet-note');
     if(noteEl) noteEl.value=a.name+'繳費';
+    const dateEl=document.getElementById('sheet-date');
+    if(dateEl) dateEl.value=dueDateStr;
     // Set cat to 其他支出
     document.getElementById('sheet-cat').value='其他支出';
     renderSheetCatChips();
