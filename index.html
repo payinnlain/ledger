@@ -1226,7 +1226,10 @@ function renderAcctOverview(){
       const loanBtn=a.type==='loan'&&a.loanPayment
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整</button>`:'';
+        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
+        :a.type==='credit'
+        ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
+        :'';
       html+=`<div style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column">
         <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
         <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
@@ -2739,6 +2742,67 @@ function nextRecurringDate(dateStr, freq){
 }
 function freqLabel(freq){
   return {weekly:'每週',monthly:'每月',quarterly:'每季',yearly:'每年'}[freq]||'定期';
+}
+function quickAdjustCredit(id){
+  const a=accounts.find(x=>x.id===id);
+  if(!a) return;
+  const currentBal=acctBalance(a);
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:15px;font-weight:500">對帳調整 — ${a.name}</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
+      </div>
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:var(--text2)">系統計算已用</span>
+        <span style="font-size:16px;font-weight:600;color:var(--red)">${fmt(Math.abs(Math.min(0,currentBal)),a.currency)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text2)">銀行帳單實際已用金額</label>
+        <input type="text" id="adj-credit-bal" placeholder="輸入帳單上的已用金額" inputmode="decimal"
+          style="font-family:inherit;font-size:16px;font-weight:500;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"
+          oninput="previewCreditAdj(${Math.abs(Math.min(0,currentBal))},'${a.currency}')">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text2)">日期</label>
+        <input type="date" id="adj-credit-date" value="${todayStr()}"
+          style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+      <div id="adj-credit-preview" style="border-radius:var(--radius);padding:10px 12px;margin-bottom:16px;font-size:13px;text-align:center;background:var(--bg2);color:var(--text2)">輸入實際已用金額以預覽差額</div>
+      <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmCreditAdj(${id},${Math.abs(Math.min(0,currentBal))},'${a.currency}')" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認調整</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+}
+function previewCreditAdj(currentAmt, currency){
+  const input=parseFloat(document.getElementById('adj-credit-bal')?.value)||0;
+  const el=document.getElementById('adj-credit-preview');
+  if(!el||isNaN(input)) return;
+  const diff=input-currentAmt; // positive = we owe more, negative = over-recorded
+  if(Math.abs(diff)<0.01){el.textContent='金額相同，無需調整';el.style.background='var(--bg2)';el.style.color='var(--text2)';return;}
+  const isMore=diff>0;
+  el.style.background=isMore?'var(--red-bg)':'var(--green-bg)';
+  el.style.color=isMore?'var(--red)':'var(--green)';
+  el.textContent=(isMore?'補記支出 +':'沖銷 -')+fmt(Math.abs(diff),currency)+(isMore?' （帳單比系統多）':' （系統比帳單多）');
+}
+function confirmCreditAdj(id, currentAmt, currency){
+  const input=parseFloat(document.getElementById('adj-credit-bal')?.value);
+  if(isNaN(input)||input<0){alert('請輸入有效金額');return;}
+  const diff=input-currentAmt;
+  if(Math.abs(diff)<0.01){closeEdit();return;}
+  const date=document.getElementById('adj-credit-date')?.value||todayStr();
+  const isMore=diff>0;
+  txns.unshift({
+    id:Date.now(), type:isMore?'out':'in',
+    amount:Math.abs(diff), currency,
+    cat:isMore?'其他支出':'退款',
+    date, note:'信用卡對帳調整',
+    acctId:id, toAcctId:null, project:null, tag:'對帳調整'
+  });
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
