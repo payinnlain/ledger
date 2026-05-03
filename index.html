@@ -1207,11 +1207,13 @@ function renderAcctOverview(){
       const balColor=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
       const loanInfo=a.type==='loan'&&a.loanDay?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nextLoanPayment(a)}</div>`:'';
       const creditInfo=a.type==='credit'&&a.billDay?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nextBillInfo(a)}</div>`:'';
-      const availCredit=a.type==='credit'&&a.creditLimit?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:1px">可用 ${fmt(a.creditLimit+Math.min(0,bal),a.currency)}</div>`:'';
       // Credit card: split current vs future installments
       const today2=todayStr();
       const futureTxns=a.type==='credit'?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup):[];
       const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
+      // Available credit = limit - current used (excluding future installments)
+      const currentUsed=Math.abs(Math.min(0,bal))-futureAmt;
+      const availCredit=a.type==='credit'&&a.creditLimit?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:1px">可用 ${fmt(a.creditLimit-Math.max(0,currentUsed),a.currency)}</div>`:'';
       const creditSplit=a.type==='credit'&&futureAmt>0?
         `<div style="margin-top:4px;padding-top:4px;border-top:0.5px solid ${col.border}">
           <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px">
