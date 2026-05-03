@@ -1214,40 +1214,47 @@ function renderAcctOverview(){
       if(a.type==='credit'&&a.billDay){
         const td=new Date(); td.setHours(0,0,0,0);
         const d=td.getDate();
-        // If today >= billDay: last bill = this month's billDay, next bill = next month's billDay
-        // If today < billDay: last bill = last month's billDay, next bill = this month's billDay
+        // currBillStr = most recent past bill date (the closing date of current period)
+        // prevBillStr = one month before currBillStr (the opening date of current period)
+        let currBill, prevBill;
         if(d>=a.billDay){
-          lastBillStr=td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-          const nd=new Date(td.getFullYear(),td.getMonth()+1,a.billDay);
-          nextBillStr=nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+          // today >= billDay: current bill date = this month's billDay
+          currBill=new Date(td.getFullYear(),td.getMonth(),a.billDay);
         } else {
-          const ld=new Date(td.getFullYear(),td.getMonth()-1,a.billDay);
-          lastBillStr=ld.getFullYear()+'-'+String(ld.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-          nextBillStr=td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+          // today < billDay: current bill date = last month's billDay
+          currBill=new Date(td.getFullYear(),td.getMonth()-1,a.billDay);
         }
+        prevBill=new Date(currBill.getFullYear(),currBill.getMonth()-1,a.billDay);
+        lastBillStr=prevBill.getFullYear()+'-'+String(prevBill.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+        nextBillStr=currBill.getFullYear()+'-'+String(currBill.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
       }
       // Future installments = date > today (not yet billed)
       const futureTxns=a.type==='credit'?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup):[];
       const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
       // This period = between last bill date and next bill date (excluding future installments)
       const thisBillTxns=a.type==='credit'&&lastBillStr&&nextBillStr
-        ?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=lastBillStr&&t.date<nextBillStr&&!t.installmentGroup)
+        ?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=lastBillStr&&t.date<=nextBillStr&&!t.installmentGroup)
         :[];
       const thisBillAmt=thisBillTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
       // Current used = total balance excluding future installments
       const currentUsed=Math.abs(Math.min(0,bal))-futureAmt;
       const availCredit=a.type==='credit'&&a.creditLimit?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:1px">可用 ${fmt(a.creditLimit-Math.max(0,currentUsed)-futureAmt,a.currency)}</div>`:'';
+      // New spending = after current bill date, today or before, non-installment
+      const newSpendTxns=a.type==='credit'&&nextBillStr
+        ?txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>nextBillStr&&t.date<=today2&&!t.installmentGroup)
+        :[];
+      const newSpendAmt=newSpendTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
       const creditSplit=a.type==='credit'&&(futureAmt>0||lastBillStr)?
         `<div style="margin-top:4px;padding-top:4px;border-top:0.5px solid ${col.border}">
-          ${lastBillStr?`<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px">
+          ${thisBillAmt>0?`<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px">
             <span style="color:${col.text};opacity:0.7">本期帳單</span>
             <span style="color:var(--red);font-weight:500">${fmt(thisBillAmt,a.currency)}</span>
           </div>`:''}
-          ${futureAmt>0?`<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px">
+          ${newSpendAmt>0?`<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:1px">
             <span style="color:${col.text};opacity:0.7">新消費</span>
-            <span style="color:var(--red)">${fmt(currentUsed-thisBillAmt,a.currency)}</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px">
+            <span style="color:var(--red)">${fmt(newSpendAmt,a.currency)}</span>
+          </div>`:''}
+          ${futureAmt>0?`<div style="display:flex;justify-content:space-between;font-size:10px">
             <span style="color:${col.text};opacity:0.7">未來分期</span>
             <span style="color:var(--text2)">${fmt(futureAmt,a.currency)}</span>
           </div>`:''}
