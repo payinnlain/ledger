@@ -2850,7 +2850,24 @@ function quickCreditPayment(id){
   const today2=todayStr();
   const futureTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup);
   const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
-  const thisPeriod=Math.max(0,currentUsed-futureAmt);
+  // Calculate this period bill (same logic as card display)
+  let thisBillPay=Math.max(0,currentUsed-futureAmt); // fallback
+  if(a.billDay){
+    const td2=new Date(); td2.setHours(0,0,0,0);
+    const d2=td2.getDate();
+    let currBill2, prevBill2;
+    if(d2>=a.billDay){
+      currBill2=new Date(td2.getFullYear(),td2.getMonth(),a.billDay);
+    } else {
+      currBill2=new Date(td2.getFullYear(),td2.getMonth()-1,a.billDay);
+    }
+    prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
+    const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+    const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+    const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
+    thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
+  }
+  const thisPeriod=Math.max(0,thisBillPay);
   // Calculate due date
   let dueDateStr=todayStr();
   if(a.billDay){
