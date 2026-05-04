@@ -270,6 +270,7 @@
   <!-- DASHBOARD -->
   <div id="tab-dashboard" class="panel active">
     <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
+    <div id="fx-bar" style="margin-bottom:8px"></div>
     <div id="due-reminder" style="margin-bottom:14px"></div>
     <div id="acct-overview" class="acct-grid"></div>
     <div class="summary-grid" id="summary-cards"></div>
@@ -2167,6 +2168,7 @@ function renderDueReminder(){
 function renderDashboard(){
   renderTotalAssets();
   renderDueReminder();
+  fetchFxRates();
   renderAcctOverview();
   const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
   const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
@@ -3058,6 +3060,46 @@ function drillDownCat(cat){
   if(tabEl){ switchTab('txn', tabEl); }
   else { switchTab('txn', document.querySelector('.tab-btn')); }
   setTimeout(()=>renderTxnList(), 150);
+}
+async function fetchFxRates(){
+  const el=document.getElementById('fx-bar');
+  if(!el) return;
+  try{
+    // Fetch USDT/TWD from MAX exchange
+    const [maxRes, fxRes] = await Promise.all([
+      fetch('https://max-api.maicoin.com/api/v2/tickers/usdttwd'),
+      fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    ]);
+    const maxData = await maxRes.json();
+    const fxData = await fxRes.json();
+    const usdtTwd = parseFloat(maxData.last)||0;
+    const usdRate = fxData.rates?.TWD||0;
+    // Build rate items
+    const items=[
+      {cur:'USDT', val:usdtTwd, source:'MAX'},
+      {cur:'USD',  val:usdRate},
+      {cur:'JPY',  val:usdRate/(fxData.rates?.JPY||1)},
+      {cur:'KRW',  val:usdRate/(fxData.rates?.KRW||1)},
+      {cur:'EUR',  val:usdRate/(fxData.rates?.EUR||1)},
+      {cur:'HKD',  val:usdRate/(fxData.rates?.HKD||1)},
+      {cur:'GBP',  val:usdRate/(fxData.rates?.GBP||1)},
+    ];
+    const rates=items.filter(i=>i.val>0).map(i=>{
+      const decimals=i.cur==='JPY'||i.cur==='KRW'?3:2;
+      return '<span style="font-size:11px;color:var(--text2);white-space:nowrap">'+
+        '<span style="font-weight:500;color:var(--text)">'+i.cur+'</span>'+
+        (i.source?'<span style="font-size:9px;color:var(--text3)"> '+i.source+'</span>':'')+
+        '<span style="color:var(--green)"> '+i.val.toFixed(decimals)+'</span>'+
+        '</span>';
+    }).join('<span style="color:var(--border2);margin:0 4px">|</span>');
+    el.innerHTML='<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
+      '<span style="font-size:10px;color:var(--text2);margin-right:4px">即時匯率（1外幣=TWD）</span>'+
+      rates+
+      '<span style="font-size:10px;color:var(--text3);margin-left:auto">'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</span>'+
+      '</div>';
+  } catch(e){
+    el.innerHTML='';
+  }
 }
 function switchTab(t,el){
   if(t!=='txn') filterCat=null; // clear cat filter when leaving txn tab
