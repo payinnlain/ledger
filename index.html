@@ -2029,7 +2029,7 @@ function renderTotalAssets(){
   });
   const creditDebt=creditBilled; // 只有已到期才算負債
   const loanDebt=accounts.filter(a=>a.type==='loan').reduce((s,a)=>{const b=acctBalance(a);return s+(b<0?Math.abs(twdEq(b,a.currency)):0);},0);
-  const totalLiab=creditDebt+loanDebt;
+  const totalLiab=creditBilled+loanDebt; // 未到期分期不計入負債
   const net=totalAsset-totalLiab;
   const ratio=totalAsset>0?Math.min(100,(net/totalAsset)*100):0;
 
