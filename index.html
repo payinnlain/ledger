@@ -270,7 +270,6 @@
   <!-- DASHBOARD -->
   <div id="tab-dashboard" class="panel active">
     <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
-    <div id="fx-bar" style="margin-bottom:8px"></div>
     <div id="due-reminder" style="margin-bottom:14px"></div>
     <div id="acct-overview" class="acct-grid"></div>
     <div class="summary-grid" id="summary-cards"></div>
@@ -716,7 +715,7 @@ const CATS_ICON = {
 const CATS_CRYPTO = ['買入','賣出','質押','解質押','空投','手續費','兌換','其他'];
 const CAT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#993556','#3B6D11','#634806','#5DCAA5','#5F5E5A'];
 const ICONS = {bank:'🏦',cash:'💵',credit:'💳',invest:'📈',crypto:'🪙',loan:'🏛',prepaid:'🎴'};
-const RATES = {TWD:1,USD:32.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,IDR:0.002};
+const RATES = {TWD:1,USD:31.5,EUR:35,JPY:0.22,CNY:4.5,HKD:4.2,GBP:41,KRW:0.024,IDR:0.002};
 const KEY = 'ledger_v3';
 
 /* ── Supabase 雲端同步 ── */
@@ -846,7 +845,7 @@ let pieInst=null, barInst=null;
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function thisMonth(){ return todayStr().slice(0,7); }
-function twdEq(a,c){ return a*(RATES[c]||1); }
+function twdEq(a,c){ if(!c||c==='TWD') return a; if((c==='USD'||c==='USDT')&&manualFxRate>0) return a*manualFxRate; return a*(RATES[c]||1); }
 function fmt(a,c){
   const n=parseFloat(a); if(isNaN(n)) return '-';
   if(c==='JPY'||c==='KRW'||c==='IDR') return c+' '+Math.round(n).toLocaleString();
@@ -1482,6 +1481,7 @@ let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-indexed
 let calSelectedDate = null;
 let filterCat = null;
+let manualFxRate = parseFloat(localStorage.getItem('manualFxRate'))||0;
 
 function calPrevMonth(){
   calMonth--; if(calMonth<0){calMonth=11;calYear--;}
@@ -2067,7 +2067,16 @@ function renderTotalAssets(){
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">淨資產</div>'+
       '<div style="font-size:28px;font-weight:700;color:'+(net>=0?'var(--green)':'var(--red)')+'">'+Math.round(net).toLocaleString()+'</div>'+
       '<div style="font-size:11px;color:var(--text2);margin-top:4px;margin-bottom:12px">≈ TWD</div>'+
-      '<div id="net-usd-rate" style="font-size:12px;color:var(--text2);margin-bottom:8px">USD/TWD 載入中...</div>'+
+      '<div style="margin-bottom:10px">'+
+        '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">USD/TWD 匯率</div>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+          '<input type="text" id="usd-twd-rate" value="'+(manualFxRate||'')+
+            '" placeholder="例：31.5" inputmode="decimal"'+
+            ' style="width:80px;padding:4px 8px;font-family:inherit;font-size:14px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center"'+
+            ' onchange="saveManualFxRate(this.value)">'+
+          '<span style="font-size:11px;opacity:0.7">TWD</span>'+
+        '</div>'+
+      '</div>'+
       '<div style="height:5px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden">'+
         '<div style="height:100%;border-radius:3px;background:'+(net>=0?'var(--green)':'var(--red)')+'transition:width .4s;width:'+ratio.toFixed(1)+'%"></div>'+
       '</div>'+
@@ -2169,7 +2178,6 @@ function renderDueReminder(){
 function renderDashboard(){
   renderTotalAssets();
   renderDueReminder();
-  fetchFxRates();
   renderAcctOverview();
   const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
   const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
@@ -3062,51 +3070,10 @@ function drillDownCat(cat){
   else { switchTab('txn', document.querySelector('.tab-btn')); }
   setTimeout(()=>renderTxnList(), 150);
 }
-async function fetchFxRates(){
-  const el=document.getElementById('fx-bar');
-  if(!el) return;
-  try{
-    // Use CoinGecko for USDT/TWD and exchangerate.host for fiat
-    const [geckoRes, fxRes] = await Promise.all([
-      fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=twd,usd'),
-      fetch('https://open.er-api.com/v6/latest/USD')
-    ]);
-    const geckoData = await geckoRes.json();
-    const fxData = await fxRes.json();
-    const usdtTwd = geckoData?.tether?.twd || 0;
-    const usdRate = fxData?.rates?.TWD || 0;
-    const rates = fxData?.rates || {};
-    const x2twd = (cur) => cur==='USD' ? usdRate : (rates[cur] ? usdRate/rates[cur] : 0);
-    const items=[
-      {cur:'USDT', val:usdtTwd, source:maxData?'MAX':''},
-      {cur:'USD',  val:usdRate},
-      {cur:'JPY',  val:x2twd('JPY')},
-      {cur:'KRW',  val:x2twd('KRW')},
-      {cur:'EUR',  val:x2twd('EUR')},
-      {cur:'HKD',  val:x2twd('HKD')},
-      {cur:'GBP',  val:x2twd('GBP')},
-    ];
-    const ratesHtml=items.filter(i=>i.val>0).map(i=>{
-      const decimals=i.cur==='JPY'||i.cur==='KRW'?3:2;
-      return '<span style="font-size:11px;color:var(--text2);white-space:nowrap">'+
-        '<span style="font-weight:500;color:var(--text)">'+i.cur+'</span>'+
-        (i.source?'<span style="font-size:9px;color:var(--text3)"> '+i.source+'</span>':'')+
-        '<span style="color:var(--green)"> '+i.val.toFixed(decimals)+'</span>'+
-        '</span>';
-    }).join('<span style="color:var(--border2);margin:0 4px">|</span>');
-    // Update USD rate in net asset panel
-    const usdEl=document.getElementById('net-usd-rate');
-    if(usdEl&&usdRate>0) usdEl.innerHTML='<span style="font-weight:500">USD/TWD</span> <span style="color:var(--green);font-weight:600">'+usdRate.toFixed(2)+'</span>';
-    el.innerHTML='<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
-      '<span style="font-size:10px;color:var(--text2);margin-right:4px">即時匯率（1外幣=TWD）</span>'+
-      ratesHtml+
-      '<span style="font-size:10px;color:var(--text3);margin-left:auto">'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</span>'+
-      '</div>';
-  } catch(e){
-    const usdEl=document.getElementById('net-usd-rate');
-    if(usdEl) usdEl.innerHTML='';
-    if(el) el.innerHTML='';
-  }
+
+function saveManualFxRate(val){
+  manualFxRate=parseFloat(val)||0;
+  localStorage.setItem('manualFxRate', manualFxRate);
 }
 function switchTab(t,el){
   if(t!=='txn') filterCat=null; // clear cat filter when leaving txn tab
