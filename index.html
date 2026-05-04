@@ -2199,7 +2199,7 @@ function renderDashboard(){
     <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
 
   const catSpend={};
-  mT.filter(t=>t.type==='out').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
+  mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
   const cV=cL.map(cat=>Math.round(catSpend[cat]));
   const totalCatOut=cV.reduce((s,v)=>s+v,0);
