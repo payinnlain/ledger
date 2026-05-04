@@ -507,7 +507,18 @@
     <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px;width:100%"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
   </div>
   <div style="margin-bottom:12px">
-    <div class="form-group"><label>金額</label><input type="text" id="sheet-amount" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="font-size:24px;font-weight:600;padding:12px;width:100%"></div>
+    <div class="form-group"><label>金額</label><input type="text" id="sheet-amount" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="font-size:24px;font-weight:600;padding:12px;width:100%" oninput="calcSheetTotal()"></div>
+  </div>
+  <div id="sheet-foreign-wrap" style="display:none;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end">
+      <div class="form-group"><label>國外手續費</label><input type="text" id="sheet-foreign-fee" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="padding:10px;width:100%" oninput="calcSheetTotal()"></div>
+      <div class="form-group"><label>合計</label><input type="number" id="sheet-total-display" readonly style="padding:10px;width:100%;background:var(--bg2);font-weight:600;color:var(--red)"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="sheet-has-foreign" onchange="toggleForeignFee()"> 含國外手續費
+    </label>
   </div>
   <div style="margin-bottom:12px">
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
@@ -2502,7 +2513,10 @@ function calcSheetInstEach(){
   if(totalEl) totalEl.value=total>0?total:'';
 }
 function addTxnFromSheet(){
-  const amt=parseFloat(document.getElementById('sheet-amount').value);
+  const baseAmt=parseFloat(document.getElementById('sheet-amount').value)||0;
+  const hasForeign=document.getElementById('sheet-has-foreign')?.checked;
+  const foreignFee=hasForeign?(parseFloat(document.getElementById('sheet-foreign-fee')?.value)||0):0;
+  const amt=baseAmt+foreignFee;
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
   const acctId = parseInt(document.getElementById('sheet-acct-sel')?.value)||null;
   const toAcctId = sheetType==='xfer'
@@ -2563,7 +2577,11 @@ function addTxnFromSheet(){
   document.getElementById('sheet-note').value='';
   const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
   const srate=document.getElementById('sheet-inst-rate'); if(srate) srate.value='';
-  const stotal=document.getElementById('sheet-inst-total'); if(stotal) stotal.value='';
+  const sfee=document.getElementById('sheet-foreign-fee'); if(sfee) sfee.value='';
+  const shasf=document.getElementById('sheet-has-foreign'); if(shasf) shasf.checked=false;
+  const sfwrap=document.getElementById('sheet-foreign-wrap'); if(sfwrap) sfwrap.style.display='none';
+  const stotal=document.getElementById('sheet-total-display'); if(stotal) stotal.value='';
+  const sinst=document.getElementById('sheet-inst-total'); if(sinst) sinst.value='';
   if(document.getElementById('sheet-inst-check')) document.getElementById('sheet-inst-check').checked=false;
   const sif=document.getElementById('sheet-inst-first'); if(sif) sif.value='';
   if(document.getElementById('sheet-inst-fields')) document.getElementById('sheet-inst-fields').style.display='none';
@@ -2767,6 +2785,24 @@ function confirmAdjust(id, currentBal, currency){
     date, note, acctId:id, toAcctId:null, project:null, tag:'餘額調整'
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
+}
+function toggleForeignFee(){
+  const checked=document.getElementById('sheet-has-foreign')?.checked;
+  const wrap=document.getElementById('sheet-foreign-wrap');
+  if(wrap) wrap.style.display=checked?'block':'none';
+  if(!checked){
+    const fee=document.getElementById('sheet-foreign-fee');
+    if(fee) fee.value='';
+    const total=document.getElementById('sheet-total-display');
+    if(total) total.value='';
+  }
+  calcSheetTotal();
+}
+function calcSheetTotal(){
+  const amt=parseFloat(document.getElementById('sheet-amount')?.value)||0;
+  const fee=parseFloat(document.getElementById('sheet-foreign-fee')?.value)||0;
+  const totalEl=document.getElementById('sheet-total-display');
+  if(totalEl) totalEl.value=amt+fee>0?(amt+fee):'';
 }
 function toggleArRecurring(){
   const checked=document.getElementById('ar-recurring')?.checked;
