@@ -2033,9 +2033,13 @@ function renderTotalAssets(){
   const net=totalAsset-totalLiab;
   const ratio=totalAsset>0?Math.min(100,(net/totalAsset)*100):0;
 
-  function row(icon,label,val,color){
+  function row(icon,label,val,color,pct){
     if(Math.abs(val)<0.5) return '';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:13px;color:var(--text2)">'+icon+' '+label+'</span><span style="font-size:13px;font-weight:500;color:'+(color||'var(--text)')+'">'+Math.round(val).toLocaleString()+'</span></div>';
+    const pctBadge=pct>0?'<span style="font-size:10px;color:var(--text2);margin-right:6px;opacity:0.7">'+pct.toFixed(1)+'%</span>':'';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border)">'+
+      '<span style="font-size:13px;color:var(--text2)">'+icon+' '+label+'</span>'+
+      '<span style="display:flex;align-items:center">'+pctBadge+'<span style="font-size:13px;font-weight:500;color:'+(color||'var(--text)')+'">'+Math.round(val).toLocaleString()+'</span></span>'+
+    '</div>';
   }
 
   el.style.cssText='border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:0;margin-bottom:14px;overflow:hidden;background:var(--bg);width:100%';
@@ -2043,10 +2047,10 @@ function renderTotalAssets(){
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;width:100%" class="asset-grid">'+
     '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">資產</div>'+
-      row('🏦','銀行',bankTotal)+
-      row('💵','現金 / 儲值',cashTotal)+
-      row('📈','投資',investTotal)+
-      row('🪙','加密貨幣',cryptoTotal)+
+      row('🏦','銀行',bankTotal,'var(--text)',totalAsset>0?bankTotal/totalAsset*100:0)+
+      row('💵','現金 / 儲值',cashTotal,'var(--text)',0)+
+      row('📈','投資',investTotal,'var(--text)',totalAsset>0?investTotal/totalAsset*100:0)+
+      row('🪙','加密貨幣',cryptoTotal,'var(--text)',totalAsset>0?cryptoTotal/totalAsset*100:0)+
       '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
         '<span style="font-size:12px;color:var(--text2)">小計</span>'+
         '<span style="font-size:17px;font-weight:700;color:var(--green)">'+Math.round(totalAsset).toLocaleString('zh-TW')+'</span>'+
@@ -2054,8 +2058,8 @@ function renderTotalAssets(){
     '</div>'+
     '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">負債</div>'+
-      row('💳','信用卡',creditDebt,'var(--red)')+
-      row('🏛','貸款',loanDebt,'var(--red)')+
+      row('💳','信用卡',creditDebt,'var(--red)',totalAsset>0?creditDebt/totalAsset*100:0)+
+      row('🏛','貸款',loanDebt,'var(--red)',totalAsset>0?loanDebt/totalAsset*100:0)+
       (totalLiab<0.5?'<div style="font-size:13px;color:var(--text3);padding:5px 0">無負債</div>':'')+
       '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
         '<span style="font-size:12px;color:var(--text2)">小計</span>'+
