@@ -2972,10 +2972,11 @@ function confirmCreditPayment(creditId, currency){
 }
 function drillDownCat(cat){
   filterCat=cat;
-  // Switch to txn tab
-  const tabEl=document.querySelector('.tab-btn[data-tab="txn"]')||document.getElementById('tab-btn-txn');
-  switchTab('txn', tabEl);
-  setTimeout(()=>renderTxnList(), 100);
+  // Find the txn tab button and click it
+  const tabEl=Array.from(document.querySelectorAll('.tab-btn')).find(b=>b.onclick&&b.onclick.toString().includes("'txn'"));
+  if(tabEl){ switchTab('txn', tabEl); }
+  else { switchTab('txn', document.querySelector('.tab-btn')); }
+  setTimeout(()=>renderTxnList(), 150);
 }
 function switchTab(t,el){
   if(t!=='txn') filterCat=null; // clear cat filter when leaving txn tab
