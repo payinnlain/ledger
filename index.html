@@ -2887,13 +2887,16 @@ function quickCreditPayment(id){
     // Set amount
     const amtEl=document.getElementById('sheet-amount');
     if(amtEl) amtEl.value=thisPeriod>0?thisPeriod:'';
-    // Set account - default to first bank/cash account
+    // Set account - only show bank accounts for credit payment
     const acctSel=document.getElementById('sheet-acct-sel');
     if(acctSel){
-      const bankAcct=accounts.find(x=>x.type==='bank'||x.type==='cash');
-      if(bankAcct){
-        acctSel.value=bankAcct.id;
-        document.getElementById('sheet-acct').value=bankAcct.id;
+      const bankAccts=accounts.filter(x=>x.type==='bank');
+      acctSel.innerHTML='<option value="">選擇銀行帳戶</option>'+
+        bankAccts.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.currency+')</option>').join('');
+      acctSel.onchange=()=>{ document.getElementById('sheet-acct').value=acctSel.value; };
+      if(bankAccts.length>0){
+        acctSel.value=bankAccts[0].id;
+        document.getElementById('sheet-acct').value=bankAccts[0].id;
       }
     }
     // Set note
