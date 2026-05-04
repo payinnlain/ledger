@@ -2054,6 +2054,7 @@ function renderTotalAssets(){
     '<div style="padding:16px 18px;border-right:0.5px solid var(--border)">'+
       '<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px">負債</div>'+
       row('💳','信用卡',creditDebt,'var(--red)')+
+      (creditFuture>0?row('🔄','未到期分期',creditFuture,'var(--text2)'):'')+
       row('🏛','貸款',loanDebt,'var(--red)')+
       (totalLiab<0.5?'<div style="font-size:13px;color:var(--text3);padding:5px 0">無負債</div>':'')+
       '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">'+
