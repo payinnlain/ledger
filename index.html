@@ -1853,65 +1853,110 @@ function removeCat(btn){ const name = typeof btn === 'string' ? btn : btn.datase
   sv(); renderCatList(); renderBudget();
 }
 function renderBudget(){
-  document.getElementById('budget-form').innerHTML='<div class="form-grid">'+
-    CATS_OUT.map(c=>`<div class="form-group"><label>${c}</label>
-    <input type="number" id="bgt-${c}" value="${budgets[c]||''}" placeholder="0" min="0" step="100"></div>`).join('')+'</div>';
-  const m=thisMonth(), spent={};
-  txns.filter(t=>t.type==='out'&&t.date.startsWith(m)&&t.currency==='TWD').forEach(t=>{spent[t.cat]=(spent[t.cat]||0)+t.amount;});
+  const m=thisMonth();
+  // Build spent by cat and subcat (tag)
+  const spentCat={}, spentSub={};
+  txns.filter(t=>t.type==='out'&&t.date.startsWith(m)&&t.currency==='TWD').forEach(t=>{
+    spentCat[t.cat]=(spentCat[t.cat]||0)+t.amount;
+    if(t.tag){ const k=t.cat+'::'+t.tag; spentSub[k]=(spentSub[k]||0)+t.amount; }
+  });
+
+  // Render budget form with sub-category support
+  document.getElementById('budget-form').innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'+
+    CATS_OUT.map(cat=>{
+      const subs=CATS_SUB[cat]||[];
+      const col=CATS_COLOR[cat]||{color:'#666',bg:'#f5f5f5',border:'#ddd'};
+      const subBudgets=budgets[cat+'_subs']||{};
+      const subInputs=subs.map(s=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:0.5px solid var(--border)">
+          <span style="flex:1;font-size:12px;color:var(--text2)">${s}</span>
+          <input type="text" id="bgt-sub-${cat}-${s}" value="${subBudgets[s]||''}" placeholder="0"
+            inputmode="numeric" onchange="updateSubBudget('${cat}','${s}',this.value)"
+            style="width:90px;padding:4px 8px;text-align:right;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        </div>`).join('');
+      return `<div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${col.bg};cursor:pointer" onclick="toggleBudgetSub(this)">
+          <span style="font-size:13px;font-weight:500;color:${col.color};flex:1">${cat}</span>
+          <input type="text" id="bgt-${cat}" value="${budgets[cat]||''}" placeholder="大類預算" inputmode="numeric"
+            onclick="event.stopPropagation()"
+            onchange="saveBudgets()"
+            style="width:100px;padding:4px 8px;text-align:right;font-family:inherit;font-size:13px;border:0.5px solid ${col.border};border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <span style="font-size:12px;color:${col.color}">▾</span>
+        </div>
+        <div class="budget-sub-panel" style="display:none;padding:8px 12px;background:var(--bg)">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">細項預算（設定後會自動加總至大類）</div>
+          ${subInputs}
+        </div>
+      </div>`;
+    }).join('')+'</div>';
+
+  // Budget progress
   const prog=document.getElementById('budget-progress');
-  const bCats=CATS_OUT.filter(c=>budgets[c]>0);
-  const sumEl = document.getElementById('budget-summary');
-  if(!bCats.length){
-    prog.innerHTML='<div class="empty-state">請先設定預算</div>';
-    if(sumEl) sumEl.innerHTML='';
-    return;
-  }
-  // 加總
-  const totalBudget = bCats.reduce((s,c)=>s+(budgets[c]||0),0);
-  const totalSpent  = bCats.reduce((s,c)=>s+(spent[c]||0),0);
-  const totalPct    = totalBudget>0?Math.min(100,(totalSpent/totalBudget)*100):0;
-  const totalOver   = totalSpent>totalBudget;
-  const totalCol    = totalPct<70?'var(--green)':totalPct<90?'var(--amber)':'var(--red)';
+  const bCats=CATS_OUT.filter(c=>budgets[c]>0||(budgets[c+'_subs']&&Object.values(budgets[c+'_subs']).some(v=>v>0)));
+  const sumEl=document.getElementById('budget-summary');
+  if(!bCats.length){ prog.innerHTML='<div class="empty-state">請先設定預算</div>'; if(sumEl) sumEl.innerHTML=''; return; }
 
-  // Render top summary card
-  if(sumEl){
-    const netBudget = totalBudget - totalSpent;
-    const sumColor = totalOver?'var(--red)':totalPct>70?'var(--amber)':'var(--green)';
-    sumEl.innerHTML = `<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:16px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:4px">
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">本月預算</div>
-        <div style="font-size:22px;font-weight:600">${totalBudget.toLocaleString()}</div>
-        <div style="font-size:11px;color:var(--text2)">TWD</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">已使用</div>
-        <div style="font-size:22px;font-weight:600;color:${sumColor}">${totalSpent.toLocaleString()}</div>
-        <div style="font-size:11px;color:${sumColor}">${totalPct.toFixed(1)}%</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${totalOver?'超支':'剩餘'}</div>
-        <div style="font-size:22px;font-weight:600;color:${totalOver?'var(--red)':'var(--green)'}">${Math.abs(netBudget).toLocaleString()}</div>
-        <div style="font-size:11px;color:var(--text2)">TWD</div>
-      </div>
+  // Compute effective budget per cat (manual or sum of subs)
+  function effectiveBudget(cat){
+    const subBudgets=budgets[cat+'_subs']||{};
+    const subSum=Object.values(subBudgets).reduce((s,v)=>s+(parseFloat(v)||0),0);
+    return parseFloat(budgets[cat])||subSum||0;
+  }
+
+  const totalBudget=bCats.reduce((s,c)=>s+effectiveBudget(c),0);
+  const totalSpent=bCats.reduce((s,c)=>s+(spentCat[c]||0),0);
+  const totalPct=totalBudget>0?Math.min(100,(totalSpent/totalBudget)*100):0;
+  const totalOver=totalSpent>totalBudget;
+  if(sumEl) sumEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px">
+      <div class="metric-card"><div class="metric-label">總預算</div><div class="metric-value">${Math.round(totalBudget).toLocaleString()}</div></div>
+      <div class="metric-card"><div class="metric-label">已使用 ${totalPct.toFixed(1)}%</div><div class="metric-value" style="color:${totalOver?'var(--red)':'var(--green)'}">${Math.round(totalSpent).toLocaleString()}</div></div>
+      <div class="metric-card"><div class="metric-label">剩餘</div><div class="metric-value" style="color:${totalOver?'var(--red)':'var(--green)'}">${Math.round(totalBudget-totalSpent).toLocaleString()}</div></div>
     </div>`;
-  }
 
-  prog.innerHTML = bCats.map(c=>{
-    const b=budgets[c]||0,s=spent[c]||0,pct=b>0?Math.min(100,(s/b)*100):0,over=s>b;
-    const col=pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
-    return `<div class="budget-bar-wrap">
-      <div class="budget-bar-info">
-        <span>${c}</span>
-        <span style="color:${over?'var(--red)':'var(--text2)'}">
-          ${s.toLocaleString()} / ${b.toLocaleString()} TWD
-          <strong style="color:${col};margin-left:6px">${pct.toFixed(1)}%</strong>
-          ${over?' (超支)':''}
-        </span>
+  prog.innerHTML=bCats.map(cat=>{
+    const bgt=effectiveBudget(cat);
+    const sp=spentCat[cat]||0;
+    const pct=bgt>0?Math.min(100,(sp/bgt)*100):0;
+    const over=sp>bgt&&bgt>0;
+    const col=CATS_COLOR[cat]||{color:'#666',bg:'#f5f5f5'};
+    // Sub breakdown
+    const subBudgets=budgets[cat+'_subs']||{};
+    const subs=CATS_SUB[cat]||[];
+    const subRows=subs.filter(s=>subBudgets[s]>0||(spentSub[cat+'::'+s]||0)>0).map(s=>{
+      const sBgt=parseFloat(subBudgets[s])||0;
+      const sSp=spentSub[cat+'::'+s]||0;
+      const sPct=sBgt>0?Math.min(100,(sSp/sBgt)*100):0;
+      const sOver=sSp>sBgt&&sBgt>0;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0 4px 12px;border-top:0.5px solid var(--border)">
+        <span style="flex:1;font-size:11px;color:var(--text2)">${s}</span>
+        ${sBgt>0?`<div style="width:80px;height:4px;background:var(--bg3);border-radius:2px"><div style="width:${sPct}%;height:100%;background:${sOver?'var(--red)':col.color};border-radius:2px"></div></div>`:''}
+        <span style="font-size:11px;color:${sOver?'var(--red)':'var(--text2)'};">${sSp.toLocaleString()}${sBgt>0?' / '+sBgt.toLocaleString():''}</span>
+      </div>`;
+    }).join('');
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:500;color:${col.color};flex:1">${cat}</span>
+        <span style="font-size:12px;color:${over?'var(--red)':'var(--text2)'};">${sp.toLocaleString()} / ${bgt.toLocaleString()}</span>
+        <span style="font-size:11px;color:${over?'var(--red)':'var(--text2)'};">${pct.toFixed(0)}%</span>
       </div>
-      <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;margin-bottom:${subRows?'0':'4px'}">
+        <div style="width:${pct}%;height:100%;background:${over?'var(--red)':col.color};border-radius:3px;transition:width .3s"></div>
+      </div>
+      ${subRows}
     </div>`;
   }).join('');
 }
+function toggleBudgetSub(el){
+  const panel=el.nextElementSibling;
+  if(panel) panel.style.display=panel.style.display==='none'?'block':'none';
+}
+function updateSubBudget(cat, sub, val){
+  if(!budgets[cat+'_subs']) budgets[cat+'_subs']={};
+  budgets[cat+'_subs'][sub]=parseFloat(val)||0;
+  saveBudgets();
+}
+
 function saveBudgets(){
   CATS_OUT.forEach(c=>{const v=parseFloat(document.getElementById('bgt-'+c)?.value);if(v>0)budgets[c]=v;else delete budgets[c];});
   sv(); renderBudget(); alert('預算已儲存');
