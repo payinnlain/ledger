@@ -2011,7 +2011,7 @@ function renderTotalAssets(){
   const cashTotal  =accounts.filter(a=>a.type==='cash'||a.type==='prepaid') .reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
   const investTotal=accounts.filter(a=>a.type==='invest').reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
   const cryptoTotal=accounts.filter(a=>a.type==='crypto').reduce((s,a)=>s+twdEq(Math.max(0,acctBalance(a)),a.currency),0);
-  const totalAsset =bankTotal+cashTotal+investTotal+cryptoTotal;
+  const totalAsset =bankTotal+investTotal+cryptoTotal;
 
   const today=new Date(); today.setHours(0,0,0,0);
   const todayStr2=today.toISOString().slice(0,10);
