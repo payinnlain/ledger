@@ -2188,7 +2188,9 @@ function renderDashboard(){
   renderAcctOverview();
   const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
   const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOut=mT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutReal=mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutOther=mT.filter(t=>t.type==='out'&&t.cat==='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOut=totalOutReal+totalOutOther;
   const arTotal =arItems.filter(a=>a.type==='ar'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
   const apTotal =arItems.filter(a=>a.type==='ap'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
   const net=totalIn-totalOut;
