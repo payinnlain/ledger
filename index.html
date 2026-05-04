@@ -2844,71 +2844,82 @@ function confirmCreditAdj(id, currentAmt, currency){
 function quickCreditPayment(id){
   const a=accounts.find(x=>x.id===id);
   if(!a) return;
-  const bal=acctBalance(a);
-  const currentUsed=Math.abs(Math.min(0,bal));
-  // Get future installments
-  const today2=todayStr();
-  const futureTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>today2&&t.installmentGroup);
-  const futureAmt=futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0);
-  // Calculate this period bill (same logic as card display)
-  let thisBillPay=Math.max(0,currentUsed-futureAmt); // fallback
+  // Calculate this period bill
+  let thisBillPay=0;
   if(a.billDay){
     const td2=new Date(); td2.setHours(0,0,0,0);
     const d2=td2.getDate();
-    let currBill2, prevBill2;
-    if(d2>=a.billDay){
-      currBill2=new Date(td2.getFullYear(),td2.getMonth(),a.billDay);
-    } else {
-      currBill2=new Date(td2.getFullYear(),td2.getMonth()-1,a.billDay);
-    }
-    prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
+    let currBill2;
+    if(d2>=a.billDay){ currBill2=new Date(td2.getFullYear(),td2.getMonth(),a.billDay); }
+    else { currBill2=new Date(td2.getFullYear(),td2.getMonth()-1,a.billDay); }
+    const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
     const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
     const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
     const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
     thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
   }
-  const thisPeriod=Math.max(0,thisBillPay);
   // Calculate due date
   let dueDateStr=todayStr();
   if(a.billDay){
-    const today=new Date(); const d=today.getDate();
-    let bm=today.getMonth(), by=today.getFullYear();
+    const td=new Date(); const d=td.getDate();
+    let bm=td.getMonth(), by=td.getFullYear();
     if(d>=a.billDay){bm+=1; if(bm>11){bm=0;by+=1;}}
     const billDate=new Date(by,bm,a.billDay);
     if(a.dueDays){ billDate.setDate(billDate.getDate()+parseInt(a.dueDays)); }
     dueDateStr=billDate.toISOString().slice(0,10);
   }
-
-  // Open add sheet with pre-filled values
-  openAddSheet();
-  setTimeout(()=>{
-    // Set to 支出
-    setSheetType('out', document.getElementById('sheet-btn-out'));
-    // Set amount
-    const amtEl=document.getElementById('sheet-amount');
-    if(amtEl) amtEl.value=thisPeriod>0?thisPeriod:'';
-    // Set account - only show bank accounts for credit payment
-    const acctSel=document.getElementById('sheet-acct-sel');
-    if(acctSel){
-      const bankAccts=accounts.filter(x=>x.type==='bank');
-      acctSel.innerHTML='<option value="">選擇銀行帳戶</option>'+
-        bankAccts.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.currency+')</option>').join('');
-      acctSel.onchange=()=>{ document.getElementById('sheet-acct').value=acctSel.value; };
-      if(bankAccts.length>0){
-        acctSel.value=bankAccts[0].id;
-        document.getElementById('sheet-acct').value=bankAccts[0].id;
-      }
-    }
-    // Set note
-    const noteEl=document.getElementById('sheet-note');
-    if(noteEl) noteEl.value=a.name+'繳費';
-    const dateEl=document.getElementById('sheet-date');
-    if(dateEl) dateEl.value=dueDateStr;
-    // Set cat to 其他支出
-    document.getElementById('sheet-cat').value='其他支出';
-    renderSheetCatChips();
-    calcSheetInstEach();
-  }, 100);
+  // Build bank account options
+  const bankAccts=accounts.filter(x=>x.type==='bank');
+  const bankOpts=bankAccts.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.currency+')</option>').join('');
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-size:15px;font-weight:500">💳 信用卡繳費</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
+      </div>
+      <div style="background:var(--red-bg);border-radius:var(--radius);padding:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:var(--red)">${a.name} 本期帳單</span>
+        <span style="font-size:18px;font-weight:700;color:var(--red)">${fmt(thisBillPay,a.currency)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text2)">繳費金額</label>
+        <input type="text" id="cc-pay-amt" value="${thisBillPay}" inputmode="decimal"
+          style="font-family:inherit;font-size:18px;font-weight:600;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text2)">從哪個銀行帳戶繳款</label>
+        <select id="cc-pay-acct" style="font-family:inherit;font-size:14px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          ${bankOpts}
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
+        <label style="font-size:12px;color:var(--text2)">繳款日期</label>
+        <input type="date" id="cc-pay-date" value="${dueDateStr}"
+          style="font-family:inherit;font-size:14px;padding:10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+      <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:10px 20px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmCreditPayment(${id},'${a.currency}')" style="padding:10px 20px;font-size:13px;font-weight:500;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認繳費</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+}
+function confirmCreditPayment(creditId, currency){
+  const amt=parseFloat(document.getElementById('cc-pay-amt')?.value)||0;
+  const bankId=parseInt(document.getElementById('cc-pay-acct')?.value)||null;
+  const date=document.getElementById('cc-pay-date')?.value||todayStr();
+  if(!amt||!bankId){ alert('請填入金額並選擇銀行帳戶'); return; }
+  // Add payment as transfer: bank -> credit card (reduces credit card debt)
+  txns.unshift({
+    id:Date.now(), type:'xfer',
+    amount:amt, currency,
+    cat:'轉帳', date,
+    note:'信用卡繳費',
+    acctId:bankId, toAcctId:creditId,
+    project:null, tag:null
+  });
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function switchTab(t,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
