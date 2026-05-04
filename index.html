@@ -3066,26 +3066,27 @@ async function fetchFxRates(){
   const el=document.getElementById('fx-bar');
   if(!el) return;
   try{
-    // Fetch USDT/TWD from MAX exchange
-    const [maxRes, fxRes] = await Promise.all([
-      fetch('https://max-api.maicoin.com/api/v2/tickers/usdttwd'),
-      fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    // Use CoinGecko for USDT/TWD and exchangerate.host for fiat
+    const [geckoRes, fxRes] = await Promise.all([
+      fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=twd,usd'),
+      fetch('https://open.er-api.com/v6/latest/USD')
     ]);
-    const maxData = await maxRes.json();
+    const geckoData = await geckoRes.json();
     const fxData = await fxRes.json();
-    const usdtTwd = parseFloat(maxData.last)||0;
-    const usdRate = fxData.rates?.TWD||0;
-    // Build rate items
+    const usdtTwd = geckoData?.tether?.twd || 0;
+    const usdRate = fxData?.rates?.TWD || 0;
+    const rates = fxData?.rates || {};
+    const x2twd = (cur) => cur==='USD' ? usdRate : (rates[cur] ? usdRate/rates[cur] : 0);
     const items=[
-      {cur:'USDT', val:usdtTwd, source:'MAX'},
+      {cur:'USDT', val:usdtTwd, source:maxData?'MAX':''},
       {cur:'USD',  val:usdRate},
-      {cur:'JPY',  val:usdRate/(fxData.rates?.JPY||1)},
-      {cur:'KRW',  val:usdRate/(fxData.rates?.KRW||1)},
-      {cur:'EUR',  val:usdRate/(fxData.rates?.EUR||1)},
-      {cur:'HKD',  val:usdRate/(fxData.rates?.HKD||1)},
-      {cur:'GBP',  val:usdRate/(fxData.rates?.GBP||1)},
+      {cur:'JPY',  val:x2twd('JPY')},
+      {cur:'KRW',  val:x2twd('KRW')},
+      {cur:'EUR',  val:x2twd('EUR')},
+      {cur:'HKD',  val:x2twd('HKD')},
+      {cur:'GBP',  val:x2twd('GBP')},
     ];
-    const rates=items.filter(i=>i.val>0).map(i=>{
+    const ratesHtml=items.filter(i=>i.val>0).map(i=>{
       const decimals=i.cur==='JPY'||i.cur==='KRW'?3:2;
       return '<span style="font-size:11px;color:var(--text2);white-space:nowrap">'+
         '<span style="font-weight:500;color:var(--text)">'+i.cur+'</span>'+
@@ -3098,11 +3099,13 @@ async function fetchFxRates(){
     if(usdEl&&usdRate>0) usdEl.innerHTML='<span style="font-weight:500">USD/TWD</span> <span style="color:var(--green);font-weight:600">'+usdRate.toFixed(2)+'</span>';
     el.innerHTML='<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">'+
       '<span style="font-size:10px;color:var(--text2);margin-right:4px">即時匯率（1外幣=TWD）</span>'+
-      rates+
+      ratesHtml+
       '<span style="font-size:10px;color:var(--text3);margin-left:auto">'+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+'</span>'+
       '</div>';
   } catch(e){
-    el.innerHTML='';
+    const usdEl=document.getElementById('net-usd-rate');
+    if(usdEl) usdEl.innerHTML='';
+    if(el) el.innerHTML='';
   }
 }
 function switchTab(t,el){
