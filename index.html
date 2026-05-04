@@ -2072,9 +2072,9 @@ function renderTotalAssets(){
         '<div style="display:flex;align-items:center;gap:6px">'+
           '<input type="text" id="usd-twd-rate" value="'+(manualFxRate||'')+
             '" placeholder="例：31.5" inputmode="decimal"'+
-            ' style="width:80px;padding:4px 8px;font-family:inherit;font-size:14px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center"'+
-            ' onchange="saveManualFxRate(this.value)">'+
-          '<span style="font-size:11px;opacity:0.7">TWD</span>'+
+            ' style="width:80px;padding:4px 8px;font-family:inherit;font-size:14px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center">'+
+          '<button onclick="saveManualFxRate(document.getElementById(\'usd-twd-rate\').value)"'+
+            ' style="padding:4px 10px;font-size:12px;font-weight:500;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.25);color:inherit;cursor:pointer;font-family:inherit">套用</button>'+
         '</div>'+
       '</div>'+
       '<div style="height:5px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden">'+
@@ -3074,6 +3074,7 @@ function drillDownCat(cat){
 function saveManualFxRate(val){
   manualFxRate=parseFloat(val)||0;
   localStorage.setItem('manualFxRate', manualFxRate);
+  renderDashboard();
 }
 function switchTab(t,el){
   if(t!=='txn') filterCat=null; // clear cat filter when leaving txn tab
