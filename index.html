@@ -2196,7 +2196,7 @@ function renderDashboard(){
   const net=totalIn-totalOut;
   document.getElementById('summary-cards').innerHTML=`
     <div class="metric"><div class="metric-label">本月收入 (約TWD)</div><div class="metric-value" style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div></div>
-    <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOut).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOutReal).toLocaleString()}</div>${totalOutOther>0?'<div style="font-size:11px;color:var(--text2);margin-top:1px">其他 '+Math.round(totalOutOther).toLocaleString()+'</div>':''}</div>
     <div class="metric"><div class="metric-label">本月結餘 (約TWD)</div><div class="metric-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div></div>
     <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
 
