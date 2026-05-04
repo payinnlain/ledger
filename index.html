@@ -2887,11 +2887,14 @@ function quickCreditPayment(id){
     // Set amount
     const amtEl=document.getElementById('sheet-amount');
     if(amtEl) amtEl.value=thisPeriod>0?thisPeriod:'';
-    // Set account
+    // Set account - default to first bank/cash account
     const acctSel=document.getElementById('sheet-acct-sel');
     if(acctSel){
-      acctSel.value=a.id;
-      document.getElementById('sheet-acct').value=a.id;
+      const bankAcct=accounts.find(x=>x.type==='bank'||x.type==='cash');
+      if(bankAcct){
+        acctSel.value=bankAcct.id;
+        document.getElementById('sheet-acct').value=bankAcct.id;
+      }
     }
     // Set note
     const noteEl=document.getElementById('sheet-note');
