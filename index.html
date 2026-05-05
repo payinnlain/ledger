@@ -1474,6 +1474,10 @@ function editTxn(id){
   const catOpts=cats.map(c=>`<option${c===t.cat?' selected':''}>${c}</option>`).join('');
   const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC','BNB','XRP']
     .map(c=>`<option${c===t.currency?' selected':''}>${c}</option>`).join('');
+  const acctOpts=accounts.map(a=>`<option value="${a.id}"${a.id===t.acctId?' selected':''}>${a.name} (${a.currency})</option>`).join('');
+  const toAcctOpts=accounts.map(a=>`<option value="${a.id}"${a.id===t.toAcctId?' selected':''}>${a.name} (${a.currency})</option>`).join('');
+  const isXfer=t.type==='xfer';
+  const acctLabel=isXfer?'轉出帳戶':'帳戶';
   document.getElementById('edit-modal').innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:440px;max-width:94vw">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
@@ -1489,6 +1493,10 @@ function editTxn(id){
           <select id="e-cat" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${catOpts}</select></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">日期</label>
           <input type="date" id="e-date" value="${t.date}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">${acctLabel}</label>
+          <select id="e-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${acctOpts}</select></div>
+        ${isXfer?`<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">轉入帳戶</label>
+          <select id="e-to-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${toAcctOpts}</select></div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px"><label style="font-size:12px;color:var(--text2)">備註</label>
         <input type="text" id="e-note" value="${t.note||''}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
@@ -1508,7 +1516,12 @@ function saveEdit(id){
   t.cat=document.getElementById('e-cat').value;
   t.date=document.getElementById('e-date').value;
   t.note=document.getElementById('e-note').value;
+  const newAcct=parseInt(document.getElementById('e-acct')?.value);
+  if(newAcct) t.acctId=newAcct;
+  const toAcctEl=document.getElementById('e-to-acct');
+  if(toAcctEl){ const v=parseInt(toAcctEl.value); if(v) t.toAcctId=v; }
   sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
+  if(_detailAcctId) renderAcctDetail();
 }
 function closeEdit(){
   document.getElementById('edit-modal').style.display='none';
