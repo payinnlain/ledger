@@ -272,6 +272,43 @@
     <div id="total-asset-bar" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:18px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px"></div>
     <div id="due-reminder" style="margin-bottom:14px"></div>
     <div id="acct-overview" class="acct-grid"></div>
+
+    <!-- 帳戶明細（點卡片後展開） -->
+    <div id="acct-detail-panel" style="display:none;margin-bottom:14px">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <button onclick="closeAcctDetail()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);padding:0;line-height:1">←</button>
+            <span id="acct-detail-title" style="font-size:15px;font-weight:600"></span>
+          </div>
+          <div style="display:flex;gap:16px;align-items:center">
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2)">累計收入</div>
+              <div id="acct-detail-in" style="font-size:14px;font-weight:600;color:var(--green)"></div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2)">累計支出</div>
+              <div id="acct-detail-out" style="font-size:14px;font-weight:600;color:var(--red)"></div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text2)">餘額</div>
+              <div id="acct-detail-bal" style="font-size:16px;font-weight:700"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <select id="acct-detail-month" onchange="renderAcctDetail()" style="font-size:12px;padding:5px 8px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></select>
+          <select id="acct-detail-type" onchange="renderAcctDetail()" style="font-size:12px;padding:5px 8px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <option value="">全部類型</option>
+            <option value="in">收入</option>
+            <option value="out">支出</option>
+            <option value="xfer">轉帳</option>
+          </select>
+        </div>
+        <div id="acct-detail-list"></div>
+      </div>
+    </div>
+
     <div class="summary-grid" id="summary-cards"></div>
     <div class="two-col">
       <div class="card">
@@ -1276,7 +1313,7 @@ function renderAcctOverview(){
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
-      html+=`<div style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column">
+      html+=`<div style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s" onclick="drillDownAcct(${a.id},event)">
         <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
         <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
         <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
@@ -3070,6 +3107,74 @@ function confirmCreditPayment(creditId, currency){
     project:null, tag:null
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
+}
+let _detailAcctId=null;
+function openAcctDetail(acctId, event){
+  if(event && event.target.tagName==='BUTTON') return;
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  _detailAcctId=acctId;
+  // Populate month dropdown: all months that have txns for this account, plus current month
+  const monthSet=new Set();
+  txns.forEach(t=>{if((t.acctId===acctId||t.toAcctId===acctId)&&t.date) monthSet.add(t.date.slice(0,7));});
+  const now=new Date();
+  const cur=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  monthSet.add(cur);
+  const months=[...monthSet].sort().reverse();
+  const mSel=document.getElementById('acct-detail-month');
+  mSel.innerHTML=`<option value="">全部時間</option>`+months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  mSel.value=cur;
+  document.getElementById('acct-detail-type').value='';
+  // Stats
+  const bal=acctBalance(a);
+  const allIn=txns.filter(t=>t.acctId===acctId&&t.type==='in').reduce((s,t)=>s+t.amount,0);
+  const allOut=txns.filter(t=>t.acctId===acctId&&t.type==='out').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('acct-detail-title').textContent=a.name;
+  document.getElementById('acct-detail-in').textContent='+'+fmt(allIn,a.currency);
+  document.getElementById('acct-detail-out').textContent='-'+fmt(allOut,a.currency);
+  const balEl=document.getElementById('acct-detail-bal');
+  balEl.textContent=fmt(bal,a.currency);
+  balEl.style.color=bal>=0?'var(--green)':'var(--red)';
+  document.getElementById('acct-detail-panel').style.display='block';
+  document.getElementById('acct-detail-panel').scrollIntoView({behavior:'smooth',block:'start'});
+  renderAcctDetail();
+}
+function closeAcctDetail(){
+  document.getElementById('acct-detail-panel').style.display='none';
+  _detailAcctId=null;
+}
+function renderAcctDetail(){
+  const acctId=_detailAcctId; if(!acctId) return;
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  const monthVal=document.getElementById('acct-detail-month').value;
+  const typeVal=document.getElementById('acct-detail-type').value;
+  let list=txns.filter(t=>t.acctId===acctId||t.toAcctId===acctId);
+  if(monthVal) list=list.filter(t=>t.date&&t.date.startsWith(monthVal));
+  if(typeVal) list=list.filter(t=>t.type===typeVal);
+  list=list.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const el=document.getElementById('acct-detail-list');
+  if(!list.length){el.innerHTML='<div class="empty-state">此帳戶在這段期間沒有記錄</div>';return;}
+  el.innerHTML=list.map(t=>{
+    const isIncoming=t.type==='xfer'&&t.toAcctId===acctId;
+    const bg=t.type==='in'||isIncoming?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
+    const ic=t.type==='in'||isIncoming?'+':t.type==='out'?'-':'⇄';
+    const c=t.type==='in'||isIncoming?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
+    const s=t.type==='in'||isIncoming?'+':t.type==='out'?'-':'';
+    const badge=`<span class="badge badge-${t.type}">${t.type==='in'?'收入':t.type==='out'?'支出':'轉帳'}</span>`;
+    const xferNote=t.type==='xfer'?(isIncoming?` ← ${acctName(t.acctId)}`:` → ${acctName(t.toAcctId)}`):'';
+    return`<div class="txn-item">
+      <div class="txn-icon" style="background:${bg}">${ic}</div>
+      <div class="txn-meta">
+        <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
+        <div class="txn-sub">${t.date} ${badge}${xferNote}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}</div>
+      </div>
+      <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+      <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
+    </div>`;
+  }).join('');
+}
+function drillDownAcct(acctId, event){
+  if(event && event.target.tagName==='BUTTON') return;
+  openAcctDetail(acctId, event);
 }
 function drillDownCat(cat){
   filterCat=cat;
