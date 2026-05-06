@@ -1903,7 +1903,7 @@ function arBadge(a){
   return '<span class="badge badge-unpaid">待結清</span>';
 }
 function renderArList(type,elId){
-  const list=arItems.filter(a=>a.type===type);
+  const list=arItems.filter(a=>a.type===type&&a.status!=='paid');
   const el=document.getElementById(elId);
   if(!list.length){el.innerHTML='<div class="empty-state" style="padding:1.5rem">尚無記錄</div>';return;}
   const c=type==='ar'?'var(--blue)':'var(--amber)';
