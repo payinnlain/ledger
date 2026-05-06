@@ -2268,7 +2268,8 @@ function renderDueReminder(){
         <span style="background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
         <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · ${a.due}</div>
       </div>
-      <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
+      <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0;margin-right:6px">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
+      <button onclick="markArPaid(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:${a.type==='ar'?'var(--green)':'var(--red)'};color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
     </div>`;
   });
 
@@ -2285,7 +2286,8 @@ function renderDueReminder(){
         <span style="background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
         <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · ${a.due}</div>
       </div>
-      <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
+      <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0;margin-right:6px">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
+      <button onclick="markArPaid(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:${a.type==='ar'?'var(--green)':'var(--red)'};color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
     </div>`;
   });
 
@@ -2304,7 +2306,8 @@ function renderDueReminder(){
         <span style="background:#F5F3FF;color:#5B21B6;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">繳款${diff===0?'今天':diff+'天後'}</span>
         <div style="font-size:11px;color:var(--text2);margin-top:1px">信用卡 · 繳款日每月${payDay}號</div>
       </div>
-      <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0">${fmt(Math.abs(bal),a.currency)}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(Math.abs(bal),a.currency)}</span>
+      <button onclick="quickCreditPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:#8B5CF6;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">💳 繳費</button>
     </div>`;
   });
 
