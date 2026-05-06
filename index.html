@@ -1387,7 +1387,9 @@ function renderAcctOverview(){
       const loanBtn=a.type==='loan'&&a.loanPayment
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">${a.type==='invest'&&a.holdings&&a.holdings.length?'📊 更新市值':'調整餘額'}</button>`
+        ?(a.type==='invest'&&a.holdings&&a.holdings.length
+          ?''
+          :`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`)
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
@@ -1401,7 +1403,11 @@ function renderAcctOverview(){
         <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
         <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
         <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
-        <div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>
+        ${a.type==='invest'&&a.holdings&&a.holdings.length
+          ?`<div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;cursor:text;border-bottom:1px dashed ${col.border}" 
+              onclick="inlineEditBal(event,${a.id},${bal},'${a.currency}')" title="點擊更新市值">${fmt(bal,a.currency)}</div>`
+          :`<div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>`
+        }
         <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
         ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}${investInfo}
         ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
@@ -3139,6 +3145,38 @@ function showTagDetail(tag){
 function backToTags(){
   document.getElementById('tag-detail-panel').style.display='none';
   document.getElementById('tag-list-panel').style.display='block';
+}
+function inlineEditBal(event, id, currentBal, currency){
+  event.stopPropagation();
+  const el=event.currentTarget;
+  const input=document.createElement('input');
+  input.type='number';
+  input.value=currentBal;
+  input.style.cssText='width:100%;font-size:16px;font-weight:700;border:none;border-bottom:1.5px solid var(--green);background:transparent;color:var(--text);outline:none;padding:0;font-family:inherit;margin-top:4px';
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+  function commit(){
+    const newBal=parseFloat(input.value);
+    if(!isNaN(newBal)&&newBal!==currentBal){
+      const diff=newBal-currentBal;
+      txns.unshift({id:Date.now(),type:diff>0?'in':'out',amount:Math.abs(diff),currency,
+        cat:diff>0?'投資':'其他支出',date:todayStr(),note:'市值更新',acctId:id,toAcctId:null,project:null,tag:'餘額調整'});
+      const a=accounts.find(x=>x.id===id);
+      if(a&&a.holdings&&a.holdings.length&&currentBal>0){
+        const ratio=newBal/currentBal;
+        a.holdings.forEach(h=>{h.price=Math.round((h.price||0)*ratio*100)/100;});
+      }
+      sv();
+    }
+    renderAcctOverview();
+    renderDashboard();
+  }
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){input.blur();}
+    if(e.key==='Escape'){input.value=currentBal;input.blur();}
+  });
 }
 function quickAdjustBalance(id){
   const a=accounts.find(x=>x.id===id);
