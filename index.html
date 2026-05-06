@@ -817,6 +817,7 @@ async function loadAll(){
         arItems  = d.arItems  || [];
         budgets  = d.budgets  || {};
         accounts = d.accounts || [];
+        projects = d.projects || [];
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
       } else {
@@ -824,7 +825,7 @@ async function loadAll(){
         const local = localStorage.getItem(KEY);
         if(local){
           const d = JSON.parse(local);
-          txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[];
+          txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
         }
         setSyncStatus('ok','已同步 ✓');
       }
