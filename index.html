@@ -1387,7 +1387,7 @@ function renderAcctOverview(){
       const loanBtn=a.type==='loan'&&a.loanPayment
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
+        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">${a.type==='invest'&&a.holdings&&a.holdings.length?'📊 更新市值':'調整餘額'}</button>`
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
@@ -3205,6 +3205,12 @@ function confirmAdjust(id, currentBal, currency){
     cat:diff>0?'投資':'其他支出',
     date, note, acctId:id, toAcctId:null, project:null, tag:'餘額調整'
   });
+  // 投資帳戶有持股：等比例更新股價讓市值對齊新餘額
+  const a=accounts.find(x=>x.id===id);
+  if(a&&a.type==='invest'&&a.holdings&&a.holdings.length&&currentBal>0){
+    const ratio=newBal/currentBal;
+    a.holdings.forEach(h=>{ h.price=Math.round((h.price||0)*ratio*100)/100; });
+  }
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function toggleForeignFee(){
