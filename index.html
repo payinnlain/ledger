@@ -327,6 +327,10 @@
       <div class="section-header"><span class="section-title">最近10筆記錄</span></div>
       <div id="recent-list"></div>
     </div>
+    <div class="card" id="dashboard-projects-card" style="display:none">
+      <div class="section-header"><span class="section-title">專案預算</span></div>
+      <div id="dashboard-projects"></div>
+    </div>
   </div>
 
   <!-- TXN -->
@@ -2420,10 +2424,49 @@ function renderDashboard(){
     const bg=t.type==='in'?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
     const c=t.type==='in'?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
     const s=t.type==='in'?'+':t.type==='out'?'-':'';
+    const proj=t.project?projects.find(p=>String(p.id)===String(t.project)):null;
     return `<div class="txn-item">
       <div class="txn-icon" style="background:${bg};font-size:12px">${t.type==='in'?'+':t.type==='out'?'-':'⇄'}</div>
-      <div class="txn-meta"><div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div><div class="txn-sub">${t.date}${t.acctId?' · '+acctName(t.acctId):''}</div></div>
+      <div class="txn-meta"><div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div><div class="txn-sub">${t.date}${t.acctId?' · '+acctName(t.acctId):''}${proj?` · <span style="color:${proj.color||'var(--blue)'}">${proj.name}</span>`:''}</div></div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+    </div>`;
+  }).join('');
+
+  // 專案預算區塊
+  const projCard=document.getElementById('dashboard-projects-card');
+  const projEl=document.getElementById('dashboard-projects');
+  if(!projEl||!projCard) return;
+  if(!projects.length){projCard.style.display='none';return;}
+  projCard.style.display='block';
+  projEl.innerHTML=projects.map(p=>{
+    const ptxns=txns.filter(t=>String(t.project)===String(p.id));
+    const totalIn =ptxns.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    const totalOut=ptxns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+    const net=totalIn-totalOut;
+    const pct=p.budget?Math.min(100,(totalOut/p.budget)*100):null;
+    const col=pct===null?'var(--blue)':pct<70?'var(--green)':pct<90?'var(--amber)':'var(--red)';
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${p.color||'var(--blue)'}"></div>
+          <span style="font-size:13px;font-weight:500">${p.name}</span>
+          <span style="font-size:11px;color:var(--text2)">${ptxns.length}筆</span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:13px">
+          ${totalIn>0?`<span style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</span>`:''}
+          <span style="color:var(--red)">-${Math.round(totalOut).toLocaleString()}</span>
+          <span style="color:${net>=0?'var(--green)':'var(--red)'};font-weight:600">${net>=0?'+':''}${Math.round(net).toLocaleString()}</span>
+        </div>
+      </div>
+      ${pct!==null?`<div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
+          <span>預算使用 ${pct.toFixed(1)}%</span>
+          <span>${Math.round(totalOut).toLocaleString()} / ${Math.round(p.budget).toLocaleString()}</span>
+        </div>
+        <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
+          <div style="height:100%;border-radius:3px;background:${col};width:${pct.toFixed(1)}%"></div>
+        </div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
