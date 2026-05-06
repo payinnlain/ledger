@@ -979,10 +979,13 @@ function exportCSV(){
 
 /* ── accounts ── */
 function acctBalance(acct){
+  // 投資帳戶有持股時，直接用市值合計
+  if(acct.type==='invest' && acct.holdings && acct.holdings.length>0){
+    return acct.holdings.reduce((s,h)=>s+(h.shares||0)*(h.price||0),0);
+  }
   let bal=acct.initBalance||0;
   const today=todayStr();
   txns.filter(t=>t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id)).forEach(t=>{
-    // 信用卡只計算今天或之前的交易（避免未來分期計入）
     if(acct.type==='credit' && t.date && t.date>today) return;
     if(t.type==='in'  &&t.acctId===acct.id)   bal+=t.amount;
     if(t.type==='out' &&t.acctId===acct.id)   bal-=t.amount;
@@ -1421,7 +1424,7 @@ function openHoldings(acctId, event){
       <tr>
         <td><input value="${h.name||''}" onchange="updateHolding(${acctId},${i},'name',this.value)" style="width:90px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
         <td><input type="number" value="${h.shares||''}" onchange="updateHolding(${acctId},${i},'shares',this.value)" placeholder="股數" style="width:70px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
-        <td><input type="number" value="${h.price||''}" onchange="updateHolding(${acctId},${i},'price',this.value)" placeholder="股價" style="width:80px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
+        <td><input type="number" id="price-${i}" value="${h.price||''}" onchange="updateHolding(${acctId},${i},'price',this.value)" placeholder="股價" style="width:80px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
         <td style="text-align:right;font-size:13px;font-weight:500">${fmt((h.shares||0)*(h.price||0),a.currency)}</td>
         <td><button onclick="removeHolding(${acctId},${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;padding:0 4px">✕</button></td>
       </tr>`).join('');
@@ -1438,22 +1441,75 @@ function openHoldings(acctId, event){
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
         <thead><tr style="font-size:12px;color:var(--text2)">
-          <th style="text-align:left;padding-bottom:6px">股票名稱</th>
+          <th style="text-align:left;padding-bottom:6px">代碼</th>
           <th style="text-align:left;padding-bottom:6px">股數</th>
-          <th style="text-align:left;padding-bottom:6px">股價</th>
+          <th style="text-align:left;padding-bottom:6px">股價 (USD)</th>
           <th style="text-align:right;padding-bottom:6px">市值</th>
           <th></th>
         </tr></thead>
         <tbody id="holdings-body"></tbody>
       </table>
-      <button onclick="addHolding(${acctId})" style="font-size:13px;padding:5px 12px;border:0.5px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--text2);font-family:inherit;margin-bottom:12px">+ 新增持股</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <button onclick="addHolding(${acctId})" style="font-size:13px;padding:5px 12px;border:0.5px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">+ 新增持股</button>
+        <button id="fetch-quote-btn" onclick="fetchQuotes(${acctId})" style="font-size:13px;padding:5px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">🔄 更新報價</button>
+      </div>
+      <div id="quote-status" style="font-size:11px;color:var(--text2);text-align:right;min-height:16px;margin-bottom:8px"></div>
       <div id="holdings-total" style="font-size:14px;font-weight:600;text-align:right;color:var(--text)"></div>
       <div style="text-align:right;margin-top:14px">
-        <button onclick="closeEdit();renderAcctOverview();" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">完成</button>
+        <button onclick="closeEdit();renderAcctOverview();renderDashboard();" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">完成</button>
       </div>
     </div>`;
   modal.style.display='flex';
   render();
+}
+
+async function fetchQuotes(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings||!a.holdings.length) return;
+  const btn=document.getElementById('fetch-quote-btn');
+  const status=document.getElementById('quote-status');
+  const symbols=a.holdings.map(h=>h.name).filter(Boolean);
+  if(!symbols.length) return;
+  btn.textContent='⏳ 抓取中...';
+  btn.disabled=true;
+  status.textContent='';
+  try{
+    const url=`https://query1.finance.yahoo.com/v8/finance/spark?symbols=${symbols.join(',')}&range=1d&interval=5m`;
+    const proxy=`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res=await fetch(proxy);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    const spark=data.spark?.result||[];
+    let updated=0;
+    spark.forEach(r=>{
+      const sym=r.symbol;
+      const price=r.response?.[0]?.meta?.regularMarketPrice||r.response?.[0]?.meta?.chartPreviousClose;
+      if(!price) return;
+      const h=a.holdings.find(x=>x.name&&x.name.toUpperCase()===sym.toUpperCase());
+      if(h){h.price=Math.round(price*100)/100;updated++;}
+    });
+    if(updated>0){
+      sv();
+      const total=a.holdings.reduce((s,h)=>s+(h.shares||0)*(h.price||0),0);
+      document.getElementById('holdings-body').querySelectorAll('tr').forEach((tr,i)=>{
+        const inp=tr.querySelector('input[id^="price-"]');
+        if(inp&&a.holdings[i]) inp.value=a.holdings[i].price||'';
+        const cells=tr.querySelectorAll('td');
+        if(cells[3]&&a.holdings[i]) cells[3].textContent=fmt((a.holdings[i].shares||0)*(a.holdings[i].price||0),a.currency);
+      });
+      document.getElementById('holdings-total').textContent=`市值合計：${a.currency} ${fmt(total,a.currency)}`;
+      const now=new Date();
+      status.style.color='var(--green)';
+      status.textContent=`✓ 已更新 ${updated} 檔，${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    } else {
+      status.style.color='var(--red)';
+      status.textContent='找不到報價，請確認代碼是否正確（例：AAPL、TSLA）';
+    }
+  }catch(e){
+    status.style.color='var(--red)';
+    status.textContent='抓取失敗：'+e.message;
+  }
+  btn.textContent='🔄 更新報價';
+  btn.disabled=false;
 }
 function addHolding(acctId){
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
