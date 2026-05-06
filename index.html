@@ -979,9 +979,10 @@ function exportCSV(){
 
 /* ── accounts ── */
 function acctBalance(acct){
-  // 投資帳戶有持股時，直接用市值合計
-  if(acct.type==='invest' && acct.holdings && acct.holdings.length>0){
-    return acct.holdings.reduce((s,h)=>s+(h.shares||0)*(h.price||0),0);
+  if(acct.type==='invest'){
+    const h=acct.holdings||[];
+    const mv=h.reduce((s,x)=>s+(x.shares||0)*(x.price||0),0);
+    return mv+(acct.investCash||0);
   }
   let bal=acct.initBalance||0;
   const today=todayStr();
@@ -1366,53 +1367,92 @@ function renderAcctOverview(){
             <span style="color:var(--text2)">${fmt(futureAmt,a.currency)}</span>
           </div>`:''}
         </div>`:'';
-      const investInfo=a.type==='invest'?(()=>{
-        const h=a.holdings||[];
-        if(!h.length) return '';
-        const mv=h.reduce((s,x)=>s+(x.shares||0)*(x.price||0),0);
-        return `<div style="margin-top:4px;padding-top:4px;border-top:0.5px solid ${col.border}">
-          ${h.slice(0,3).map(x=>`<div style="display:flex;justify-content:space-between;font-size:10px;color:${col.text};opacity:0.8">
-            <span>${x.name}</span><span>${fmt(x.shares||0)}股 × ${fmt(x.price||0,a.currency)}</span>
-          </div>`).join('')}
-          ${h.length>3?`<div style="font-size:10px;color:${col.text};opacity:0.5">...等${h.length}檔</div>`:''}
-          <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:2px">
-            <span style="color:${col.text};opacity:0.6">市值合計</span>
-            <span style="font-weight:600;color:${col.text}">${fmt(mv,a.currency)}</span>
-          </div>
-        </div>`;
-      })():'';
-      const holdingsBtn=a.type==='invest'
-        ?`<button onclick="openHoldings(${a.id},event)" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">📊 持股管理</button>`
-        :'';
+      const investInfo=''; // replaced by inline card
+      const holdingsBtn='';
       const loanBtn=a.type==='loan'&&a.loanPayment
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
-      const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
-        ?(a.type==='invest'&&a.holdings&&a.holdings.length
-          ?''
-          :`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`)
+      const adjBtn=(a.type==='invest'&&a.holdings&&a.holdings.length)
+        ?''
+        :(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
+        ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
-      html+=`<div draggable="true" data-acct-id="${a.id}"
-        ondragstart="acctDragStart(event,${a.id})"
-        ondragover="acctDragOver(event)"
-        ondragleave="acctDragLeave(event)"
-        ondrop="acctDrop(event,${a.id})"
-        ondragend="acctDragEnd(event)"
-        style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,opacity .15s" onclick="drillDownAcct(${a.id},event)">
-        <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
-        <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
-        <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
-        ${a.type==='invest'&&a.holdings&&a.holdings.length
-          ?`<div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;cursor:text;border-bottom:1px dashed ${col.border}" 
-              onclick="inlineEditBal(event,${a.id},${bal},'${a.currency}')" title="點擊更新市值">${fmt(bal,a.currency)}</div>`
-          :`<div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>`
-        }
-        <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
-        ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}${investInfo}
-        ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
-        ${loanBtn}${holdingsBtn}${adjBtn}
-      </div>`;
+
+      if(a.type==='invest'){
+        if(!a.holdings) a.holdings=[];
+        const h=a.holdings;
+        const cash=a.investCash||0;
+        const mv=h.reduce((s,x)=>s+(x.shares||0)*(x.price||0),0);
+        const total=mv+cash;
+        const lastTotal=a.lastTotal||null;
+        const diff=lastTotal!==null?total-lastTotal:null;
+        const diffHtml=diff!==null?`<div style="font-size:10px;font-weight:500;color:${diff>=0?'#0F6E56':'#993C1D'};text-align:right;margin-top:2px">${diff>=0?'▲':'▼'} ${fmt(Math.abs(diff),a.currency)} vs 上次</div>`:'';
+        const holdingRows=h.map((x,i)=>`
+          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px;align-items:center;margin-bottom:3px">
+            <div style="font-size:10px;color:${col.text};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.name||'—'}</div>
+            <input type="number" value="${x.shares||''}" placeholder="股數"
+              onclick="event.stopPropagation()"
+              onchange="updateInvestHolding(${a.id},${i},'shares',this.value)"
+              style="width:58px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
+            <input type="number" value="${x.price||''}" placeholder="股價"
+              onclick="event.stopPropagation()"
+              onchange="updateInvestHolding(${a.id},${i},'price',this.value)"
+              style="width:58px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
+            <div style="font-size:10px;color:${col.text};opacity:0.7;text-align:right;min-width:50px">${fmt((x.shares||0)*(x.price||0),a.currency)}</div>
+          </div>`).join('');
+        html+=`<div draggable="true" data-acct-id="${a.id}"
+          ondragstart="acctDragStart(event,${a.id})"
+          ondragover="acctDragOver(event)"
+          ondragleave="acctDragLeave(event)"
+          ondrop="acctDrop(event,${a.id})"
+          ondragend="acctDragEnd(event)"
+          style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;transition:box-shadow .15s,opacity .15s">
+          <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
+          <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
+          <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;margin-bottom:6px">${a.name}</div>
+          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px;margin-bottom:4px">
+            <div style="font-size:9px;color:${col.text};opacity:0.5"></div>
+            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">股數</div>
+            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">股價</div>
+            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">小計</div>
+          </div>
+          ${holdingRows}
+          <button onclick="event.stopPropagation();addInvestHolding(${a.id})" style="font-size:9px;color:${col.text};opacity:0.5;background:none;border:0.5px dashed ${col.border};border-radius:4px;padding:2px 6px;cursor:pointer;font-family:inherit;margin-bottom:4px;text-align:left">+ 新增</button>
+          <div style="border-top:0.5px solid ${col.border};padding-top:4px;margin-top:2px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:10px;color:${col.text};opacity:0.6">現金</span>
+              <input type="number" value="${cash||''}" placeholder="0"
+                onclick="event.stopPropagation()"
+                onchange="updateInvestCash(${a.id},this.value)"
+                style="width:80px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;color:${col.text};opacity:0.6">總市值</span>
+              <span style="font-size:13px;font-weight:700;color:${balColor}">${a.currency} ${fmt(total,a.currency)}</span>
+            </div>
+            ${diffHtml}
+            <button onclick="event.stopPropagation();recordInvestTotal(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:${col.bg};border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">記錄今日市值</button>
+          </div>
+        </div>`;
+      } else {
+        html+=`<div draggable="true" data-acct-id="${a.id}"
+          ondragstart="acctDragStart(event,${a.id})"
+          ondragover="acctDragOver(event)"
+          ondragleave="acctDragLeave(event)"
+          ondrop="acctDrop(event,${a.id})"
+          ondragend="acctDragEnd(event)"
+          style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,opacity .15s" onclick="drillDownAcct(${a.id},event)">
+          <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
+          <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
+          <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
+          <div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>
+          <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
+          ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}
+          ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
+          ${loanBtn}${adjBtn}
+        </div>`;
+      }
     });
     html+='</div></div>';
   });
@@ -3145,6 +3185,38 @@ function showTagDetail(tag){
 function backToTags(){
   document.getElementById('tag-detail-panel').style.display='none';
   document.getElementById('tag-list-panel').style.display='block';
+}
+function addInvestHolding(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  if(!a.holdings) a.holdings=[];
+  a.holdings.push({name:'',shares:0,price:0});
+  sv(); renderAcctOverview();
+}
+function updateInvestHolding(acctId,i,field,val){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
+  a.holdings[i][field]=field==='name'?val:parseFloat(val)||0;
+  sv(); renderAcctOverview(); renderDashboard();
+}
+function updateInvestCash(acctId,val){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  a.investCash=parseFloat(val)||0;
+  sv(); renderAcctOverview(); renderDashboard();
+}
+function recordInvestTotal(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  const h=a.holdings||[];
+  const mv=h.reduce((s,x)=>s+(x.shares||0)*(x.price||0),0);
+  const total=mv+(a.investCash||0);
+  const last=a.lastTotal||null;
+  const diff=last!==null?total-last:null;
+  if(diff!==null&&diff!==0){
+    txns.unshift({id:Date.now(),type:diff>0?'in':'out',amount:Math.abs(diff),
+      currency:a.currency,cat:diff>0?'投資':'其他支出',
+      date:todayStr(),note:`市值更新 ${fmt(last,a.currency)} → ${fmt(total,a.currency)}`,
+      acctId:acctId,toAcctId:null,project:null,tag:'市值紀錄'});
+  }
+  a.lastTotal=total;
+  sv(); renderAcctOverview(); renderDashboard();
 }
 function inlineEditBal(event, id, currentBal, currency){
   event.stopPropagation();
