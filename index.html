@@ -848,7 +848,39 @@ async function loadAll(){
   renderDashboard();
 }
 
-function sv(){
+// ── 台灣假日資料 ──
+let twHolidays = new Set(); // 'YYYY-MM-DD' 的假日集合
+async function loadTwHolidays(){
+  const years=[new Date().getFullYear(), new Date().getFullYear()+1];
+  for(const y of years){
+    try{
+      const r=await fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${y}.json`);
+      if(!r.ok) continue;
+      const data=await r.json();
+      data.forEach(d=>{
+        if(d.isHoliday){
+          const s=String(d.date);
+          twHolidays.add(s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8));
+        }
+      });
+    }catch(e){ /* 離線時靜默失敗，fallback 用週末 */ }
+  }
+  renderDueReminder(); // 假日資料載入後重繪提醒
+}
+function isHolidayDate(dateStr){
+  if(twHolidays.has(dateStr)) return true;
+  const dow=new Date(dateStr).getDay();
+  return dow===0||dow===6;
+}
+// 往前找最近工作日（應收提前提醒用）
+function adjustedReminderDate(dateStr){
+  const d=new Date(dateStr);
+  while(isHolidayDate(d.toISOString().slice(0,10))){
+    d.setDate(d.getDate()-1);
+  }
+  return d.toISOString().slice(0,10);
+}
+loadTwHolidays();
   const data = JSON.stringify({txns,arItems,budgets,accounts,projects});
   localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
@@ -2230,9 +2262,14 @@ function renderDueReminder(){
   const todayStr2=today.toISOString().slice(0,10);
   const in7Str=in7.toISOString().slice(0,10);
 
-  // AR/AP items
-  const overdue=arItems.filter(a=>a.status!=='paid'&&a.due&&a.due<todayStr2).sort((a,b)=>a.due.localeCompare(b.due));
-  const upcoming=arItems.filter(a=>a.status!=='paid'&&a.due&&a.due>=todayStr2&&a.due<=in7Str).sort((a,b)=>a.due.localeCompare(b.due));
+  // AR/AP items — 應收提前、應付不調整（使用者說有的會延後，保留原日期）
+  // 用調整後日期判斷是否進入7天提醒窗口
+  const arWithAdj=arItems.filter(a=>a.status!=='paid'&&a.due).map(a=>{
+    const adjDue=a.type==='ar'?adjustedReminderDate(a.due):a.due;
+    return {...a, adjDue};
+  });
+  const overdue=arWithAdj.filter(a=>a.adjDue<todayStr2).sort((a,b)=>a.adjDue.localeCompare(b.adjDue));
+  const upcoming=arWithAdj.filter(a=>a.adjDue>=todayStr2&&a.adjDue<=in7Str).sort((a,b)=>a.adjDue.localeCompare(b.adjDue));
 
   // Credit card payment reminders
   const ccReminders=accounts.filter(a=>a.type==='credit'&&a.payDay).filter(a=>{
@@ -2254,19 +2291,21 @@ function renderDueReminder(){
     return Math.round((d-today)/(1000*60*60*24));
   };
   const dayLabel=(diff)=>diff<0?`逾期${Math.abs(diff)}天`:diff===0?'今天到期':diff===1?'明天到期':`${diff}天後`;
+  const adjNote=(a)=>a.adjDue&&a.adjDue!==a.due?`<span style="font-size:10px;color:var(--text2);margin-left:4px">（原${a.due}，遇假日提前）</span>`:'';
 
   let html=`<div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:14px">
     <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">🔔 即將到期提醒</div>`;
 
   // Overdue
   overdue.forEach(a=>{
-    const diff=dayDiff(a.due);
+    const diff=dayDiff(a.adjDue);
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
         <span style="background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · ${a.due}</div>
+        ${adjNote(a)}
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · 到期：${a.due}</div>
       </div>
       <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0;margin-right:6px">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
       <button onclick="markArPaid(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:${a.type==='ar'?'var(--green)':'var(--red)'};color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
@@ -2275,7 +2314,7 @@ function renderDueReminder(){
 
   // Upcoming AR/AP
   upcoming.forEach(a=>{
-    const diff=dayDiff(a.due);
+    const diff=dayDiff(a.adjDue);
     const dotColor=diff===0?'#F97316':diff<=3?'#F59E0B':'#3B82F6';
     const badgeBg=diff===0?'#FFF7ED':diff<=3?'#FFFBEB':'#EFF6FF';
     const badgeColor=diff===0?'#9A3412':diff<=3?'#92400E':'#1D4ED8';
@@ -2284,7 +2323,8 @@ function renderDueReminder(){
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
         <span style="background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · ${a.due}</div>
+        ${adjNote(a)}
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">${a.type==='ar'?'應收':'應付'} · 到期：${a.due}</div>
       </div>
       <span style="font-size:13px;font-weight:600;color:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0;margin-right:6px">${a.type==='ar'?'+':'-'}${fmt(a.amount,a.currency)}</span>
       <button onclick="markArPaid(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:${a.type==='ar'?'var(--green)':'var(--red)'};color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">結清</button>
