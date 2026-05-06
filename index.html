@@ -1244,12 +1244,10 @@ function renderAcctOverview(){
   const typeLabel={'bank':'🏦 銀行','cash':'💵 現金','prepaid':'🎴 儲值',
     'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密','loan':'🏛 貸款'};
 
-  let html='<div class="acct-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'; 
-  typeOrder.forEach(type=>{
-    const group=accounts.filter(a=>a.type===type);
-    if(!group.length) return;
+  let html='<div class="acct-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+  accounts.forEach(a=>{
+    const type=a.type;
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
-    group.forEach(a=>{
       const bal=acctBalance(a);
       const balColor=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
       const loanInfo=a.type==='loan'&&a.loanDay?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nextLoanPayment(a)}</div>`:'';
@@ -1313,7 +1311,13 @@ function renderAcctOverview(){
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
-      html+=`<div style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s" onclick="drillDownAcct(${a.id},event)">
+      html+=`<div draggable="true" data-acct-id="${a.id}"
+        ondragstart="acctDragStart(event,${a.id})"
+        ondragover="acctDragOver(event)"
+        ondragleave="acctDragLeave(event)"
+        ondrop="acctDrop(event,${a.id})"
+        ondragend="acctDragEnd(event)"
+        style="background:${col.bg};border:0.5px solid ${col.border};border-radius:var(--radius);padding:10px 10px 8px;position:relative;display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .15s,opacity .15s" onclick="drillDownAcct(${a.id},event)">
         <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
         <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
         <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
@@ -1323,10 +1327,43 @@ function renderAcctOverview(){
         ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
         ${loanBtn}${adjBtn}
       </div>`;
-    });
   });
   html+='</div>';
   el.innerHTML=html;
+}
+
+// --- Drag-and-drop account reorder ---
+let _dragAcctId=null;
+function acctDragStart(e,id){
+  _dragAcctId=id;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.4';
+}
+function acctDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.style.boxShadow='0 0 0 2px var(--green)';
+}
+function acctDragLeave(e){
+  e.currentTarget.style.boxShadow='';
+}
+function acctDrop(e,targetId){
+  e.preventDefault();
+  e.currentTarget.style.boxShadow='';
+  if(_dragAcctId===null||_dragAcctId===targetId) return;
+  const fromIdx=accounts.findIndex(a=>a.id===_dragAcctId);
+  const toIdx=accounts.findIndex(a=>a.id===targetId);
+  if(fromIdx<0||toIdx<0) return;
+  const [moved]=accounts.splice(fromIdx,1);
+  accounts.splice(toIdx,0,moved);
+  sv();
+  renderAcctOverview();
+  refreshAcctSelects();
+}
+function acctDragEnd(e){
+  e.currentTarget.style.opacity='';
+  e.currentTarget.style.boxShadow='';
+  _dragAcctId=null;
 }
 function setType(t,el){
   currentType=t;
