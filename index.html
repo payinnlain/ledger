@@ -1689,14 +1689,22 @@ function renderTxnList(){
   const fa=document.getElementById('filter-acct').value;
   const ft=document.getElementById('filter-type').value;
   const monthStr = calYear+'-'+String(calMonth+1).padStart(2,'0');
-  let list=txns.filter(t=>t.date&&t.date.startsWith(monthStr));
-  if(calSelectedDate) list=list.filter(t=>t.date&&t.date.startsWith(calSelectedDate));
-  if(fa) list=list.filter(t=>String(t.acctId)===fa||String(t.toAcctId)===fa);
-  if(ft) list=list.filter(t=>t.type===ft);
-  if(filterCat) list=list.filter(t=>t.cat===filterCat);
+  let list;
+  if(filterCat){
+    // 類別篩選：跨月，最近10筆
+    list=txns.filter(t=>t.cat===filterCat);
+    if(fa) list=list.filter(t=>String(t.acctId)===fa||String(t.toAcctId)===fa);
+    if(ft) list=list.filter(t=>t.type===ft);
+    list=list.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  } else {
+    list=txns.filter(t=>t.date&&t.date.startsWith(monthStr));
+    if(calSelectedDate) list=list.filter(t=>t.date&&t.date.startsWith(calSelectedDate));
+    if(fa) list=list.filter(t=>String(t.acctId)===fa||String(t.toAcctId)===fa);
+    if(ft) list=list.filter(t=>t.type===ft);
+  }
   const el=document.getElementById('txn-list');
   // Show active filter badge
-  const filterBadge=filterCat?`<div style="padding:6px 12px;background:var(--red-bg);border-radius:var(--radius);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-size:12px"><span style="color:var(--red)">篩選：${filterCat}</span><button onclick="filterCat=null;renderTxnList()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px">✕</button></div>`:'';
+  const filterBadge=filterCat?`<div style="padding:6px 12px;background:var(--red-bg);border-radius:var(--radius);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;font-size:12px"><span style="color:var(--red)">篩選：${filterCat}（跨月最近 10 筆）</span><button onclick="filterCat=null;renderTxnList()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px">✕</button></div>`:'';
   if(!list.length){el.innerHTML=filterBadge+'<div class="empty-state">尚無記錄</div>';return;}
   el.innerHTML=filterBadge+list.map(t=>{
     const bg=t.type==='in'?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
