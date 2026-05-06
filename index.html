@@ -1381,6 +1381,7 @@ function renderAcctOverview(){
       const holdingsBtn=a.type==='invest'
         ?`<button onclick="openHoldings(${a.id},event)" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">📊 持股管理</button>`
         :'';
+      const loanBtn=a.type==='loan'&&a.loanPayment
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
         ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
@@ -1473,6 +1474,7 @@ function removeHolding(acctId,i){
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
   a.holdings.splice(i,1); sv(); openHoldings(acctId);
 }
+function acctDragStart(e,id){
   _dragAcctId=id;
   e.dataTransfer.effectAllowed='move';
   setTimeout(()=>e.currentTarget.style.opacity='0.4',0);
