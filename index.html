@@ -1231,7 +1231,7 @@ function nextBillInfo(a){
 function renderAcctOverview(){
   const el=document.getElementById('acct-overview');
   if(!accounts.length){el.innerHTML='';return;}
-  const typeOrder=['invest','crypto','bank','cash','prepaid','credit','loan'];
+  const typeOrder=['invest','crypto','bank','credit','cash','prepaid','loan'];
   const typeColors={
     'bank':  {bg:'#EFF6FF',text:'#185FA5',border:'#93C5FD'},
     'cash':  {bg:'#ECFDF5',text:'#0F6E56',border:'#6EE7B7'},
@@ -1244,10 +1244,17 @@ function renderAcctOverview(){
   const typeLabel={'bank':'🏦 銀行','cash':'💵 現金','prepaid':'🎴 儲值',
     'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密','loan':'🏛 貸款'};
 
-  let html='<div class="acct-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
-  accounts.forEach(a=>{
-    const type=a.type;
+  const typeGroupLabel={'bank':'🏦 銀行帳戶','cash':'💵 現金','prepaid':'🎴 預付/儲值','credit':'💳 信用卡','invest':'📈 投資帳戶','crypto':'🪙 加密貨幣','loan':'🏛 貸款'};
+  let html='';
+  typeOrder.forEach(type=>{
+    const group=accounts.filter(a=>a.type===type);
+    if(!group.length) return;
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
+    html+=`<div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#aaa;font-weight:500;margin-bottom:6px;letter-spacing:.3px">${typeGroupLabel[type]||type}</div>
+      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"
+        ondragover="event.preventDefault()" ondrop="acctDropGroup(event,'${type}')">`;
+    group.forEach(a=>{
       const bal=acctBalance(a);
       const balColor=a.type==='credit'?(bal<0?'var(--red)':'var(--green)'):(bal>=0?'var(--green)':'var(--red)');
       const loanInfo=a.type==='loan'&&a.loanDay?`<div style="font-size:10px;color:${col.text};opacity:0.7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nextLoanPayment(a)}</div>`:'';
@@ -1327,17 +1334,18 @@ function renderAcctOverview(){
         ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
         ${loanBtn}${adjBtn}
       </div>`;
+    });
+    html+='</div></div>';
   });
-  html+='</div>';
   el.innerHTML=html;
 }
 
-// --- Drag-and-drop account reorder ---
+// --- Drag-and-drop account reorder (within same type group) ---
 let _dragAcctId=null;
 function acctDragStart(e,id){
   _dragAcctId=id;
   e.dataTransfer.effectAllowed='move';
-  e.currentTarget.style.opacity='0.4';
+  setTimeout(()=>e.currentTarget.style.opacity='0.4',0);
 }
 function acctDragOver(e){
   e.preventDefault();
@@ -1349,16 +1357,17 @@ function acctDragLeave(e){
 }
 function acctDrop(e,targetId){
   e.preventDefault();
+  e.stopPropagation();
   e.currentTarget.style.boxShadow='';
   if(_dragAcctId===null||_dragAcctId===targetId) return;
-  const fromIdx=accounts.findIndex(a=>a.id===_dragAcctId);
-  const toIdx=accounts.findIndex(a=>a.id===targetId);
-  if(fromIdx<0||toIdx<0) return;
-  const [moved]=accounts.splice(fromIdx,1);
-  accounts.splice(toIdx,0,moved);
-  sv();
-  renderAcctOverview();
-  refreshAcctSelects();
+  const fromAcct=accounts.find(a=>a.id===_dragAcctId);
+  const toAcct=accounts.find(a=>a.id===targetId);
+  if(!fromAcct||!toAcct||fromAcct.type!==toAcct.type) return;
+  const fromIdx=accounts.indexOf(fromAcct);
+  const toIdx=accounts.indexOf(toAcct);
+  accounts.splice(fromIdx,1);
+  accounts.splice(toIdx,0,fromAcct);
+  sv(); renderAcctOverview(); refreshAcctSelects();
 }
 function acctDragEnd(e){
   e.currentTarget.style.opacity='';
