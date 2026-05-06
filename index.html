@@ -410,12 +410,18 @@
           <input type="checkbox" id="ar-recurring" onchange="toggleArRecurring()"> 定期重複
         </label>
         <div id="ar-recurring-fields" style="display:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <select id="ar-freq" style="font-size:13px;padding:4px 8px;font-family:inherit">
+          <select id="ar-freq" style="font-size:13px;padding:4px 8px;font-family:inherit" onchange="toggleCustomFreq()">
             <option value="monthly">每月</option>
             <option value="quarterly">每季</option>
             <option value="yearly">每年</option>
             <option value="weekly">每週</option>
+            <option value="custom">自訂...</option>
           </select>
+          <div id="ar-freq-custom" style="display:none;align-items:center;gap:4px">
+            <span style="font-size:13px">每</span>
+            <input type="number" id="ar-freq-n" value="2" min="1" max="99" style="width:48px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius)">
+            <span style="font-size:13px">個月</span>
+          </div>
           <span style="font-size:12px;color:var(--text2)">自動產生下一期</span>
         </div>
       </div>
@@ -1733,7 +1739,11 @@ function addAr(){
   const name=document.getElementById('ar-name').value.trim();
   if(!amt||!name){alert('請輸入對象與金額');return;}
   const isRecurring=document.getElementById('ar-recurring')?.checked||false;
-  const freq=document.getElementById('ar-freq')?.value||'monthly';
+  let freq=document.getElementById('ar-freq')?.value||'monthly';
+  if(freq==='custom'){
+    const n=parseInt(document.getElementById('ar-freq-n')?.value)||2;
+    freq='custom_'+n;
+  }
   arItems.unshift({id:Date.now(),type:currentArType,name,amount:amt,
     currency:document.getElementById('ar-currency').value,
     due:document.getElementById('ar-due').value,
@@ -3036,19 +3046,33 @@ function toggleArRecurring(){
   const fields=document.getElementById('ar-recurring-fields');
   if(fields) fields.style.display=checked?'flex':'none';
 }
+function toggleCustomFreq(){
+  const val=document.getElementById('ar-freq')?.value;
+  const wrap=document.getElementById('ar-freq-custom');
+  if(wrap) wrap.style.display=val==='custom'?'flex':'none';
+}
 function nextRecurringDate(dateStr, freq){
   if(!dateStr) return '';
   const d=new Date(dateStr);
-  switch(freq){
-    case 'weekly':   d.setDate(d.getDate()+7); break;
-    case 'monthly':  d.setMonth(d.getMonth()+1); break;
-    case 'quarterly':d.setMonth(d.getMonth()+3); break;
-    case 'yearly':   d.setFullYear(d.getFullYear()+1); break;
-    default:         d.setMonth(d.getMonth()+1);
+  if(freq&&freq.startsWith('custom_')){
+    const n=parseInt(freq.split('_')[1])||1;
+    d.setMonth(d.getMonth()+n);
+  } else {
+    switch(freq){
+      case 'weekly':   d.setDate(d.getDate()+7); break;
+      case 'monthly':  d.setMonth(d.getMonth()+1); break;
+      case 'quarterly':d.setMonth(d.getMonth()+3); break;
+      case 'yearly':   d.setFullYear(d.getFullYear()+1); break;
+      default:         d.setMonth(d.getMonth()+1);
+    }
   }
   return d.toISOString().slice(0,10);
 }
 function freqLabel(freq){
+  if(freq&&freq.startsWith('custom_')){
+    const n=parseInt(freq.split('_')[1])||1;
+    return '每'+n+'個月';
+  }
   return {weekly:'每週',monthly:'每月',quarterly:'每季',yearly:'每年'}[freq]||'定期';
 }
 function quickAdjustCredit(id){
