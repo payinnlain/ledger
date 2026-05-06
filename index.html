@@ -1363,7 +1363,24 @@ function renderAcctOverview(){
             <span style="color:var(--text2)">${fmt(futureAmt,a.currency)}</span>
           </div>`:''}
         </div>`:'';
-      const loanBtn=a.type==='loan'&&a.loanPayment
+      const investInfo=a.type==='invest'?(()=>{
+        const h=a.holdings||[];
+        if(!h.length) return '';
+        const mv=h.reduce((s,x)=>s+(x.shares||0)*(x.price||0),0);
+        return `<div style="margin-top:4px;padding-top:4px;border-top:0.5px solid ${col.border}">
+          ${h.slice(0,3).map(x=>`<div style="display:flex;justify-content:space-between;font-size:10px;color:${col.text};opacity:0.8">
+            <span>${x.name}</span><span>${fmt(x.shares||0)}股 × ${fmt(x.price||0,a.currency)}</span>
+          </div>`).join('')}
+          ${h.length>3?`<div style="font-size:10px;color:${col.text};opacity:0.5">...等${h.length}檔</div>`:''}
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:2px">
+            <span style="color:${col.text};opacity:0.6">市值合計</span>
+            <span style="font-weight:600;color:${col.text}">${fmt(mv,a.currency)}</span>
+          </div>
+        </div>`;
+      })():'';
+      const holdingsBtn=a.type==='invest'
+        ?`<button onclick="openHoldings(${a.id},event)" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">📊 持股管理</button>`
+        :'';
         ?`<button onclick="quickLoanPayment(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">還款</button>`:'';
       const adjBtn=(a.type==='invest'||a.type==='crypto'||a.type==='bank'||a.type==='cash'||a.type==='prepaid')
         ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
@@ -1382,9 +1399,9 @@ function renderAcctOverview(){
         <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</div>
         <div style="font-size:16px;font-weight:700;color:${balColor};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fmt(bal,a.currency)}</div>
         <div style="font-size:10px;color:${col.text};opacity:0.5">${a.currency}</div>
-        ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}
+        ${loanInfo}${creditInfo}${availCredit}${creditSplit||''}${investInfo}
         ${a.type==='credit'&&a.billDay?`<button onclick="quickCreditPayment(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:var(--red);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">💳 繳費</button>`:''}
-        ${loanBtn}${adjBtn}
+        ${loanBtn}${holdingsBtn}${adjBtn}
       </div>`;
     });
     html+='</div></div>';
@@ -1394,7 +1411,68 @@ function renderAcctOverview(){
 
 // --- Drag-and-drop account reorder (within same type group) ---
 let _dragAcctId=null;
-function acctDragStart(e,id){
+function openHoldings(acctId, event){
+  if(event) event.stopPropagation();
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  if(!a.holdings) a.holdings=[];
+  function render(){
+    const rows=a.holdings.map((h,i)=>`
+      <tr>
+        <td><input value="${h.name||''}" onchange="updateHolding(${acctId},${i},'name',this.value)" style="width:90px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
+        <td><input type="number" value="${h.shares||''}" onchange="updateHolding(${acctId},${i},'shares',this.value)" placeholder="股數" style="width:70px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
+        <td><input type="number" value="${h.price||''}" onchange="updateHolding(${acctId},${i},'price',this.value)" placeholder="股價" style="width:80px;padding:4px 6px;font-size:13px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></td>
+        <td style="text-align:right;font-size:13px;font-weight:500">${fmt((h.shares||0)*(h.price||0),a.currency)}</td>
+        <td><button onclick="removeHolding(${acctId},${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;padding:0 4px">✕</button></td>
+      </tr>`).join('');
+    const total=a.holdings.reduce((s,h)=>s+(h.shares||0)*(h.price||0),0);
+    document.getElementById('holdings-body').innerHTML=rows;
+    document.getElementById('holdings-total').textContent=`市值合計：${a.currency} ${fmt(total,a.currency)}`;
+  }
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:480px;max-width:96vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">📊 ${a.name} 持股</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+        <thead><tr style="font-size:12px;color:var(--text2)">
+          <th style="text-align:left;padding-bottom:6px">股票名稱</th>
+          <th style="text-align:left;padding-bottom:6px">股數</th>
+          <th style="text-align:left;padding-bottom:6px">股價</th>
+          <th style="text-align:right;padding-bottom:6px">市值</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="holdings-body"></tbody>
+      </table>
+      <button onclick="addHolding(${acctId})" style="font-size:13px;padding:5px 12px;border:0.5px dashed var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--text2);font-family:inherit;margin-bottom:12px">+ 新增持股</button>
+      <div id="holdings-total" style="font-size:14px;font-weight:600;text-align:right;color:var(--text)"></div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit();renderAcctOverview();" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">完成</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  render();
+}
+function addHolding(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  if(!a.holdings) a.holdings=[];
+  a.holdings.push({name:'',shares:0,price:0});
+  sv(); openHoldings(acctId);
+}
+function updateHolding(acctId,i,field,val){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
+  a.holdings[i][field]=field==='name'?val:parseFloat(val)||0;
+  sv();
+  // update total display only
+  const total=a.holdings.reduce((s,h)=>s+(h.shares||0)*(h.price||0),0);
+  const el=document.getElementById('holdings-total');
+  if(el) el.textContent=`市值合計：${a.currency} ${fmt(total,a.currency)}`;
+}
+function removeHolding(acctId,i){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  a.holdings.splice(i,1); sv(); openHoldings(acctId);
+}
   _dragAcctId=id;
   e.dataTransfer.effectAllowed='move';
   setTimeout(()=>e.currentTarget.style.opacity='0.4',0);
