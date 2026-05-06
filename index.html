@@ -881,6 +881,8 @@ function adjustedReminderDate(dateStr){
   return d.toISOString().slice(0,10);
 }
 loadTwHolidays();
+
+function sv(){
   const data = JSON.stringify({txns,arItems,budgets,accounts,projects});
   localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
