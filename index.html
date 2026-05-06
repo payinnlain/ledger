@@ -1532,7 +1532,7 @@ function editTxn(id){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">金額</label>
-          <input type="number" id="e-amt" value="${t.amount}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+          <input type="number" id="e-amt" value="${t.amount-(t.foreignFee||0)}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">幣別</label>
           <select id="e-cur" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${curOpts}</select></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">類別</label>
@@ -1548,6 +1548,8 @@ function editTxn(id){
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px"><label style="font-size:12px;color:var(--text2)">備註</label>
         <input type="text" id="e-note" value="${t.note||''}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:18px"><label style="font-size:12px;color:var(--text2)">國外手續費（選填，會加入總金額）</label>
+        <input type="number" id="e-foreign-fee" value="${t.foreignFee||0}" min="0" step="any" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
       <div style="text-align:right">
         <button onclick="closeEdit()" style="margin-right:8px;padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
         <button onclick="saveEdit(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
@@ -1567,7 +1569,9 @@ function saveEdit(id){
   const t=txns.find(x=>x.id===id); if(!t) return;
   const amt=parseFloat(document.getElementById('e-amt').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
-  t.amount=amt;
+  const newFee=parseFloat(document.getElementById('e-foreign-fee')?.value)||0;
+  t.amount=amt+newFee;
+  t.foreignFee=newFee;
   t.currency=document.getElementById('e-cur').value;
   t.cat=document.getElementById('e-cat').value;
   t.date=document.getElementById('e-date').value;
@@ -2783,7 +2787,8 @@ function addTxnFromSheet(){
     txns.sort((a,b)=>b.date.localeCompare(a.date));
     alert('已新增 '+count+' 筆分期（每期 '+each+' '+cur+'）');
   } else {
-    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag});
+    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag,
+      foreignFee:foreignFee||0});
   }
   sv();
   closeAddSheet();
