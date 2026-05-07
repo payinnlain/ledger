@@ -2143,12 +2143,12 @@ function openApFxGeneralModal(arId, a, debitAcct, date, cat, sub){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">實際扣款（${debitAcct.currency}）</label>
-          <input id="apfx-debit" type="number" step="any" min="0" placeholder="0"
+          <input id="apfx-debit" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateApFxGeneral(${a.amount})">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">手續費（${debitAcct.currency}，選填）</label>
-          <input id="apfx-fee" type="number" step="any" min="0" placeholder="0（之後可補填）"
+          <input id="apfx-fee" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0（之後可補填）"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateApFxGeneral(${a.amount})">
         </div>
@@ -2207,12 +2207,12 @@ function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">台幣扣款（TWD）</label>
-          <input id="ap-fx-twd" type="number" step="any" min="0" value="${a.currency==='TWD'?a.amount:''}" placeholder="0"
+          <input id="ap-fx-twd" type="number" step="0.01" inputmode="decimal" min="0" value="${a.currency==='TWD'?a.amount:''}" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateDual()">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
-          <input id="ap-fx-arrived" type="number" step="any" min="0" value="${a.currency===toAcct.currency?a.amount:''}" placeholder="0"
+          <input id="ap-fx-arrived" type="number" step="0.01" inputmode="decimal" min="0" value="${a.currency===toAcct.currency?a.amount:''}" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateDual()">
         </div>
@@ -2246,12 +2246,9 @@ function confirmApFxInvest(arId, acctId, fromAmt, fromCur, date, cat, sub, debit
       cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
       tag:sub||null, acctId:null, toAcctId:null, project:null});
   }
-  // 投資帳戶現金增加 / 加密帳戶透過收入交易增加
+  // 投資帳戶現金增加 / 加密帳戶轉帳記錄本身已計入
   if(toAcct.type==='invest'){
     toAcct.investCash=(toAcct.investCash||0)+arrived;
-  } else if(toAcct.type==='crypto'){
-    txns.unshift({id:Date.now()+1, type:'in', amount:arrived, currency:toAcct.currency,
-      cat:'其他收入', date, note:'入帳：'+a.name, tag:null, acctId:toAcct.id, toAcctId:null, project:null});
   }
   if(a.recurring && a.freq && a.due){
     const nextDue=nextRecurringDate(a.due, a.freq);
@@ -3289,20 +3286,15 @@ function calcSheetInstEach(){
 function syncInvestCash(txn){
   if(txn.type==='xfer' && txn.toAcctId){
     const toAcct=accounts.find(a=>a.id===txn.toAcctId);
-    if(toAcct && (toAcct.type==='invest'||toAcct.type==='crypto')){
-      if(txn.currency===toAcct.currency && toAcct.type==='crypto'){
-        // 加密帳戶同幣別：直接產生收入交易
-        txns.unshift({id:Date.now(), type:'in', amount:txn.amount, currency:toAcct.currency,
-          cat:'其他收入', date:txn.date||todayStr(), note:'轉入：'+toAcct.name,
-          tag:null, acctId:toAcct.id, toAcctId:null, project:null});
-      } else if(txn.currency===toAcct.currency && toAcct.type==='invest'){
+    if(toAcct && toAcct.type==='invest'){
+      if(txn.currency===toAcct.currency){
         toAcct.investCash=(toAcct.investCash||0)+txn.amount;
       } else {
-        // 幣別不同：跳出視窗
         openFxInvestModal(txn, toAcct);
         return;
       }
     }
+    // 加密帳戶：轉帳記錄本身已計入餘額，不需額外產生收入交易
   }
   if(txn.type==='xfer' && txn.acctId){
     const fromAcct=accounts.find(a=>a.id===txn.acctId);
@@ -3324,12 +3316,12 @@ function openFxInvestModal(txn, toAcct){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">轉出金額（${txn.currency}）</label>
-          <input id="fx-from" type="number" step="any" min="0" value="${txn.amount}"
+          <input id="fx-from" type="number" step="0.01" inputmode="decimal" min="0" value="${txn.amount}"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateFrom()">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
-          <input id="fx-arrived" type="number" step="any" min="0" placeholder="0"
+          <input id="fx-arrived" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateFrom()">
         </div>
@@ -3356,11 +3348,8 @@ function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date){
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
   if(acctType==='invest'){
     a.investCash=(a.investCash||0)+arrived;
-  } else if(acctType==='crypto'){
-    txns.unshift({id:Date.now(), type:'in', amount:arrived, currency:a.currency,
-      cat:'其他收入', date:date||todayStr(), note:'轉入：'+a.name,
-      tag:null, acctId:acctId, toAcctId:null, project:null});
   }
+  // 加密帳戶：轉帳記錄本身已計入餘額
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function updateFxRateDual(){
