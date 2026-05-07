@@ -1955,7 +1955,7 @@ function markArPaid(id){
     a.status='unpaid';
     sv(); renderAr(); return;
   }
-  const acctOpts = buildArAcctOpts(a.acctId);
+  const acctOpts = buildArAcctOpts(a.acctId, a.type==='ap'?['invest']:[]); // 應付扣款帳戶排除投資帳戶
   const isAp = a.type==='ap';
   const cats = isAp ? CATS_OUT : CATS_IN;
   const catOpts = cats.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('');
@@ -2009,7 +2009,7 @@ function markArPaid(id){
   setTimeout(()=>{ const cs=document.getElementById('ar-settle-cat'); if(cs) updateArSettleSub(cs.value); }, 50);
 }
 
-function buildArAcctOpts(curId){
+function buildArAcctOpts(curId, excludeTypes=[]){
   const groups=[
     {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
     {type:'prepaid',label:'🎴 預付/儲值卡'},{type:'credit',label:'💳 信用卡'},
@@ -2017,6 +2017,7 @@ function buildArAcctOpts(curId){
   ];
   let html='<option value="">不連動帳戶</option>';
   groups.forEach(g=>{
+    if(excludeTypes.includes(g.type)) return;
     const list=accounts.filter(a=>a.type===g.type);
     if(!list.length) return;
     html+=`<optgroup label="${g.label}">`;
@@ -2093,12 +2094,6 @@ function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
           <input id="ap-fx-twd" type="number" step="any" min="0" value="${a.currency==='TWD'?a.amount:''}" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateDual()">
-        </div>
-        <div><label style="font-size:12px;color:var(--text2)">扣款帳戶（選填）</label>
-          <select id="ap-fx-from-acct" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">
-            <option value="">不指定</option>
-            ${accounts.filter(x=>x.currency==='TWD').map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}
-          </select>
         </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
           <input id="ap-fx-arrived" type="number" step="any" min="0" value="${a.currency===toAcct.currency?a.amount:''}" placeholder="0"
