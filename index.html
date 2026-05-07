@@ -2024,32 +2024,154 @@ function updateArSettleSub(mainCat, type){
 function confirmSettle(id){
   const a=arItems.find(x=>x.id===id);
   if(!a) return;
-  a.status='paid';
   const acctId=parseInt(document.getElementById('ar-settle-acct').value)||null;
   const date=document.getElementById('ar-settle-date').value||todayStr();
+  const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
+  const sub=document.getElementById('ar-settle-sub')?.value||null;
+
+  // 應付 + 連動投資帳戶 + 幣別不同 → 換匯視窗
+  if(acctId && a.type==='ap'){
+    const toAcct=accounts.find(x=>x.id===acctId);
+    if(toAcct && toAcct.type==='invest' && a.currency!==toAcct.currency){
+      openApFxInvestModal(id, a, toAcct, date, cat, sub);
+      return;
+    }
+  }
+
+  // 一般結清
+  a.status='paid';
   if(acctId){
-    const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
-    const sub=document.getElementById('ar-settle-sub')?.value||null;
-    txns.unshift({
-      id:Date.now(), type:a.type==='ar'?'in':'out',
+    const txn={id:Date.now(), type:a.type==='ar'?'in':'out',
       amount:a.amount, currency:a.currency,
       cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
-      tag:sub||null, acctId, toAcctId:null, project:null
-    });
+      tag:sub||null, acctId, toAcctId:null, project:null};
+    txns.unshift(txn);
+    // 同幣別投資帳戶直接加現金
+    if(acctId){
+      const linkedAcct=accounts.find(x=>x.id===acctId);
+      if(linkedAcct&&linkedAcct.type==='invest'&&a.currency===linkedAcct.currency){
+        linkedAcct.investCash=(linkedAcct.investCash||0)+(a.type==='ap'?-a.amount:a.amount);
+      }
+    }
   }
-  // Auto-generate next recurring item
   if(a.recurring && a.freq && a.due){
     const nextDue=nextRecurringDate(a.due, a.freq);
-    arItems.unshift({
-      id:Date.now()+1, type:a.type, name:a.name,
+    arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
       amount:a.amount, currency:a.currency,
-      due:nextDue, note:a.note,
-      acctId:a.acctId, recurring:true, freq:a.freq,
-      status:'unpaid'
-    });
+      due:nextDue, note:a.note, acctId:a.acctId, recurring:true, freq:a.freq, status:'unpaid'});
   }
-  sv(); closeEdit(); renderAr(); renderAcctOverview();
-  if(acctId) renderDashboard();
+  sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
+}
+
+function openApFxInvestModal(arId, a, toAcct, date, cat, sub){
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">換匯結清</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        應付 <span style="font-weight:600;color:var(--text)">${fmt(a.amount,a.currency)}</span>，
+        請填入實際到帳的 <span style="font-weight:600;color:var(--green)">${toAcct.currency}</span> 金額：
+      </div>
+      <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
+        <input id="ap-fx-arrived" type="number" step="any" min="0" placeholder="0"
+          style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+          oninput="updateFxRate(${a.amount})">
+      </div>
+      <div id="fx-rate-preview" style="font-size:12px;color:var(--text2);text-align:right;margin-top:4px"></div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmApFxInvest(${arId},${toAcct.id},${a.amount},'${a.currency}','${date}','${cat}','${sub||''}')"
+          style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認結清</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('ap-fx-arrived').focus(),50);
+}
+
+function confirmApFxInvest(arId, acctId, fromAmt, fromCur, date, cat, sub){
+  const arrived=parseFloat(document.getElementById('ap-fx-arrived')?.value)||0;
+  if(arrived<=0){alert('請輸入到帳金額');return;}
+  const a=arItems.find(x=>x.id===arId); if(!a) return;
+  const toAcct=accounts.find(x=>x.id===acctId); if(!toAcct) return;
+  a.status='paid';
+  // 記錄支出交易（以原幣）
+  txns.unshift({id:Date.now(), type:'out', amount:fromAmt, currency:fromCur,
+    cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
+    tag:sub||null, acctId:null, toAcctId:null, project:null});
+  // 投資帳戶現金增加（以到帳幣別）
+  toAcct.investCash=(toAcct.investCash||0)+arrived;
+  if(a.recurring && a.freq && a.due){
+    const nextDue=nextRecurringDate(a.due, a.freq);
+    arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
+      amount:a.amount, currency:a.currency,
+      due:nextDue, note:a.note, acctId:a.acctId, recurring:true, freq:a.freq, status:'unpaid'});
+  }
+  sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
+}
+function editArItem(id){
+  const a=arItems.find(x=>x.id===id); if(!a) return;
+  const isAp=a.type==='ap';
+  const acctOpts=buildArAcctOpts(a.acctId);
+  const freqOpts=['monthly','quarterly','yearly','weekly'].map(f=>`<option value="${f}"${a.freq===f?' selected':''}>${{monthly:'每月',quarterly:'每季',yearly:'每年',weekly:'每週'}[f]}</option>`).join('');
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:420px;max-width:94vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">編輯${isAp?'應付':'應收'}帳款</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">對象名稱</label>
+          <input id="ear-name" type="text" value="${a.name||''}"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="font-size:12px;color:var(--text2)">金額</label>
+            <input id="ear-amount" type="number" step="any" value="${a.amount||''}"
+              style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+          <div><label style="font-size:12px;color:var(--text2)">幣別</label>
+            <select id="ear-currency" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">
+              ${['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP'].map(c=>`<option${c===a.currency?' selected':''}>${c}</option>`).join('')}
+            </select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="font-size:12px;color:var(--text2)">到期日</label>
+            <input id="ear-due" type="date" value="${a.due||''}"
+              style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+          <div><label style="font-size:12px;color:var(--text2)">連動帳戶</label>
+            <select id="ear-acct" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">${acctOpts}</select></div>
+        </div>
+        <div><label style="font-size:12px;color:var(--text2)">備註</label>
+          <input id="ear-note" type="text" value="${a.note||''}" placeholder="選填"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="ear-recurring" ${a.recurring?'checked':''} onchange="document.getElementById('ear-freq-wrap').style.display=this.checked?'block':'none'">
+          <label for="ear-recurring" style="font-size:13px">定期重複</label>
+        </div>
+        <div id="ear-freq-wrap" style="display:${a.recurring?'block':'none'}">
+          <select id="ear-freq" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${freqOpts}</select>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveArEdit(${id})" style="padding:8px 18px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+}
+function saveArEdit(id){
+  const a=arItems.find(x=>x.id===id); if(!a) return;
+  a.name=document.getElementById('ear-name').value||a.name;
+  a.amount=parseFloat(document.getElementById('ear-amount').value)||a.amount;
+  a.currency=document.getElementById('ear-currency').value;
+  a.due=document.getElementById('ear-due').value;
+  a.acctId=parseInt(document.getElementById('ear-acct').value)||null;
+  a.note=document.getElementById('ear-note').value;
+  a.recurring=document.getElementById('ear-recurring').checked;
+  a.freq=a.recurring?(document.getElementById('ear-freq').value||'monthly'):null;
+  sv(); closeEdit(); renderAr(); renderDashboard();
 }
 function deleteAr(id){
   const a=arItems.find(x=>x.id===id);
@@ -2114,6 +2236,7 @@ function renderArList(type,elId){
     </div>
     <div style="font-size:15px;font-weight:600;color:${c};flex-shrink:0">${fmt(a.amount,a.currency)}</div>
     <div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn-sm" onclick="editArItem(${a.id})">編輯</button>
       <button class="btn-sm" onclick="markArPaid(${a.id})">${a.status==='paid'?'取消':'結清'}</button>
       <button class="btn-sm danger" onclick="deleteAr(${a.id})">刪除</button>
     </div>
@@ -2994,20 +3117,66 @@ function calcSheetInstEach(){
   if(totalEl) totalEl.value=total>0?total:'';
 }
 function syncInvestCash(txn){
-  // 轉帳到投資帳戶 → 現金增加
   if(txn.type==='xfer' && txn.toAcctId){
     const toAcct=accounts.find(a=>a.id===txn.toAcctId);
     if(toAcct && toAcct.type==='invest'){
-      toAcct.investCash=(toAcct.investCash||0)+txn.amount;
+      // 幣別相同：直接加
+      if(txn.currency===toAcct.currency){
+        toAcct.investCash=(toAcct.investCash||0)+txn.amount;
+      } else {
+        // 幣別不同：跳出視窗讓使用者填實際到帳金額
+        openFxInvestModal(txn, toAcct);
+        return; // 不在這裡存，等使用者確認
+      }
     }
   }
-  // 從投資帳戶轉出 → 現金減少
   if(txn.type==='xfer' && txn.acctId){
     const fromAcct=accounts.find(a=>a.id===txn.acctId);
     if(fromAcct && fromAcct.type==='invest'){
       fromAcct.investCash=Math.max(0,(fromAcct.investCash||0)-txn.amount);
     }
   }
+}
+function openFxInvestModal(txn, toAcct){
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">換匯確認</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        轉出 <span style="font-weight:600;color:var(--text)">${fmt(txn.amount,txn.currency)}</span>，
+        請填入實際到帳的 <span style="font-weight:600;color:var(--green)">${toAcct.currency}</span> 金額：
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
+          <input id="fx-arrived" type="number" step="any" min="0" placeholder="0"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateFxRate(${txn.amount})">
+        </div>
+        <div id="fx-rate-preview" style="font-size:12px;color:var(--text2);text-align:right"></div>
+      </div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmFxInvest(${toAcct.id},${txn.amount},'${txn.currency}')" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('fx-arrived').focus(),50);
+}
+function updateFxRate(fromAmt){
+  const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
+  const el=document.getElementById('fx-rate-preview');
+  if(el&&arrived>0) el.textContent=`匯率：${(fromAmt/arrived).toFixed(4)}`;
+  else if(el) el.textContent='';
+}
+function confirmFxInvest(acctId, fromAmt, fromCur){
+  const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
+  if(arrived<=0){alert('請輸入到帳金額');return;}
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  a.investCash=(a.investCash||0)+arrived;
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function addTxnFromSheet(){
   const baseAmt=parseFloat(document.getElementById('sheet-amount').value)||0;
