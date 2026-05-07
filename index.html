@@ -592,6 +592,17 @@
     <select id="sheet-to-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
     <input type="hidden" id="sheet-to-acct">
   </div>
+  <div id="sheet-xfer-cat-wrap" style="display:none;margin-bottom:12px">
+    <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">支出分類（選填）</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <select id="sheet-xfer-cat" onchange="updateSheetXferSub()" style="width:100%;padding:10px;font-family:inherit;font-size:14px">
+        <option value="">不指定</option>
+      </select>
+      <select id="sheet-xfer-sub" style="width:100%;padding:10px;font-family:inherit;font-size:14px">
+        <option value="">細項（選填）</option>
+      </select>
+    </div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
     <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填"></div>
     <div class="form-group"><label>標籤</label><input type="text" id="sheet-tag" placeholder="自動帶入" list="tag-suggestions"><datalist id="tag-suggestions"></datalist></div>
@@ -3098,6 +3109,12 @@ function setSheetType(t, el){
   renderSheetCatChips();
   renderSheetAcctChips();
 }
+function updateSheetXferSub(){
+  const cat=document.getElementById('sheet-xfer-cat')?.value;
+  const subSel=document.getElementById('sheet-xfer-sub'); if(!subSel) return;
+  const subs=CATS_SUB[cat]||[];
+  subSel.innerHTML='<option value="">細項（選填）</option>'+subs.map(s=>`<option>${s}</option>`).join('');
+}
 function renderSheetCatChips(){
   const mode = document.getElementById('sheet-subcat-mode')?.value||'main';
   if(sheetType==='in'){
@@ -3107,7 +3124,18 @@ function renderSheetCatChips(){
     document.getElementById('sheet-cat-label').textContent='類別';
     document.getElementById('sheet-cat-chips').innerHTML='<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--radius)"><span style="font-size:14px">⇄</span><span style="font-size:13px;font-weight:500">轉帳</span></div>';
     const inst=document.getElementById('sheet-inst-wrap'); if(inst) inst.style.display='none';
+    // 顯示分類選單
+    const xferCatWrap=document.getElementById('sheet-xfer-cat-wrap');
+    if(xferCatWrap){
+      xferCatWrap.style.display='block';
+      const catSel=document.getElementById('sheet-xfer-cat');
+      if(catSel&&catSel.options.length<=1){
+        catSel.innerHTML='<option value="">不指定</option>'+CATS_OUT.map(c=>`<option>${c}</option>`).join('');
+      }
+    }
   } else {
+    const xferCatWrap=document.getElementById('sheet-xfer-cat-wrap');
+    if(xferCatWrap) xferCatWrap.style.display='none';
     if(mode==='sub' && document.getElementById('sheet-cat').value){
       _renderOutSubs(document.getElementById('sheet-cat').value);
     } else {
@@ -3329,7 +3357,7 @@ function openFxInvestModal(txn, toAcct){
       </div>
       <div style="text-align:right;margin-top:14px">
         <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
-        <button onclick="confirmFxInvest(${toAcct.id},'${toAcct.type}',${txn.amount},'${txn.currency}','${txn.date||''}')" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認</button>
+        <button onclick="confirmFxInvest(${toAcct.id},'${toAcct.type}',${txn.amount},'${txn.currency}','${txn.date||''}',${txn.id})" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認</button>
       </div>
     </div>`;
   modal.style.display='flex';
@@ -3342,14 +3370,22 @@ function updateFxRateFrom(){
   if(el&&from>0&&arrived>0) el.textContent=`匯率：1 ${document.getElementById('fx-arrived')?.closest('div')?.previousElementSibling?.textContent?.match(/\(([^)]+)\)/)?.[1]||''} = ${(from/arrived).toFixed(4)}`;
   else if(el) el.textContent='';
 }
-function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date){
+function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date, txnId){
   const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
+  const fromVal=parseFloat(document.getElementById('fx-from')?.value)||fromAmt;
   if(arrived<=0){alert('請輸入到帳金額');return;}
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
   if(acctType==='invest'){
     a.investCash=(a.investCash||0)+arrived;
+  } else if(acctType==='crypto' && txnId){
+    // 修改原轉帳記錄：金額改為到帳外幣金額，幣別改為加密帳戶幣別
+    const t=txns.find(x=>x.id===txnId);
+    if(t){
+      t.note=`換匯轉入 (${fromVal} ${fromCur} → ${arrived} ${a.currency}，匯率 ${(fromVal/arrived).toFixed(4)})`;
+      t.amount=arrived;
+      t.currency=a.currency;
+    }
   }
-  // 加密帳戶：轉帳記錄本身已計入餘額
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function updateFxRateDual(){
@@ -3422,8 +3458,10 @@ function addTxnFromSheet(){
     txns.sort((a,b)=>b.date.localeCompare(a.date));
     alert('已新增 '+count+' 筆分期（每期 '+each+' '+cur+'）');
   } else {
+    const xferCat=sheetType==='xfer'?(document.getElementById('sheet-xfer-cat')?.value||null):null;
+    const xferSub=sheetType==='xfer'?(document.getElementById('sheet-xfer-sub')?.value||null):null;
     const newTxn={id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag,
-      foreignFee:foreignFee||0};
+      foreignFee:foreignFee||0, xferCat, xferSub};
     txns.unshift(newTxn);
     syncInvestCash(newTxn);
   }
@@ -4099,7 +4137,7 @@ function renderAcctDetail(){
     return`<div class="txn-item">
       <div class="txn-icon" style="background:${bg}">${ic}</div>
       <div class="txn-meta">
-        <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
+        <div class="txn-desc">${t.type==='xfer'&&t.xferCat?t.xferCat+(t.xferSub?' · '+t.xferSub:''):t.cat}${t.note?' · '+t.note:''}</div>
         <div class="txn-sub">${t.date} ${badge}${xferNote}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
