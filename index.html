@@ -1308,7 +1308,7 @@ function renderAcctOverview(){
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
     html+=`<div style="margin-bottom:14px">
       <div style="font-size:11px;color:#aaa;font-weight:500;margin-bottom:6px;letter-spacing:.3px">${typeGroupLabel[type]||type}</div>
-      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:${type==='invest'?'repeat(auto-fill,minmax(200px,220px))':'repeat(4,1fr)'};gap:8px"
+      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"
         ondragover="event.preventDefault()" ondrop="acctDropGroup(event,'${type}')">`;
     group.forEach(a=>{
       const bal=acctBalance(a);
