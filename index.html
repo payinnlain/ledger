@@ -1006,11 +1006,13 @@ function acctBalance(acct){
   }
   let bal=acct.initBalance||0;
   const today=todayStr();
-  txns.filter(t=>t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id)).forEach(t=>{
+  txns.filter(t=>(t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id))
+    || (t.type==='xfer'&&(t.acctId===acct.id||t.toAcctId===acct.id))
+  ).forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     if(t.type==='in'  &&t.acctId===acct.id)   bal+=t.amount;
     if(t.type==='out' &&t.acctId===acct.id)   bal-=t.amount;
-    if(t.type==='xfer'&&t.acctId===acct.id)   bal-=t.amount;
+    if(t.type==='xfer'&&t.acctId===acct.id)   bal-=(t.fromAmount||t.amount); // 換匯時用原始轉出金額
     if(t.type==='xfer'&&t.toAcctId===acct.id) bal+=t.amount;
   });
   return bal;
@@ -3378,9 +3380,9 @@ function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date, txnId){
   if(acctType==='invest'){
     a.investCash=(a.investCash||0)+arrived;
   } else if(acctType==='crypto' && txnId){
-    // 修改原轉帳記錄：金額改為到帳外幣金額，幣別改為加密帳戶幣別
     const t=txns.find(x=>x.id===txnId);
     if(t){
+      t.fromAmount=t.amount; // 保留原始轉出金額供轉出帳戶計算
       t.note=`換匯轉入 (${fromVal} ${fromCur} → ${arrived} ${a.currency}，匯率 ${(fromVal/arrived).toFixed(4)})`;
       t.amount=arrived;
       t.currency=a.currency;
