@@ -3333,7 +3333,10 @@ function syncInvestCash(txn){
         return;
       }
     }
-    // 加密帳戶：轉帳記錄本身已計入餘額，不需額外產生收入交易
+    if(toAcct && toAcct.type==='crypto' && txn.currency!==toAcct.currency){
+      openFxInvestModal(txn, toAcct);
+      return;
+    }
   }
   if(txn.type==='xfer' && txn.acctId){
     const fromAcct=accounts.find(a=>a.id===txn.acctId);
