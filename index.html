@@ -1960,6 +1960,9 @@ function markArPaid(id){
   const cats = isAp ? CATS_OUT : CATS_IN;
   const catOpts = cats.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('');
   const modal = document.getElementById('edit-modal');
+  // 應付：加一個投資帳戶選單
+  const investAcctOpts=accounts.filter(a=>a.type==='invest').map(a=>`<option value="${a.id}"${String(a.id)===String(a.acctId)?' selected':''}>${a.name} (${a.currency})</option>`).join('');
+  const hasInvest=accounts.some(a=>a.type==='invest');
   modal.innerHTML = `
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:420px;max-width:94vw">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
@@ -1972,7 +1975,7 @@ function markArPaid(id){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;color:var(--text2)">連動帳戶</label>
+          <label style="font-size:12px;color:var(--text2)">${isAp?'扣款帳戶':'收款帳戶'}</label>
           <select id="ar-settle-acct" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${acctOpts}</select>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -1980,6 +1983,14 @@ function markArPaid(id){
           <input type="date" id="ar-settle-date" value="${todayStr()}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
       </div>
+      ${isAp&&hasInvest?`
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2)">轉入投資帳戶（選填）</label>
+        <select id="ar-settle-invest" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <option value="">不轉入投資帳戶</option>
+          ${accounts.filter(x=>x.type==='invest').map(x=>`<option value="${x.id}"${String(x.id)===String(a.acctId)?' selected':''}>${x.name} (${x.currency})</option>`).join('')}
+        </select>
+      </div>`:''}
       <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
         <label style="font-size:12px;color:var(--text2)">${isAp?'支出':'收入'}分類</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -2029,12 +2040,15 @@ function confirmSettle(id){
   const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
   const sub=document.getElementById('ar-settle-sub')?.value||null;
 
-  // 應付 + 連動投資帳戶 → 一律跳出確認視窗
-  if(acctId && a.type==='ap'){
-    const toAcct=accounts.find(x=>x.id===acctId);
-    if(toAcct && toAcct.type==='invest'){
-      openApFxInvestModal(id, a, toAcct, date, cat, sub);
-      return;
+  // 應付 + 選了投資帳戶 → 換匯視窗
+  if(a.type==='ap'){
+    const investAcctId=parseInt(document.getElementById('ar-settle-invest')?.value)||null;
+    if(investAcctId){
+      const toAcct=accounts.find(x=>x.id===investAcctId);
+      if(toAcct && toAcct.type==='invest'){
+        openApFxInvestModal(id, a, toAcct, date, cat, sub, acctId);
+        return;
+      }
     }
   }
 
@@ -2063,7 +2077,7 @@ function confirmSettle(id){
   sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
 }
 
-function openApFxInvestModal(arId, a, toAcct, date, cat, sub){
+function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
@@ -2095,7 +2109,7 @@ function openApFxInvestModal(arId, a, toAcct, date, cat, sub){
       </div>
       <div style="text-align:right;margin-top:14px">
         <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
-        <button onclick="confirmApFxInvest(${arId},${toAcct.id},${a.amount},'${a.currency}','${date}','${cat}','${sub||''}')"
+        <button onclick="confirmApFxInvest(${arId},${toAcct.id},${a.amount},'${a.currency}','${date}','${cat}','${sub||''}',${debitAcctId||0})"
           style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認結清</button>
       </div>
     </div>`;
@@ -2103,16 +2117,15 @@ function openApFxInvestModal(arId, a, toAcct, date, cat, sub){
   setTimeout(()=>document.getElementById('ap-fx-arrived').focus(),50);
 }
 
-function confirmApFxInvest(arId, acctId, fromAmt, fromCur, date, cat, sub){
+function confirmApFxInvest(arId, acctId, fromAmt, fromCur, date, cat, sub, debitAcctId){
   const arrived=parseFloat(document.getElementById('ap-fx-arrived')?.value)||0;
   const twdAmt=parseFloat(document.getElementById('ap-fx-twd')?.value)||0;
   if(arrived<=0){alert('請輸入到帳金額');return;}
   const a=arItems.find(x=>x.id===arId); if(!a) return;
   const toAcct=accounts.find(x=>x.id===acctId); if(!toAcct) return;
   a.status='paid';
-  // 記錄台幣扣款交易（如果有填）
   if(twdAmt>0){
-    const selAcctId=parseInt(document.getElementById('ap-fx-from-acct')?.value)||null;
+    const selAcctId=parseInt(document.getElementById('ap-fx-from-acct')?.value)||debitAcctId||null;
     txns.unshift({id:Date.now(), type:'out', amount:twdAmt, currency:'TWD',
       cat, date, note:'結清：'+a.name+` (換匯 ${arrived} ${toAcct.currency}，匯率 ${(twdAmt/arrived).toFixed(4)})`,
       tag:sub||null, acctId:selAcctId, toAcctId:null, project:null});
