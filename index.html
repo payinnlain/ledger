@@ -146,7 +146,7 @@
 
   @media (max-width: 640px) {
   .acct-grid { grid-template-columns: repeat(2,1fr) !important; }
-    /* 基本佈局 */
+  .acct-grid-invest { grid-template-columns: repeat(1,1fr) !important; }    /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
     .topbar h1 { font-size: 17px; }
@@ -179,6 +179,7 @@
     .two-col { grid-template-columns: 1fr; }
     .acct-type-grid { grid-template-columns: repeat(3,1fr); }
     .acct-grid { grid-template-columns: repeat(2,1fr); gap: 8px; }
+    .acct-grid-invest { grid-template-columns: repeat(1,1fr) !important; }
 
     /* 卡片 */
     .card { padding: 14px 12px; }
@@ -1308,7 +1309,7 @@ function renderAcctOverview(){
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
     html+=`<div style="margin-bottom:14px">
       <div style="font-size:11px;color:#aaa;font-weight:500;margin-bottom:6px;letter-spacing:.3px">${typeGroupLabel[type]||type}</div>
-      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"
+      <div class="${type==='invest'?'acct-grid acct-grid-invest':'acct-grid'}" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"
         ondragover="event.preventDefault()" ondrop="acctDropGroup(event,'${type}')">`;
     group.forEach(a=>{
       const bal=acctBalance(a);
