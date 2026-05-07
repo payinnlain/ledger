@@ -408,6 +408,14 @@
         <div class="form-group"><label>幣別</label><select id="ar-currency"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option></select></div>
         <div class="form-group"><label>到期日</label><input type="date" id="ar-due"></div>
         <div class="form-group"><label>連動帳戶（結清時用）</label><select id="ar-acct"><option value="">不指定</option></select></div>
+        <div class="form-group"><label>分類（選填）</label>
+          <select id="ar-cat" onchange="updateArFormSub()" style="font-family:inherit">
+            <option value="">不指定</option>
+          </select>
+        </div>
+        <div class="form-group"><label>細項（選填）</label>
+          <select id="ar-sub" style="font-family:inherit"><option value="">不指定</option></select>
+        </div>
         <div class="form-group"><label>備註</label><input type="text" id="ar-note" placeholder="選填"></div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -1588,6 +1596,17 @@ function setArType(t,el){
   currentArType=t;
   document.querySelectorAll('#tab-ar .type-btn').forEach(b=>b.className='type-btn');
   el.className='type-btn active-'+t;
+  // 更新分類選單
+  const cats=t==='ar'?CATS_IN:CATS_OUT;
+  const catSel=document.getElementById('ar-cat');
+  if(catSel) catSel.innerHTML=`<option value="">不指定</option>`+cats.map(c=>`<option>${c}</option>`).join('');
+  updateArFormSub();
+}
+function updateArFormSub(){
+  const cat=document.getElementById('ar-cat')?.value;
+  const subSel=document.getElementById('ar-sub'); if(!subSel) return;
+  const subs=CATS_SUB[cat]||[];
+  subSel.innerHTML='<option value="">不指定</option>'+subs.map(s=>`<option>${s}</option>`).join('');
 }
 function isCryptoAcct(id){
   return accounts.find(a=>a.id===id)?.type==='crypto';
@@ -1939,6 +1958,8 @@ function addAr(){
     due:document.getElementById('ar-due').value,
     note:document.getElementById('ar-note').value,
     acctId:parseInt(document.getElementById('ar-acct').value)||null,
+    cat:document.getElementById('ar-cat')?.value||null,
+    sub:document.getElementById('ar-sub')?.value||null,
     recurring:isRecurring, freq:isRecurring?freq:null,
     status:'unpaid'});
   sv();
@@ -1993,12 +2014,16 @@ function markArPaid(id){
       </div>`:''}
       <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
         <label style="font-size:12px;color:var(--text2)">${isAp?'支出':'收入'}分類</label>
+        ${a.cat?`<div style="font-size:13px;color:var(--text);padding:4px 0">${a.cat}${a.sub?' · '+a.sub:''} <span style="font-size:11px;color:var(--text2)">（已預設）</span>
+          <input type="hidden" id="ar-settle-cat" value="${a.cat}">
+          <input type="hidden" id="ar-settle-sub" value="${a.sub||''}">
+        </div>`:`
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <select id="ar-settle-cat" onchange="updateArSettleSub(this.value)" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${catOpts}</select>
           <select id="ar-settle-sub" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
             <option value="">細項（選填）</option>
           </select>
-        </div>
+        </div>`}
       </div>
       <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
         <button onclick="closeEdit()" style="padding:8px 18px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
