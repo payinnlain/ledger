@@ -1467,7 +1467,7 @@ function renderAcctOverview(){
                 onclick="event.stopPropagation()"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();updateInvestCash(${a.id},this.value);this.blur();}"
                 onblur="event.stopPropagation();updateInvestCash(${a.id},this.value)"
-                style="flex:1;min-width:0;max-width:100px;padding:3px 5px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:right">
+                style="flex:1;min-width:0;max-width:70px;padding:3px 5px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:right">
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:10px;color:${col.text};opacity:0.6">總市值</span>
@@ -2165,12 +2165,12 @@ function openApFxGeneralModal(arId, a, debitAcct, date, cat, sub){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">實際扣款（${debitAcct.currency}）</label>
-          <input id="apfx-debit" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0"
+          <input id="apfx-debit" type="text" inputmode="decimal" min="0" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateApFxGeneral(${a.amount})">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">手續費（${debitAcct.currency}，選填）</label>
-          <input id="apfx-fee" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0（之後可補填）"
+          <input id="apfx-fee" type="text" inputmode="decimal" min="0" placeholder="0（之後可補填）"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateApFxGeneral(${a.amount})">
         </div>
@@ -2229,12 +2229,12 @@ function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">台幣扣款（TWD）</label>
-          <input id="ap-fx-twd" type="number" step="0.01" inputmode="decimal" min="0" value="${a.currency==='TWD'?a.amount:''}" placeholder="0"
+          <input id="ap-fx-twd" type="text" inputmode="decimal" min="0" value="${a.currency==='TWD'?a.amount:''}" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateDual()">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
-          <input id="ap-fx-arrived" type="number" step="0.01" inputmode="decimal" min="0" value="${a.currency===toAcct.currency?a.amount:''}" placeholder="0"
+          <input id="ap-fx-arrived" type="text" inputmode="decimal" min="0" value="${a.currency===toAcct.currency?a.amount:''}" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateDual()">
         </div>
@@ -3358,12 +3358,12 @@ function openFxInvestModal(txn, toAcct){
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label style="font-size:12px;color:var(--text2)">轉出金額（${txn.currency}）</label>
-          <input id="fx-from" type="number" step="0.01" inputmode="decimal" min="0" value="${txn.amount}"
+          <input id="fx-from" type="text" inputmode="decimal" min="0" value="${txn.amount}"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateFrom()">
         </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
-          <input id="fx-arrived" type="number" step="0.01" inputmode="decimal" min="0" placeholder="0"
+          <input id="fx-arrived" type="text" inputmode="decimal" min="0" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
             oninput="updateFxRateFrom()">
         </div>
