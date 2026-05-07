@@ -2200,6 +2200,18 @@ function editArItem(id){
         <div><label style="font-size:12px;color:var(--text2)">備註</label>
           <input id="ear-note" type="text" value="${a.note||''}" placeholder="選填"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="font-size:12px;color:var(--text2)">分類（選填）</label>
+            <select id="ear-cat" onchange="updateEarSub()" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">
+              <option value="">不指定</option>
+              ${(isAp?CATS_OUT:CATS_IN).map(c=>`<option${c===a.cat?' selected':''}>${c}</option>`).join('')}
+            </select></div>
+          <div><label style="font-size:12px;color:var(--text2)">細項（選填）</label>
+            <select id="ear-sub" style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">
+              <option value="">不指定</option>
+              ${(CATS_SUB[a.cat]||[]).map(s=>`<option${s===a.sub?' selected':''}>${s}</option>`).join('')}
+            </select></div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px">
           <input type="checkbox" id="ear-recurring" ${a.recurring?'checked':''} onchange="document.getElementById('ear-freq-wrap').style.display=this.checked?'block':'none'">
           <label for="ear-recurring" style="font-size:13px">定期重複</label>
@@ -2215,6 +2227,12 @@ function editArItem(id){
     </div>`;
   modal.style.display='flex';
 }
+function updateEarSub(){
+  const cat=document.getElementById('ear-cat')?.value;
+  const subSel=document.getElementById('ear-sub'); if(!subSel) return;
+  const subs=CATS_SUB[cat]||[];
+  subSel.innerHTML='<option value="">不指定</option>'+subs.map(s=>`<option>${s}</option>`).join('');
+}
 function saveArEdit(id){
   const a=arItems.find(x=>x.id===id); if(!a) return;
   a.name=document.getElementById('ear-name').value||a.name;
@@ -2223,6 +2241,8 @@ function saveArEdit(id){
   a.due=document.getElementById('ear-due').value;
   a.acctId=parseInt(document.getElementById('ear-acct').value)||null;
   a.note=document.getElementById('ear-note').value;
+  a.cat=document.getElementById('ear-cat')?.value||null;
+  a.sub=document.getElementById('ear-sub')?.value||null;
   a.recurring=document.getElementById('ear-recurring').checked;
   a.freq=a.recurring?(document.getElementById('ear-freq').value||'monthly'):null;
   sv(); closeEdit(); renderAr(); renderDashboard();
