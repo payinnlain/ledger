@@ -1711,8 +1711,25 @@ function deleteTxn(id){
     modal.style.display='flex';
   } else {
     if(!confirm('確定刪除此記錄？')) return;
+    const t=txns.find(x=>x.id===id);
+    if(t) reverseInvestCash(t);
     txns=txns.filter(x=>x.id!==id);
     sv(); renderTxnList(); renderAcctOverview(); renderDashboard();
+  }
+}
+function reverseInvestCash(t){
+  if(t.type!=='xfer') return;
+  if(t.toAcctId){
+    const toAcct=accounts.find(a=>a.id===t.toAcctId);
+    if(toAcct&&toAcct.type==='invest'){
+      toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
+    }
+  }
+  if(t.acctId){
+    const fromAcct=accounts.find(a=>a.id===t.acctId);
+    if(fromAcct&&fromAcct.type==='invest'){
+      fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
+    }
   }
 }
 function doDeleteTxn(id, mode){
@@ -1720,10 +1737,13 @@ function doDeleteTxn(id, mode){
   if(!t) return;
   const today=todayStr();
   if(mode==='single'){
+    reverseInvestCash(t);
     txns=txns.filter(x=>x.id!==id);
   } else if(mode==='future'){
+    txns.filter(x=>x.installmentGroup===t.installmentGroup&&x.date>=today).forEach(reverseInvestCash);
     txns=txns.filter(x=>!(x.installmentGroup===t.installmentGroup&&x.date>=today));
   } else if(mode==='all'){
+    txns.filter(x=>x.installmentGroup===t.installmentGroup).forEach(reverseInvestCash);
     txns=txns.filter(x=>x.installmentGroup!==t.installmentGroup);
   }
   sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
