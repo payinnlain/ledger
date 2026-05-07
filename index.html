@@ -1976,14 +1976,12 @@ function markArPaid(id){
     a.status='unpaid';
     sv(); renderAr(); return;
   }
-  const acctOpts = buildArAcctOpts(a.acctId, a.type==='ap'?['invest']:[]); // 應付扣款帳戶排除投資帳戶
   const isAp = a.type==='ap';
   const cats = isAp ? CATS_OUT : CATS_IN;
   const catOpts = cats.map(cat=>'<option value="'+cat+'">'+cat+'</option>').join('');
   const modal = document.getElementById('edit-modal');
-  // 應付：加一個投資帳戶選單
-  const investAcctOpts=accounts.filter(a=>a.type==='invest').map(a=>`<option value="${a.id}"${String(a.id)===String(a.acctId)?' selected':''}>${a.name} (${a.currency})</option>`).join('');
-  const hasInvest=accounts.some(a=>a.type==='invest');
+  const acctOpts = buildArAcctOpts(a.acctId, a.type==='ap'?['invest','crypto']:[]);
+  const hasInvest=accounts.some(x=>x.type==='invest'||x.type==='crypto');
   modal.innerHTML = `
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:420px;max-width:94vw">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
@@ -2078,6 +2076,15 @@ function confirmSettle(id){
     }
   }
 
+  // 應付 + 扣款帳戶幣別不同 → 換匯視窗
+  if(a.type==='ap' && acctId){
+    const debitAcct=accounts.find(x=>x.id===acctId);
+    if(debitAcct && debitAcct.currency!==a.currency){
+      openApFxGeneralModal(id, a, debitAcct, date, cat, sub);
+      return;
+    }
+  }
+
   // 一般結清
   a.status='paid';
   if(acctId){
@@ -2103,6 +2110,70 @@ function confirmSettle(id){
   sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
 }
 
+function openApFxGeneralModal(arId, a, debitAcct, date, cat, sub){
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">換匯結清</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        應付 <span style="font-weight:600;color:var(--text)">${fmt(a.amount,a.currency)}</span>，從 <span style="font-weight:600">${debitAcct.name}</span> 扣款
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">實際扣款（${debitAcct.currency}）</label>
+          <input id="apfx-debit" type="number" step="any" min="0" placeholder="0"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateApFxGeneral(${a.amount})">
+        </div>
+        <div><label style="font-size:12px;color:var(--text2)">手續費（${debitAcct.currency}，選填）</label>
+          <input id="apfx-fee" type="number" step="any" min="0" placeholder="0（之後可補填）"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateApFxGeneral(${a.amount})">
+        </div>
+        <div id="apfx-preview" style="font-size:12px;color:var(--text2);text-align:right;line-height:1.6"></div>
+      </div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmApFxGeneral(${arId},${debitAcct.id},'${debitAcct.currency}',${a.amount},'${a.currency}','${date}','${cat}','${sub||''}')"
+          style="padding:7px 14px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認結清</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('apfx-debit').focus(),50);
+}
+function updateApFxGeneral(origAmt){
+  const debit=parseFloat(document.getElementById('apfx-debit')?.value)||0;
+  const fee=parseFloat(document.getElementById('apfx-fee')?.value)||0;
+  const el=document.getElementById('apfx-preview'); if(!el) return;
+  let lines='';
+  if(debit>0&&origAmt>0) lines+=`匯率：1 ${document.getElementById('apfx-debit')?.previousElementSibling?.textContent?.match(/\(([^)]+)\)/)?.[1]||''} ≈ ${(origAmt/debit).toFixed(4)}<br>`;
+  if(fee>0) lines+=`手續費：${fee}<br>`;
+  if(debit>0&&fee>0) lines+=`合計扣款：${(debit+fee).toLocaleString('zh-TW',{maximumFractionDigits:2})}`;
+  el.innerHTML=lines;
+}
+function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date, cat, sub){
+  const debit=parseFloat(document.getElementById('apfx-debit')?.value)||0;
+  const fee=parseFloat(document.getElementById('apfx-fee')?.value)||0;
+  if(debit<=0){alert('請輸入實際扣款金額');return;}
+  const a=arItems.find(x=>x.id===arId); if(!a) return;
+  a.status='paid';
+  const total=debit+fee;
+  const rateStr=`匯率 ${(debit/origAmt).toFixed(4)}${fee>0?`，手續費 ${fee} ${debitCur}`:''}`;
+  txns.unshift({id:Date.now(), type:'out', amount:total, currency:debitCur,
+    cat, date, note:`結清：${a.name} (${origAmt} ${origCur}，${rateStr})`,
+    tag:sub||null, acctId:debitAcctId, toAcctId:null, project:null,
+    foreignFee:fee||0});
+  if(a.recurring && a.freq && a.due){
+    const nextDue=nextRecurringDate(a.due, a.freq);
+    arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
+      amount:a.amount, currency:a.currency,
+      due:nextDue, note:a.note, acctId:a.acctId,
+      cat:a.cat, sub:a.sub, recurring:true, freq:a.freq, status:'unpaid'});
+  }
+  sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
+}
 function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
