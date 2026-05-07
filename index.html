@@ -1006,14 +1006,23 @@ function acctBalance(acct){
   }
   let bal=acct.initBalance||0;
   const today=todayStr();
-  txns.filter(t=>(t.currency===acct.currency&&(t.acctId===acct.id||t.toAcctId===acct.id))
-    || (t.type==='xfer'&&(t.acctId===acct.id||t.toAcctId===acct.id))
-  ).forEach(t=>{
+  txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
-    if(t.type==='in'  &&t.acctId===acct.id)   bal+=t.amount;
-    if(t.type==='out' &&t.acctId===acct.id)   bal-=t.amount;
-    if(t.type==='xfer'&&t.acctId===acct.id)   bal-=(t.fromAmount||t.amount); // 換匯時用原始轉出金額
-    if(t.type==='xfer'&&t.toAcctId===acct.id) bal+=t.amount;
+    // 轉出：用 fromAmount（原始幣別），不限幣別
+    if(t.type==='xfer'&&t.acctId===acct.id){
+      bal-=(t.fromAmount||t.amount);
+      return;
+    }
+    // 轉入：用 amount（到帳幣別），幣別要對
+    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
+      bal+=t.amount;
+      return;
+    }
+    // 一般收支：幣別要對
+    if(t.currency!==acct.currency) return;
+    if(t.acctId!==acct.id&&t.toAcctId!==acct.id) return;
+    if(t.type==='in' &&t.acctId===acct.id) bal+=t.amount;
+    if(t.type==='out'&&t.acctId===acct.id) bal-=t.amount;
   });
   return bal;
 }
