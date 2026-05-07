@@ -1389,17 +1389,17 @@ function renderAcctOverview(){
         const diff=lastTotal!==null?total-lastTotal:null;
         const diffHtml=diff!==null?`<div style="font-size:10px;font-weight:500;color:${diff>=0?'#0F6E56':'#993C1D'};text-align:right;margin-top:2px">${diff>=0?'▲':'▼'} ${fmt(Math.abs(diff),a.currency)} vs 上次</div>`:'';
         const holdingRows=h.map((x,i)=>`
-          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px;align-items:center;margin-bottom:3px">
-            <div style="font-size:10px;color:${col.text};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.name||'—'}</div>
-            <input type="number" value="${x.shares||''}" placeholder="股數"
-              onclick="event.stopPropagation()"
-              onchange="updateInvestHolding(${a.id},${i},'shares',this.value)"
-              style="width:58px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
-            <input type="number" value="${x.price||''}" placeholder="股價"
-              onclick="event.stopPropagation()"
-              onchange="updateInvestHolding(${a.id},${i},'price',this.value)"
-              style="width:58px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
-            <div style="font-size:10px;color:${col.text};opacity:0.7;text-align:right;min-width:50px">${fmt((x.shares||0)*(x.price||0),a.currency)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+            <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">
+              <button onclick="event.stopPropagation();openInvestModal(${a.id},${i})"
+                style="font-size:10px;color:${col.text};background:none;border:none;cursor:pointer;font-family:inherit;font-weight:500;padding:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;text-decoration:underline dotted">${x.name||'—'}</button>
+              <span style="font-size:9px;color:${col.text};opacity:0.5">${x.shares||0}股</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:10px;color:${col.text};opacity:0.7">${fmt((x.shares||0)*(x.price||0),a.currency)}</span>
+              <button onclick="event.stopPropagation();removeInvestHolding(${a.id},${i})"
+                style="font-size:10px;color:${col.text};opacity:0.3;background:none;border:none;cursor:pointer;padding:0;line-height:1">✕</button>
+            </div>
           </div>`).join('');
         html+=`<div draggable="true" data-acct-id="${a.id}"
           ondragstart="acctDragStart(event,${a.id})"
@@ -1411,21 +1411,13 @@ function renderAcctOverview(){
           <button onclick="deleteAccount(${a.id})" style="position:absolute;top:4px;right:4px;background:none;border:none;cursor:pointer;color:${col.text};opacity:0.4;font-size:10px;padding:2px;line-height:1">✕</button>
           <div style="font-size:10px;color:${col.text};opacity:0.6;font-weight:500;margin-bottom:3px">${typeLabel[type]}</div>
           <div style="font-size:12px;font-weight:600;color:${col.text};padding-right:12px;margin-bottom:6px">${a.name}</div>
-          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px;margin-bottom:4px">
-            <div style="font-size:9px;color:${col.text};opacity:0.5"></div>
-            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">股數</div>
-            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">股價</div>
-            <div style="font-size:9px;color:${col.text};opacity:0.5;text-align:right">小計</div>
-          </div>
           ${holdingRows}
-          <button onclick="event.stopPropagation();addInvestHolding(${a.id})" style="font-size:9px;color:${col.text};opacity:0.5;background:none;border:0.5px dashed ${col.border};border-radius:4px;padding:2px 6px;cursor:pointer;font-family:inherit;margin-bottom:4px;text-align:left">+ 新增</button>
-          <div style="border-top:0.5px solid ${col.border};padding-top:4px;margin-top:2px">
+          <button onclick="event.stopPropagation();addInvestHolding(${a.id})" style="font-size:9px;color:${col.text};opacity:0.4;background:none;border:0.5px dashed ${col.border};border-radius:4px;padding:2px 6px;cursor:pointer;font-family:inherit;margin:2px 0 6px;text-align:left">+ 新增持股</button>
+          <div style="border-top:0.5px solid ${col.border};padding-top:6px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-size:10px;color:${col.text};opacity:0.6">現金</span>
-              <input type="number" value="${cash||''}" placeholder="0"
-                onclick="event.stopPropagation()"
-                onchange="updateInvestCash(${a.id},this.value)"
-                style="width:80px;font-size:10px;padding:2px 4px;border:0.5px solid ${col.border};border-radius:4px;background:transparent;color:${col.text};font-family:inherit;text-align:right">
+              <span style="font-size:10px;color:${col.text};opacity:0.5">現金</span>
+              <button onclick="event.stopPropagation();openInvestCashModal(${a.id})"
+                style="font-size:10px;color:${col.text};background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline dotted;padding:0">${fmt(cash,a.currency)||'點擊輸入'}</button>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:10px;color:${col.text};opacity:0.6">總市值</span>
@@ -3185,6 +3177,65 @@ function showTagDetail(tag){
 function backToTags(){
   document.getElementById('tag-detail-panel').style.display='none';
   document.getElementById('tag-list-panel').style.display='block';
+}
+function openInvestModal(acctId,idx){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
+  const h=a.holdings[idx];
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">編輯持股</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">股票代碼</label>
+          <input id="ih-name" type="text" value="${h.name||''}" placeholder="例：AAPL"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+        <div><label style="font-size:12px;color:var(--text2)">股數</label>
+          <input id="ih-shares" type="number" value="${h.shares||''}" placeholder="0" step="any"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+        <div><label style="font-size:12px;color:var(--text2)">股價 (${a.currency})</label>
+          <input id="ih-price" type="number" value="${h.price||''}" placeholder="0" step="any"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"></div>
+      </div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveInvestHolding(${acctId},${idx})" style="padding:7px 14px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('ih-name').focus(),50);
+}
+function saveInvestHolding(acctId,idx){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
+  a.holdings[idx].name=document.getElementById('ih-name').value;
+  a.holdings[idx].shares=parseFloat(document.getElementById('ih-shares').value)||0;
+  a.holdings[idx].price=parseFloat(document.getElementById('ih-price').value)||0;
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
+}
+function openInvestCashModal(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:280px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">現金餘額</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <input id="ic-cash" type="number" value="${a.investCash||''}" placeholder="0" step="any"
+        style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="updateInvestCash(${acctId},document.getElementById('ic-cash').value);closeEdit();" style="padding:7px 14px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">儲存</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('ic-cash').focus(),50);
+}
+function removeInvestHolding(acctId,idx){
+  const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
+  a.holdings.splice(idx,1); sv(); renderAcctOverview(); renderDashboard();
 }
 function addInvestHolding(acctId){
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
