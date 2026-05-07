@@ -1445,6 +1445,7 @@ function renderAcctOverview(){
             </div>
             ${diffHtml}
             <button onclick="event.stopPropagation();recordInvestTotal(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:${col.text};color:${col.bg};border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">記錄今日市值</button>
+            <button onclick="event.stopPropagation();openBuyStock(${a.id})" style="margin-top:4px;width:100%;padding:4px;background:#1d9e75;color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;font-weight:500">+ 買入股票</button>
           </div>
         </div>`;
       } else {
@@ -1631,14 +1632,16 @@ function addTxn(){
     txns.sort((a,b)=>b.date.localeCompare(a.date));
     alert('已新增 '+count+' 筆分期記錄（'+each+' '+document.getElementById('txn-currency').value+'/期）');
   } else {
-    txns.unshift({id:Date.now(),type:currentType,amount:amt,
+    const newTxn={id:Date.now(),type:currentType,amount:amt,
       currency:document.getElementById('txn-currency').value,
       cat:document.getElementById('txn-cat').value,
       date:document.getElementById('txn-date').value||todayStr(),
       note:document.getElementById('txn-note').value,
       tag:document.getElementById('txn-tag')?.value.trim()||null,
       project:document.getElementById('txn-project').value||null,
-      acctId,toAcctId});
+      acctId,toAcctId};
+    txns.unshift(newTxn);
+    syncInvestCash(newTxn);
   }
   sv();
   document.getElementById('txn-amount').value='';
@@ -2990,6 +2993,22 @@ function calcSheetInstEach(){
   if(eachEl) eachEl.value=each>0?each:'';
   if(totalEl) totalEl.value=total>0?total:'';
 }
+function syncInvestCash(txn){
+  // 轉帳到投資帳戶 → 現金增加
+  if(txn.type==='xfer' && txn.toAcctId){
+    const toAcct=accounts.find(a=>a.id===txn.toAcctId);
+    if(toAcct && toAcct.type==='invest'){
+      toAcct.investCash=(toAcct.investCash||0)+txn.amount;
+    }
+  }
+  // 從投資帳戶轉出 → 現金減少
+  if(txn.type==='xfer' && txn.acctId){
+    const fromAcct=accounts.find(a=>a.id===txn.acctId);
+    if(fromAcct && fromAcct.type==='invest'){
+      fromAcct.investCash=Math.max(0,(fromAcct.investCash||0)-txn.amount);
+    }
+  }
+}
 function addTxnFromSheet(){
   const baseAmt=parseFloat(document.getElementById('sheet-amount').value)||0;
   const hasForeign=document.getElementById('sheet-has-foreign')?.checked;
@@ -3047,8 +3066,10 @@ function addTxnFromSheet(){
     txns.sort((a,b)=>b.date.localeCompare(a.date));
     alert('已新增 '+count+' 筆分期（每期 '+each+' '+cur+'）');
   } else {
-    txns.unshift({id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag,
-      foreignFee:foreignFee||0});
+    const newTxn={id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag,
+      foreignFee:foreignFee||0};
+    txns.unshift(newTxn);
+    syncInvestCash(newTxn);
   }
   sv();
   closeAddSheet();
@@ -3197,6 +3218,85 @@ function showTagDetail(tag){
 function backToTags(){
   document.getElementById('tag-detail-panel').style.display='none';
   document.getElementById('tag-list-panel').style.display='block';
+}
+function openBuyStock(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  const cash=a.investCash||0;
+  const holdingOpts=a.holdings&&a.holdings.length
+    ?a.holdings.map(h=>`<option value="${h.name}">${h.name}</option>`).join(''):'';
+  const modal=document.getElementById('edit-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:500">📈 買入股票</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">可用現金：<span style="font-weight:600;color:var(--green)">${fmt(cash,a.currency)}</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">股票代碼</label>
+          <input id="buy-name" type="text" list="buy-name-list" placeholder="例：AAPL"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px">
+          <datalist id="buy-name-list">${holdingOpts}</datalist>
+        </div>
+        <div><label style="font-size:12px;color:var(--text2)">股數</label>
+          <input id="buy-shares" type="number" step="any" min="0" placeholder="0"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateBuyCost()"></div>
+        <div><label style="font-size:12px;color:var(--text2)">成交價（${a.currency}）</label>
+          <input id="buy-price" type="number" step="any" min="0" placeholder="0"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateBuyCost()"></div>
+        <div id="buy-cost-preview" style="font-size:12px;color:var(--text2);text-align:right"></div>
+      </div>
+      <div style="text-align:right;margin-top:14px">
+        <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="buyStock(${acctId})" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認買入</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('buy-name').focus(),50);
+}
+function updateBuyCost(){
+  const shares=parseFloat(document.getElementById('buy-shares')?.value)||0;
+  const price=parseFloat(document.getElementById('buy-price')?.value)||0;
+  const cost=shares*price;
+  const el=document.getElementById('buy-cost-preview');
+  if(el) el.textContent=cost>0?`總成本：${cost.toLocaleString('zh-TW',{maximumFractionDigits:2})}`:'';
+}
+function buyStock(acctId){
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  const name=document.getElementById('buy-name').value.trim().toUpperCase();
+  const shares=parseFloat(document.getElementById('buy-shares').value)||0;
+  const price=parseFloat(document.getElementById('buy-price').value)||0;
+  if(!name){alert('請輸入股票代碼');return;}
+  if(shares<=0){alert('請輸入股數');return;}
+  if(price<=0){alert('請輸入成交價');return;}
+  const cost=shares*price;
+  const cash=a.investCash||0;
+  if(cost>cash+0.01){
+    if(!confirm(`總成本 ${fmt(cost,a.currency)} 超過現金 ${fmt(cash,a.currency)}，確定繼續？`)) return;
+  }
+  // 扣現金
+  a.investCash=Math.max(0,cash-cost);
+  // 更新或新增持股
+  if(!a.holdings) a.holdings=[];
+  const existing=a.holdings.find(h=>h.name&&h.name.toUpperCase()===name);
+  if(existing){
+    // 加權平均價
+    const totalShares=existing.shares+shares;
+    existing.price=Math.round(((existing.shares*existing.price)+(shares*price))/totalShares*10000)/10000;
+    existing.shares=totalShares;
+  } else {
+    a.holdings.push({name,shares,price});
+  }
+  // 記錄交易
+  txns.unshift({id:Date.now(),type:'out',amount:cost,currency:a.currency,
+    cat:'投資',date:todayStr(),note:`買入 ${name} ${shares}股 @${price}`,
+    acctId,toAcctId:null,project:null,tag:'買入股票'});
+  sv();
+  closeEdit();
+  renderAcctOverview();
+  renderDashboard();
 }
 function openInvestModal(acctId,idx){
   const a=accounts.find(x=>x.id===acctId); if(!a||!a.holdings) return;
