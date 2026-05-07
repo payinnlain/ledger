@@ -3198,14 +3198,18 @@ function calcSheetInstEach(){
 function syncInvestCash(txn){
   if(txn.type==='xfer' && txn.toAcctId){
     const toAcct=accounts.find(a=>a.id===txn.toAcctId);
-    if(toAcct && toAcct.type==='invest'){
-      // 幣別相同：直接加
-      if(txn.currency===toAcct.currency){
+    if(toAcct && (toAcct.type==='invest'||toAcct.type==='crypto')){
+      if(txn.currency===toAcct.currency && toAcct.type==='crypto'){
+        // 加密帳戶同幣別：直接產生收入交易
+        txns.unshift({id:Date.now(), type:'in', amount:txn.amount, currency:toAcct.currency,
+          cat:'其他收入', date:txn.date||todayStr(), note:'轉入：'+toAcct.name,
+          tag:null, acctId:toAcct.id, toAcctId:null, project:null});
+      } else if(txn.currency===toAcct.currency && toAcct.type==='invest'){
         toAcct.investCash=(toAcct.investCash||0)+txn.amount;
       } else {
-        // 幣別不同：跳出視窗讓使用者填實際到帳金額
+        // 幣別不同：跳出視窗
         openFxInvestModal(txn, toAcct);
-        return; // 不在這裡存，等使用者確認
+        return;
       }
     }
   }
@@ -3225,24 +3229,48 @@ function openFxInvestModal(txn, toAcct){
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-        轉出 <span style="font-weight:600;color:var(--text)">${fmt(txn.amount,txn.currency)}</span>，
-        請填入實際到帳的 <span style="font-weight:600;color:var(--green)">${toAcct.currency}</span> 金額：
+        轉出 <span style="font-weight:600;color:var(--text)">${fmt(txn.amount,txn.currency)}</span> → 到帳 <span style="font-weight:600;color:var(--green)">${toAcct.currency}</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
+        <div><label style="font-size:12px;color:var(--text2)">轉出金額（${txn.currency}）</label>
+          <input id="fx-from" type="number" step="any" min="0" value="${txn.amount}"
+            style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
+            oninput="updateFxRateFrom()">
+        </div>
         <div><label style="font-size:12px;color:var(--text2)">實際到帳（${toAcct.currency}）</label>
           <input id="fx-arrived" type="number" step="any" min="0" placeholder="0"
             style="width:100%;padding:8px 10px;font-size:14px;font-family:inherit;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);margin-top:4px"
-            oninput="updateFxRate(${txn.amount})">
+            oninput="updateFxRateFrom()">
         </div>
         <div id="fx-rate-preview" style="font-size:12px;color:var(--text2);text-align:right"></div>
       </div>
       <div style="text-align:right;margin-top:14px">
         <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
-        <button onclick="confirmFxInvest(${toAcct.id},${txn.amount},'${txn.currency}')" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認</button>
+        <button onclick="confirmFxInvest(${toAcct.id},'${toAcct.type}',${txn.amount},'${txn.currency}','${txn.date||''}')" style="padding:7px 14px;font-size:13px;font-weight:500;background:#1d9e75;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認</button>
       </div>
     </div>`;
   modal.style.display='flex';
   setTimeout(()=>document.getElementById('fx-arrived').focus(),50);
+}
+function updateFxRateFrom(){
+  const from=parseFloat(document.getElementById('fx-from')?.value)||0;
+  const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
+  const el=document.getElementById('fx-rate-preview');
+  if(el&&from>0&&arrived>0) el.textContent=`匯率：1 ${document.getElementById('fx-arrived')?.closest('div')?.previousElementSibling?.textContent?.match(/\(([^)]+)\)/)?.[1]||''} = ${(from/arrived).toFixed(4)}`;
+  else if(el) el.textContent='';
+}
+function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date){
+  const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
+  if(arrived<=0){alert('請輸入到帳金額');return;}
+  const a=accounts.find(x=>x.id===acctId); if(!a) return;
+  if(acctType==='invest'){
+    a.investCash=(a.investCash||0)+arrived;
+  } else if(acctType==='crypto'){
+    txns.unshift({id:Date.now(), type:'in', amount:arrived, currency:a.currency,
+      cat:'其他收入', date:date||todayStr(), note:'轉入：'+a.name,
+      tag:null, acctId:acctId, toAcctId:null, project:null});
+  }
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function updateFxRateDual(){
   const twd=parseFloat(document.getElementById('ap-fx-twd')?.value)||0;
@@ -3256,13 +3284,6 @@ function updateFxRate(fromAmt){
   const el=document.getElementById('fx-rate-preview');
   if(el&&arrived>0) el.textContent=`匯率：${(fromAmt/arrived).toFixed(4)}`;
   else if(el) el.textContent='';
-}
-function confirmFxInvest(acctId, fromAmt, fromCur){
-  const arrived=parseFloat(document.getElementById('fx-arrived')?.value)||0;
-  if(arrived<=0){alert('請輸入到帳金額');return;}
-  const a=accounts.find(x=>x.id===acctId); if(!a) return;
-  a.investCash=(a.investCash||0)+arrived;
-  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function addTxnFromSheet(){
   const baseAmt=parseFloat(document.getElementById('sheet-amount').value)||0;
