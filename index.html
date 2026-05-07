@@ -1308,7 +1308,7 @@ function renderAcctOverview(){
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
     html+=`<div style="margin-bottom:14px">
       <div style="font-size:11px;color:#aaa;font-weight:500;margin-bottom:6px;letter-spacing:.3px">${typeGroupLabel[type]||type}</div>
-      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:${type==='invest'?'repeat(auto-fill,minmax(260px,1fr))':'repeat(4,1fr)'};gap:8px"
+      <div class="acct-grid" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"
         ondragover="event.preventDefault()" ondrop="acctDropGroup(event,'${type}')">`;
     group.forEach(a=>{
       const bal=acctBalance(a);
@@ -1389,30 +1389,33 @@ function renderAcctOverview(){
         const diff=lastTotal!==null?total-lastTotal:null;
         const diffHtml=diff!==null?`<div style="font-size:10px;font-weight:500;color:${diff>=0?'#0F6E56':'#993C1D'};text-align:right;margin-top:2px">${diff>=0?'▲':'▼'} ${fmt(Math.abs(diff),a.currency)} vs 上次</div>`:'';
         const holdingRows=h.map((x,i)=>`
-          <div style="margin-bottom:5px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="margin-bottom:5px;padding-bottom:5px;border-bottom:0.5px solid ${col.border}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
               <input type="text" value="${x.name||''}" placeholder="代碼（如 AAPL）"
                 onclick="event.stopPropagation()"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();updateInvestHolding(${a.id},${i},'name',this.value);this.blur();}"
                 onblur="event.stopPropagation();updateInvestHolding(${a.id},${i},'name',this.value)"
-                style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};max-width:100px">
+                style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text}">
               <button onclick="event.stopPropagation();removeInvestHolding(${a.id},${i})"
-                style="font-size:10px;color:${col.text};opacity:0.3;background:none;border:none;cursor:pointer;padding:0 2px;line-height:1;margin-left:4px">✕</button>
+                style="font-size:10px;color:${col.text};opacity:0.3;background:none;border:none;cursor:pointer;padding:0 2px;margin-left:4px">✕</button>
             </div>
-            <div style="display:flex;gap:4px;align-items:center">
-              <input type="text" inputmode="decimal" value="${x.shares||''}" placeholder="股數"
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+              <span style="font-size:9px;color:${col.text};opacity:0.5;width:28px">股數</span>
+              <input type="text" inputmode="decimal" value="${x.shares||''}" placeholder="0"
                 onclick="event.stopPropagation()"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();updateInvestHolding(${a.id},${i},'shares',this.value);this.blur();}"
                 onblur="event.stopPropagation();updateInvestHolding(${a.id},${i},'shares',this.value)"
-                style="flex:1;padding:4px 6px;font-size:12px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:center">
-              <span style="font-size:9px;color:${col.text};opacity:0.4">×</span>
-              <input type="text" inputmode="decimal" value="${x.price||''}" placeholder="股價"
+                style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:right">
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+              <span style="font-size:9px;color:${col.text};opacity:0.5;width:28px">股價</span>
+              <input type="text" inputmode="decimal" value="${x.price||''}" placeholder="0"
                 onclick="event.stopPropagation()"
                 onkeydown="if(event.key==='Enter'){event.preventDefault();updateInvestHolding(${a.id},${i},'price',this.value);this.blur();}"
                 onblur="event.stopPropagation();updateInvestHolding(${a.id},${i},'price',this.value)"
-                style="flex:1;padding:4px 6px;font-size:12px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:center">
-              <span style="font-size:10px;color:${col.text};opacity:0.7;min-width:46px;text-align:right">${fmt((x.shares||0)*(x.price||0),a.currency)}</span>
+                style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;font-family:inherit;border:0.5px solid ${col.border};border-radius:6px;background:${col.border}22;color:${col.text};text-align:right">
             </div>
+            <div style="text-align:right;font-size:10px;color:${col.text};opacity:0.7">${fmt((x.shares||0)*(x.price||0),a.currency)}</div>
           </div>`).join('');
         html+=`<div draggable="true" data-acct-id="${a.id}"
           ondragstart="acctDragStart(event,${a.id})"
