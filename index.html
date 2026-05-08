@@ -2785,7 +2785,18 @@ function renderDueReminder(){
     return diff>=0 && diff<=7;
   });
 
-  if(!overdue.length&&!upcoming.length&&!ccReminders.length){el.innerHTML='';return;}
+  // Loan payment reminders
+  const loanReminders=accounts.filter(a=>a.type==='loan'&&a.loanDay&&a.loanPayment).filter(a=>{
+    const d=today.getDate(), lDay=parseInt(a.loanDay);
+    const m=today.getMonth(), y=today.getFullYear();
+    const thisMonth=new Date(y,m,lDay);
+    const nextMonth=new Date(y,m+1,lDay);
+    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const diff=Math.round((payDate-today)/(1000*60*60*24));
+    return diff>=0&&diff<=7;
+  });
+
+  if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
 
   const dayDiff=(dateStr)=>{
     const d=new Date(dateStr); d.setHours(0,0,0,0);
@@ -2849,6 +2860,25 @@ function renderDueReminder(){
       </div>
       <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(Math.abs(bal),a.currency)}</span>
       <button onclick="quickCreditPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:#8B5CF6;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">💳 繳費</button>
+    </div>`;
+  });
+
+  // Loan reminders
+  loanReminders.forEach(a=>{
+    const lDay=parseInt(a.loanDay);
+    const thisMonth=new Date(today.getFullYear(),today.getMonth(),lDay);
+    const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,lDay);
+    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const diff=Math.round((payDate-today)/(1000*60*60*24));
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0"></div>
+      <div style="flex:1">
+        <span style="font-size:13px;font-weight:500">${a.name}</span>
+        <span style="background:#ECFDF5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">還款${diff===0?'今天':diff+'天後'}</span>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號</div>
+      </div>
+      <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(a.loanPayment,a.currency)}</span>
+      <button onclick="quickLoanPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:#059669;color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">還款</button>
     </div>`;
   });
 
