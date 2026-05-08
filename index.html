@@ -203,14 +203,18 @@
     .acct-card-bal { font-size: 16px; }
 
     /* 輸入框加大點選區域 */
-    input[type=text]:not(#edit-modal *),
-    input[type=number]:not(#edit-modal *),
-    input[type=date]:not(#edit-modal *),
-    input[type=month]:not(#edit-modal *),
-    select:not(#edit-modal *),
-    textarea:not(#edit-modal *) {
+    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
       font-size: 16px !important;
       padding: 10px 10px;
+    }
+    #edit-modal input[type=text], #edit-modal input[type=number],
+    #edit-modal input[type=date], #edit-modal input[type=month],
+    #edit-modal select, #edit-modal textarea {
+      font-size: 16px !important;
+      padding: 6px 8px !important;
+      box-sizing: border-box !important;
+      min-width: 0 !important;
+      width: 100% !important;
     }
 
     /* 按鈕 */
@@ -1953,7 +1957,6 @@ function editTxn(id){
   const isMobile=window.innerWidth<=640;
   document.getElementById('edit-modal').innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(440px,calc(100vw - 32px));max-height:88vh;overflow-y:auto;box-sizing:border-box">
-      <style>#edit-modal input,#edit-modal select,#edit-modal textarea{font-size:14px!important;padding:8px 6px!important;box-sizing:border-box;width:100%;min-width:0}</style>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">編輯記錄</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
