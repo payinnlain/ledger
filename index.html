@@ -146,7 +146,14 @@
 
   @media (max-width: 640px) {
   .acct-grid { grid-template-columns: repeat(2,1fr) !important; }
-  .acct-grid-invest { grid-template-columns: repeat(2,1fr) !important; }    /* 基本佈局 */
+  .acct-grid-invest { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* Modal 手機版強制全寬 */
+  #edit-modal > div {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    box-sizing: border-box !important;
+  }    /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
     .topbar h1 { font-size: 17px; }
