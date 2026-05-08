@@ -2538,12 +2538,12 @@ function renderBudget(){
             style="width:90px;padding:4px 8px;text-align:right;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>`).join('');
       return `<div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
-        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${col.bg};cursor:pointer" onclick="toggleBudgetSub(this)">
-          <span style="font-size:13px;font-weight:500;color:${col.color};flex:1">${cat}</span>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);cursor:pointer" onclick="toggleBudgetSub(this)">
+          <span style="font-size:13px;font-weight:500;color:var(--text);flex:1">${cat}</span>
           <input type="text" id="bgt-${cat}" value="${budgets[cat]||''}" placeholder="大類預算" inputmode="numeric"
             onclick="event.stopPropagation()"
-            style="width:100px;padding:4px 8px;text-align:right;font-family:inherit;font-size:13px;border:0.5px solid ${col.border};border-radius:var(--radius);background:var(--bg);color:var(--text)">
-          <span style="font-size:12px;color:${col.color}">▾</span>
+            style="width:100px;padding:4px 8px;text-align:right;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <span style="font-size:12px;color:var(--text2)">▾</span>
         </div>
         <div class="budget-sub-panel" style="display:none;padding:8px 12px;background:var(--bg)">
           <div style="font-size:11px;color:var(--text2);margin-bottom:6px">細項預算（加總後會覆蓋大類預算）</div>
@@ -2583,7 +2583,6 @@ function renderBudget(){
     const sp=spentCat[cat]||0;
     const pct=bgt>0?Math.min(100,(sp/bgt)*100):0;
     const over=sp>bgt&&bgt>0;
-    const col=CATS_COLOR[cat]||{color:'#666',bg:'#f5f5f5'};
     const subBudgets=budgets[cat+'_subs']||{};
     const subs=CATS_SUB[cat]||[];
     const subRows=subs.filter(s=>(parseFloat(subBudgets[s])||0)>0||(spentSub[cat+'::'+s]||0)>0).map(s=>{
@@ -2593,18 +2592,18 @@ function renderBudget(){
       const sOver=sSp>sBgt&&sBgt>0;
       return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0 4px 16px;border-top:0.5px solid var(--border)">
         <span style="flex:1;font-size:11px;color:var(--text2)">${s}</span>
-        ${sBgt>0?`<div style="width:60px;height:4px;background:var(--bg3);border-radius:2px"><div style="width:${sPct}%;height:100%;background:${sOver?'var(--red)':col.color};border-radius:2px"></div></div>`:''}
+        ${sBgt>0?`<div style="width:60px;height:4px;background:var(--bg3);border-radius:2px"><div style="width:${sPct}%;height:100%;background:${sOver?'var(--red)':'var(--text2)'};border-radius:2px;opacity:${sOver?1:0.4}"></div></div>`:''}
         <span style="font-size:11px;color:${sOver?'var(--red)':'var(--text2)'};">${sSp.toLocaleString()}${sBgt>0?' / '+sBgt.toLocaleString():''}</span>
       </div>`;
     }).join('');
     return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:500;color:${col.color};flex:1">${cat}</span>
+        <span style="font-size:13px;font-weight:500;color:var(--text);flex:1">${cat}</span>
         <span style="font-size:12px;color:${over?'var(--red)':'var(--text2)'};">${sp.toLocaleString()} / ${bgt.toLocaleString()}</span>
-        <span style="font-size:11px;color:${over?'var(--red)':'var(--text2)'};">${pct.toFixed(0)}%</span>
+        <span style="font-size:11px;font-weight:500;color:${over?'var(--red)':'var(--text2)'};">${pct.toFixed(0)}%</span>
       </div>
       <div style="height:6px;background:var(--bg3);border-radius:3px;margin-bottom:${subRows?'4px':'0'}">
-        <div style="width:${pct}%;height:100%;background:${over?'var(--red)':col.color};border-radius:3px;transition:width .3s"></div>
+        <div style="width:${pct}%;height:100%;background:${over?'var(--red)':'var(--text2)'};border-radius:3px;transition:width .3s;opacity:${over?1:0.35}"></div>
       </div>
       ${subRows}
     </div>`;
