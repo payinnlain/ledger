@@ -1097,7 +1097,7 @@ function editAccount(id){
   const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC']
     .map(c=>`<option${c===a.currency?' selected':''}>${c}</option>`).join('');
   document.getElementById('edit-modal').innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">編輯帳戶</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
@@ -1557,7 +1557,7 @@ function openHoldings(acctId, event){
   }
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:480px;max-width:96vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:min(480px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <span style="font-size:15px;font-weight:500">📊 ${a.name} 持股</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -1741,7 +1741,7 @@ function deleteTxn(id){
     msg+=`\n請選擇刪除方式：`;
     const modal=document.getElementById('edit-modal');
     modal.innerHTML=`
-      <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+      <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
         <div style="font-size:15px;font-weight:500;margin-bottom:12px">刪除分期交易</div>
         <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px;color:var(--text2)">
           第 ${t.installmentIdx}/${t.installmentTotal} 期・${t.date}・${fmt(t.amount,t.currency)}
@@ -1935,7 +1935,7 @@ function editTxn(id){
   const isXfer=t.type==='xfer';
   const acctLabel=isXfer?'轉出帳戶':'帳戶';
   document.getElementById('edit-modal').innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;box-sizing:border-box">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(440px,calc(100vw - 32px));max-height:88vh;overflow-y:auto;box-sizing:border-box">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">編輯記錄</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
@@ -2196,7 +2196,7 @@ function markArPaid(id){
   const acctOpts = buildArAcctOpts(a.acctId, a.type==='ap'?['invest','crypto']:[]);
   const hasInvest=accounts.some(x=>x.type==='invest'||x.type==='crypto');
   modal.innerHTML = `
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:420px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(420px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">確認結清</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -2326,7 +2326,7 @@ function confirmSettle(id){
 function openApFxGeneralModal(arId, a, debitAcct, date, cat, sub){
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(300px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">換匯結清</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -2390,7 +2390,7 @@ function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date,
 function openApFxInvestModal(arId, a, toAcct, date, cat, sub, debitAcctId){
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(300px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">換匯結清</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -2458,7 +2458,7 @@ function editArItem(id){
   const freqOpts=['monthly','custom_2','quarterly','yearly','weekly'].map(f=>`<option value="${f}"${a.freq===f?' selected':''}>${{monthly:'每月',custom_2:'每兩個月',quarterly:'每季（3個月）',yearly:'每年',weekly:'每週'}[f]}</option>`).join('');
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:420px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:min(420px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <span style="font-size:15px;font-weight:500">編輯${isAp?'應付':'應收'}帳款</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -3585,7 +3585,7 @@ function syncInvestCash(txn){
 function openFxInvestModal(txn, toAcct){
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(300px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">換匯確認</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -3745,7 +3745,7 @@ function quickLoanPayment(id){
   const modal=document.getElementById('edit-modal');
   const acctOpts=buildArAcctOpts(null).replace('<option value="">不連動帳戶</option>','<option value="">選擇扣款帳戶</option>');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">貸款還款 — ${a.name}</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -3877,7 +3877,7 @@ function openBuyStock(acctId){
     ?a.holdings.map(h=>`<option value="${h.name}">${h.name}</option>`).join(''):'';
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(300px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">📈 買入股票</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -3954,7 +3954,7 @@ function openInvestModal(acctId,idx){
   const h=a.holdings[idx];
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:300px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(300px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">編輯持股</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -3989,7 +3989,7 @@ function openInvestCashModal(acctId){
   const a=accounts.find(x=>x.id===acctId); if(!a) return;
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:280px;max-width:92vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px;width:min(280px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <span style="font-size:14px;font-weight:500">現金餘額</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
@@ -4078,7 +4078,7 @@ function quickAdjustBalance(id){
   const currentBal=acctBalance(a);
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">調整餘額 — ${a.name}</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -4203,7 +4203,7 @@ function quickAdjustCredit(id){
   const currentBal=acctBalance(a);
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">對帳調整 — ${a.name}</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
@@ -4290,7 +4290,7 @@ function quickCreditPayment(id){
   const bankOpts=bankAccts.map(x=>'<option value="'+x.id+'">'+x.name+' ('+x.currency+')</option>').join('');
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:400px;max-width:94vw">
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:min(400px,calc(100vw - 32px))">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">💳 信用卡繳費</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
