@@ -165,6 +165,16 @@
     width: 100% !important;
     box-sizing: border-box !important;
   }
+  /* 所有兩欄 grid 內的欄位防止溢出 */
+  .form-grid input, .form-grid select,
+  [style*="grid-template-columns"] input,
+  [style*="grid-template-columns"] select,
+  [style*="grid-template-columns"] textarea {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
     /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
@@ -213,7 +223,7 @@
     /* 輸入框加大點選區域 */
     input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
       font-size: 16px !important;
-      padding: 10px 10px;
+      padding: 8px 10px;
     }
     div#edit-modal input[type=text],
     div#edit-modal input[type=number],
@@ -579,7 +589,7 @@
 
 <!-- 底部新增面板 -->
 <div id="add-sheet-backdrop" onclick="closeAddSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1500;"></div>
-<div id="add-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 44px;z-index:1501;max-height:90vh;overflow-y:auto;">
+<div id="add-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 16px 44px;z-index:1501;max-height:90vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box">
   <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;"></div>
   <div style="font-size:16px;font-weight:500;margin-bottom:14px;color:var(--text)">新增記錄</div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
