@@ -1329,6 +1329,11 @@ function nextBillInfo(a){
   }
   return `結帳 ${billDate.getMonth()+1}/${billDate.getDate()}（${daysLeft}天後）${dueStr}`;
 }
+function toggleAcctGroup(type){
+  if(!window._acctGroupCollapsed) window._acctGroupCollapsed={};
+  window._acctGroupCollapsed[type]=!window._acctGroupCollapsed[type];
+  renderAcctOverview();
+}
 function renderAcctOverview(){
   const el=document.getElementById('acct-overview');
   if(!accounts.length){el.innerHTML='';return;}
@@ -1346,14 +1351,19 @@ function renderAcctOverview(){
     'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密','loan':'🏛 貸款'};
 
   const typeGroupLabel={'bank':'🏦 銀行帳戶','cash':'💵 現金','prepaid':'🎴 預付/儲值','credit':'💳 信用卡','invest':'📈 投資帳戶','crypto':'🪙 加密貨幣','loan':'🏛 貸款'};
+  if(!window._acctGroupCollapsed) window._acctGroupCollapsed={};
   let html='';
   typeOrder.forEach(type=>{
     const group=accounts.filter(a=>a.type===type);
     if(!group.length) return;
     const col=typeColors[type]||{bg:'#F9FAFB',text:'#374151',border:'#D1D5DB'};
+    const collapsed=window._acctGroupCollapsed[type]||false;
     html+=`<div style="margin-bottom:14px">
-      <div style="font-size:11px;color:#aaa;font-weight:500;margin-bottom:6px;letter-spacing:.3px">${typeGroupLabel[type]||type}</div>
-      <div class="${type==='invest'?'acct-grid acct-grid-invest':'acct-grid'}" data-type="${type}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-width:0"
+      <div onclick="toggleAcctGroup('${type}')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0;margin-bottom:${collapsed?'0':'6px'}">
+        <span style="font-size:13px;color:#aaa;font-weight:500;letter-spacing:.3px">${typeGroupLabel[type]||type}</span>
+        <span style="font-size:13px;color:#bbb;transition:transform .2s;display:inline-block;transform:rotate(${collapsed?'-90':'0'}deg)">▾</span>
+      </div>
+      <div class="${type==='invest'?'acct-grid acct-grid-invest':'acct-grid'}" data-type="${type}" style="display:${collapsed?'none':'grid'};grid-template-columns:repeat(4,1fr);gap:8px;min-width:0"
         ondragover="event.preventDefault()" ondrop="acctDropGroup(event,'${type}')">`;
     group.forEach(a=>{
       const bal=acctBalance(a);
