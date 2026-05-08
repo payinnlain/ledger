@@ -859,6 +859,7 @@ async function loadAll(){
         budgets  = d.budgets  || {};
         accounts = d.accounts || [];
         projects = d.projects || [];
+        window._acctGroupCollapsed = d.acctCollapsed || {};
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
       } else {
@@ -867,6 +868,7 @@ async function loadAll(){
         if(local){
           const d = JSON.parse(local);
           txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
+          window._acctGroupCollapsed=d.acctCollapsed||{};
         }
         setSyncStatus('ok','已同步 ✓');
       }
@@ -878,6 +880,7 @@ async function loadAll(){
     if(local){
       const d = JSON.parse(local);
       txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
+      window._acctGroupCollapsed=d.acctCollapsed||{};
       setSyncStatus('err','離線模式（本地）');
     } else {
       setSyncStatus('err','無法載入');
@@ -929,7 +932,7 @@ function adjustedReminderDate(dateStr){
 loadTwHolidays();
 
 function sv(){
-  const data = JSON.stringify({txns,arItems,budgets,accounts,projects});
+  const data = JSON.stringify({txns,arItems,budgets,accounts,projects,acctCollapsed:window._acctGroupCollapsed||{}});
   localStorage.setItem(KEY, data);
   setSyncStatus('ing','儲存中...');
   clearTimeout(saveTimer);
@@ -1332,7 +1335,7 @@ function nextBillInfo(a){
 function toggleAcctGroup(type){
   if(!window._acctGroupCollapsed) window._acctGroupCollapsed={};
   window._acctGroupCollapsed[type]=!window._acctGroupCollapsed[type];
-  try{ localStorage.setItem('acct_collapsed', JSON.stringify(window._acctGroupCollapsed)); }catch(e){}
+  sv();
   renderAcctOverview();
 }
 function renderAcctOverview(){
