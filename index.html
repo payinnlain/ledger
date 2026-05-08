@@ -3137,13 +3137,31 @@ function setSheetType(t, el){
   if(t==='xfer') refreshXferSelects();
 }
 function refreshXferSelects(){
-  const opts=accounts.map(a=>`<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
+  const groups=[
+    {type:'bank',label:'🏦 銀行帳戶'},
+    {type:'cash',label:'💵 現金'},
+    {type:'credit',label:'💳 信用卡'},
+    {type:'prepaid',label:'🎴 預付/儲值'},
+    {type:'invest',label:'📈 投資帳戶'},
+    {type:'crypto',label:'🪙 加密貨幣'},
+    {type:'loan',label:'🏛 貸款'},
+  ];
+  function buildOpts(){
+    let html='';
+    groups.forEach(g=>{
+      const list=accounts.filter(a=>a.type===g.type);
+      if(!list.length) return;
+      html+=`<optgroup label="${g.label}">`;
+      list.forEach(a=>{html+=`<option value="${a.id}">${a.name} (${a.currency})</option>`;});
+      html+='</optgroup>';
+    });
+    return html;
+  }
+  const opts=buildOpts();
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to) to.innerHTML=opts;
-  // 預設轉入選第二個
-  if(to&&accounts.length>1) to.value=accounts[1].id;
+  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
