@@ -207,7 +207,12 @@
       font-size: 16px !important;
       padding: 10px 10px;
     }
-    #edit-modal input, #edit-modal select, #edit-modal textarea {
+    div#edit-modal input[type=text],
+    div#edit-modal input[type=number],
+    div#edit-modal input[type=date],
+    div#edit-modal input[type=month],
+    div#edit-modal select,
+    div#edit-modal textarea {
       font-size: 13px !important;
       padding: 6px 8px !important;
     }
@@ -1950,9 +1955,7 @@ function editTxn(id){
   const isXfer=t.type==='xfer';
   const acctLabel=isXfer?'轉出帳戶':'帳戶';
   const isMobile=window.innerWidth<=640;
-  const fs=isMobile?'13px':'14px';
-  const pd=isMobile?'6px 8px':'8px 10px';
-  const inpStyle=`font-family:inherit;font-size:${fs};padding:${pd};border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box`;
+  const inpStyle=`font-family:inherit;font-size:13px;padding:6px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box`;
   document.getElementById('edit-modal').innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:${isMobile?'14px 12px':'20px 16px'};width:min(440px,calc(100vw - 24px));max-height:${isMobile?'92vh':'88vh'};overflow-y:auto;box-sizing:border-box">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
