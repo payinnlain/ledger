@@ -425,7 +425,8 @@
         <div id="ar-recurring-fields" style="display:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <select id="ar-freq" style="font-size:13px;padding:4px 8px;font-family:inherit" onchange="toggleCustomFreq()">
             <option value="monthly">每月</option>
-            <option value="quarterly">每季</option>
+            <option value="custom_2">每兩個月</option>
+            <option value="quarterly">每季（3個月）</option>
             <option value="yearly">每年</option>
             <option value="weekly">每週</option>
             <option value="custom">自訂...</option>
@@ -2315,7 +2316,7 @@ function editArItem(id){
   const a=arItems.find(x=>x.id===id); if(!a) return;
   const isAp=a.type==='ap';
   const acctOpts=buildArAcctOpts(a.acctId);
-  const freqOpts=['monthly','quarterly','yearly','weekly'].map(f=>`<option value="${f}"${a.freq===f?' selected':''}>${{monthly:'每月',quarterly:'每季',yearly:'每年',weekly:'每週'}[f]}</option>`).join('');
+  const freqOpts=['monthly','custom_2','quarterly','yearly','weekly'].map(f=>`<option value="${f}"${a.freq===f?' selected':''}>${{monthly:'每月',custom_2:'每兩個月',quarterly:'每季（3個月）',yearly:'每年',weekly:'每週'}[f]}</option>`).join('');
   const modal=document.getElementById('edit-modal');
   modal.innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:22px;width:420px;max-width:94vw">
