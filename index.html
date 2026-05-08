@@ -1171,15 +1171,6 @@ function selAcctType(t,el){
   document.getElementById('credit-extra').style.display=t==='credit'?'':'none';
   document.getElementById('loan-extra').style.display=t==='loan'?'':'none';
 }
-function toggleAcctGroup(type){
-  const el = document.getElementById('acct-group-'+type);
-  const arrow = document.getElementById('acct-arrow-'+type);
-  if(!el) return;
-  const isOpen = el.style.display !== 'none';
-  el.style.display = isOpen ? 'none' : 'block';
-  if(arrow) arrow.textContent = isOpen ? '▶' : '▼';
-}
-
 function renderAccounts(){
   const el=document.getElementById('acct-manage-list');
   if(!accounts.length){el.innerHTML='<div class="empty-state">尚未新增帳戶</div>';return;}
@@ -1813,7 +1804,7 @@ function doDeleteTxn(id, mode){
   }
   sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
 }
-async function openSheetPhotoMenu(){
+function openSheetPhotoMenu(){
   const menu=document.createElement('div');
   menu.id='sheet-photo-menu';
   menu.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:flex-end;justify-content:center';
@@ -1840,7 +1831,7 @@ async function openSheetPhotoMenu(){
   menu.addEventListener('click',e=>{if(e.target===menu)menu.remove();});
   document.body.appendChild(menu);
 }
-async async function handleSheetPhoto(event){
+async function handleSheetPhoto(event){
   document.getElementById('sheet-photo-menu')?.remove();
   const file=event.target.files[0]; if(!file) return;
   const btn=document.getElementById('sheet-photo-btn');
@@ -1872,7 +1863,7 @@ function removeSheetPhoto(){
   const btn=document.getElementById('sheet-photo-btn');
   if(btn){btn.textContent='📷';btn.style.color='';}
 }
-function uploadReceipt(event, txnId){
+async function uploadReceipt(event, txnId){
   const file=event.target.files[0]; if(!file) return;
   const statusEl=document.getElementById('receipt-status-'+txnId);
   if(statusEl) statusEl.textContent='壓縮中...';
