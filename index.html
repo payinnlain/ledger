@@ -153,6 +153,10 @@
     width: calc(100vw - 32px) !important;
     max-width: calc(100vw - 32px) !important;
     box-sizing: border-box !important;
+  }
+  /* 編輯 modal 兩欄改單欄 */
+  #edit-modal > div > div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
   }    /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
@@ -1941,13 +1945,15 @@ function editTxn(id){
   const toAcctOpts=accounts.map(a=>`<option value="${a.id}"${a.id===t.toAcctId?' selected':''}>${a.name} (${a.currency})</option>`).join('');
   const isXfer=t.type==='xfer';
   const acctLabel=isXfer?'轉出帳戶':'帳戶';
+  const isMobile=window.innerWidth<=640;
+  const gridCols=isMobile?'1fr':'1fr 1fr';
   document.getElementById('edit-modal').innerHTML=`
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(440px,calc(100vw - 32px));max-height:88vh;overflow-y:auto;box-sizing:border-box">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <span style="font-size:15px;font-weight:500">編輯記錄</span>
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);line-height:1">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:${gridCols};gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">金額</label>
           <input type="number" id="e-amt" value="${t.amount-(t.foreignFee||0)}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">幣別</label>
