@@ -1332,9 +1332,14 @@ function nextBillInfo(a){
 function toggleAcctGroup(type){
   if(!window._acctGroupCollapsed) window._acctGroupCollapsed={};
   window._acctGroupCollapsed[type]=!window._acctGroupCollapsed[type];
+  try{ localStorage.setItem('acct_collapsed', JSON.stringify(window._acctGroupCollapsed)); }catch(e){}
   renderAcctOverview();
 }
 function renderAcctOverview(){
+  if(!window._acctGroupCollapsed){
+    try{ window._acctGroupCollapsed=JSON.parse(localStorage.getItem('acct_collapsed')||'{}'); }
+    catch(e){ window._acctGroupCollapsed={}; }
+  }
   const el=document.getElementById('acct-overview');
   if(!accounts.length){el.innerHTML='';return;}
   const typeOrder=['invest','crypto','bank','credit','cash','prepaid','loan'];
@@ -1351,7 +1356,6 @@ function renderAcctOverview(){
     'credit':'💳 信用卡','invest':'📈 投資','crypto':'🪙 加密','loan':'🏛 貸款'};
 
   const typeGroupLabel={'bank':'🏦 銀行帳戶','cash':'💵 現金','prepaid':'🎴 預付/儲值','credit':'💳 信用卡','invest':'📈 投資帳戶','crypto':'🪙 加密貨幣','loan':'🏛 貸款'};
-  if(!window._acctGroupCollapsed) window._acctGroupCollapsed={};
   let html='';
   typeOrder.forEach(type=>{
     const group=accounts.filter(a=>a.type===type);
