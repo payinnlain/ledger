@@ -203,7 +203,8 @@
     .acct-card-bal { font-size: 16px; }
 
     /* 輸入框加大點選區域 */
-    input[type=text], input[type=number], input[type=date], input[type=month], select, textarea {
+    :not(#edit-modal) > input[type=text], :not(#edit-modal) > input[type=number], :not(#edit-modal) > input[type=date], :not(#edit-modal) > input[type=month], :not(#edit-modal) > select, :not(#edit-modal) > textarea,
+    .form-group input, .form-group select, .form-group textarea {
       font-size: 16px !important; /* 防止 iOS 自動縮放 */
       padding: 10px 10px;
     }
@@ -1954,13 +1955,13 @@ function editTxn(id){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">金額</label>
-          <input type="number" id="e-amt" value="${t.amount-(t.foreignFee||0)}" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+          <input type="number" id="e-amt" value="${t.amount-(t.foreignFee||0)}" style="font-family:inherit;font-size:14px;padding:8px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;width:100%"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">幣別</label>
-          <select id="e-cur" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${curOpts}</select></div>
+          <select id="e-cur" style="font-family:inherit;font-size:14px;padding:8px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;width:100%">${curOpts}</select></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">類別</label>
-          <select id="e-cat" onchange="updateEditSub()" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">${catOpts}</select></div>
+          <select id="e-cat" onchange="updateEditSub()" style="font-family:inherit;font-size:14px;padding:8px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;width:100%">${catOpts}</select></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">細項</label>
-          <select id="e-sub" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"><option value="">（選填）</option></select></div>
+          <select id="e-sub" style="font-family:inherit;font-size:14px;padding:8px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;width:100%"><option value="">（選填）</option></select></div>
       </div>
       <div style="display:grid;grid-template-columns:${isMobile?'1fr':'1fr 1fr'};gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">日期</label>
