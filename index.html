@@ -640,8 +640,8 @@
     </div>
   </div>
   <div id="sheet-has-foreign-wrap" style="margin-bottom:12px">
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
-      <input type="checkbox" id="sheet-has-foreign" onchange="toggleForeignFee()"><span style="white-space:nowrap"> 含國外手續費</span>
+    <label style="display:flex;align-items:center;justify-content:flex-start;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="sheet-has-foreign" onchange="toggleForeignFee()" style="flex-shrink:0"><span style="white-space:nowrap">含國外手續費</span>
     </label>
   </div>
   <div style="margin-bottom:12px">
@@ -692,15 +692,15 @@
     </div>
   </div>
   <div id="sheet-inst-wrap" style="display:none;margin-bottom:14px;padding:12px;background:var(--bg2);border-radius:var(--radius)">
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px">
-      <input type="checkbox" id="sheet-inst-check" onchange="toggleSheetInst()"><span style="white-space:nowrap"> 信用卡分期</span>
+    <label style="display:flex;align-items:center;justify-content:flex-start;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px;width:100%">
+      <input type="checkbox" id="sheet-inst-check" onchange="toggleSheetInst()" style="flex-shrink:0"><span style="white-space:nowrap">信用卡分期</span>
     </label>
     <div id="sheet-inst-fields" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div class="form-group"><label>期數</label><input type="text" id="sheet-inst-count" value="12" oninput="calcSheetInstEach()" inputmode="numeric" pattern="[0-9]*"></div>
       <div class="form-group"><label>起始月份</label><input type="month" id="sheet-inst-start"></div>
       <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="sheet-inst-has-rate" onchange="toggleInstRate()"><span style="white-space:nowrap"> 含利息</span>
+        <label style="display:flex;align-items:center;justify-content:flex-start;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="sheet-inst-has-rate" onchange="toggleInstRate()" style="flex-shrink:0"><span style="white-space:nowrap">含利息</span>
         </label>
         <div id="sheet-inst-rate-wrap" style="display:none;flex:1;min-width:120px">
           <input type="text" id="sheet-inst-rate" placeholder="年利率 % 例：3.5" inputmode="decimal" oninput="calcSheetInstEach()" style="width:100%;padding:8px;font-family:inherit;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
@@ -3339,12 +3339,13 @@ function quickAddProjectSheet(){
 function openAddSheet(){
   document.getElementById('add-sheet-backdrop').style.display='block';
   document.getElementById('add-sheet').style.display='block';
-  // Set default date
   const d = calSelectedDate || todayStr();
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
-  if(instStart) instStart.value = d.slice(0,7); // use selected date's month
-  // Render chips
+  if(instStart) instStart.value = d.slice(0,7);
+  // 預設收入，隱藏外國手續費
+  const fwrap=document.getElementById('sheet-has-foreign-wrap');
+  if(fwrap) fwrap.style.display = sheetType==='out'?'block':'none';
   renderSheetCatChips();
   renderSheetAcctChips();
   refreshSheetProjectSelect();
