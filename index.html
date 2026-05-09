@@ -366,6 +366,7 @@
           <span class="section-title" id="pie-chart-title">本月支出分類</span>
           <select id="pie-month-select" onchange="setPieMonth(this.value)" style="font-family:inherit;font-size:12px;padding:3px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></select>
         </div>
+        <div id="pie-summary"></div>
         <div style="display:flex;gap:12px;align-items:flex-start">
           <div class="chart-wrap" style="width:160px;height:160px;flex-shrink:0"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
           <div id="cat-spend-list" style="flex:1;overflow-y:auto;max-height:160px;padding-top:4px"></div>
@@ -2080,7 +2081,7 @@ function saveEdit(id){
   if(newAcct) t.acctId=newAcct;
   const toAcctEl=document.getElementById('e-to-acct');
   if(toAcctEl){ const v=parseInt(toAcctEl.value); if(v) t.toAcctId=v; }
-  sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard();
+  sv(); closeEdit(); renderTxnList(); renderAcctOverview(); renderDashboard(); renderProjects();
   if(_detailAcctId) renderAcctDetail();
 }
 function closeEdit(){
@@ -3148,6 +3149,16 @@ function renderDashboard(){
   buildPieMonthOptions();
   const pieTitle=document.getElementById('pie-chart-title');
   if(pieTitle) pieTitle.textContent=`${pieM.slice(0,4)}年${pieM.slice(5)}月支出分類`;
+  const pieIn=Math.round(pieMT.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOut=Math.round(pieMT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieNet=pieIn-pieOut;
+  const pieSummaryEl=document.getElementById('pie-summary');
+  if(pieSummaryEl) pieSummaryEl.innerHTML=`
+    <div style="display:flex;gap:12px;margin-bottom:8px;font-size:12px">
+      <span style="color:var(--green)">+${pieIn.toLocaleString()}</span>
+      <span style="color:var(--red)">-${pieOut.toLocaleString()}</span>
+      <span style="color:${pieNet>=0?'var(--green)':'var(--red)'}">結餘 ${pieNet.toLocaleString()}</span>
+    </div>`;
   const catSpend={};
   pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
