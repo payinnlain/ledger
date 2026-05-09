@@ -369,7 +369,14 @@
         </div>
       </div>
       <div class="card">
-        <div class="section-header"><span class="section-title">近6個月收支</span></div>
+        <div class="section-header">
+          <span class="section-title" id="bar-chart-title">近6個月收支</span>
+          <div style="display:flex;gap:4px">
+            <button onclick="setBarMonths(3)" id="bar-btn-3" class="chip-btn" style="font-size:11px;padding:3px 8px">3個月</button>
+            <button onclick="setBarMonths(6)" id="bar-btn-6" class="chip-btn chip-active" style="font-size:11px;padding:3px 8px">6個月</button>
+            <button onclick="setBarMonths(12)" id="bar-btn-12" class="chip-btn" style="font-size:11px;padding:3px 8px">12個月</button>
+          </div>
+        </div>
         <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
       </div>
     </div>
@@ -3085,6 +3092,17 @@ function renderDueReminder(){
   el.innerHTML=html;
 }
 
+let _barMonths=6;
+function setBarMonths(n){
+  _barMonths=n;
+  ['3','6','12'].forEach(m=>{
+    const btn=document.getElementById('bar-btn-'+m);
+    if(btn) btn.className='chip-btn'+(String(m)===String(n)?' chip-active':'');
+  });
+  const title=document.getElementById('bar-chart-title');
+  if(title) title.textContent=`近${n}個月收支`;
+  renderDashboard();
+}
 function renderDashboard(){
   renderTotalAssets();
   renderDueReminder();
@@ -3129,7 +3147,7 @@ function renderDashboard(){
     }).join(''):'<div style="font-size:12px;color:var(--text2)">本月無支出</div>';
   }
   const months=[];
-  for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  for(let i=_barMonths-1;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
   const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   if(barInst) barInst.destroy();
