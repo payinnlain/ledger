@@ -3099,7 +3099,7 @@ function renderDueReminder(){
 let _pieMonth='';
 function setPieMonth(val){
   _pieMonth=val;
-  renderDashboard();
+  renderPieChart();
 }
 function getPieMonth(){
   if(!_pieMonth) _pieMonth=thisMonth();
@@ -3125,25 +3125,8 @@ function setBarMonths(n){
   if(title) title.textContent=`近${n}個月收支`;
   renderDashboard();
 }
-function renderDashboard(){
-  renderTotalAssets();
-  renderDueReminder();
-  renderAcctOverview();
-  const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
-  const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOutReal=mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOutOther=mT.filter(t=>t.type==='out'&&t.cat==='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOut=totalOutReal+totalOutOther;
-  const arTotal =arItems.filter(a=>a.type==='ar'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
-  const apTotal =arItems.filter(a=>a.type==='ap'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
-  const net=totalIn-totalOut;
-  document.getElementById('summary-cards').innerHTML=`
-    <div class="metric"><div class="metric-label">本月收入 (約TWD)</div><div class="metric-value" style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div></div>
-    <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOutReal).toLocaleString()}</div>${totalOutOther>0?'<div style="font-size:11px;color:var(--text2);margin-top:1px">其他 '+Math.round(totalOutOther).toLocaleString()+'</div>':''}</div>
-    <div class="metric"><div class="metric-label">本月結餘 (約TWD)</div><div class="metric-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div></div>
-    <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
 
-  // 圓餅圖用選擇的月份
+function renderPieChart(){
   const pieM=getPieMonth();
   const pieMT=txns.filter(t=>t.date.startsWith(pieM));
   buildPieMonthOptions();
@@ -3184,7 +3167,30 @@ function renderDashboard(){
       </div>`;
     }).join(''):'<div style="font-size:12px;color:var(--text2)">本月無支出</div>';
   }
-  const months=[];
+}
+
+function renderDashboard(){
+  renderTotalAssets();
+  renderDueReminder();
+  renderAcctOverview();
+  const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
+  const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutReal=mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutOther=mT.filter(t=>t.type==='out'&&t.cat==='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOut=totalOutReal+totalOutOther;
+  const arTotal =arItems.filter(a=>a.type==='ar'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
+  const apTotal =arItems.filter(a=>a.type==='ap'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
+  const net=totalIn-totalOut;
+  document.getElementById('summary-cards').innerHTML=`
+    <div class="metric"><div class="metric-label">本月收入 (約TWD)</div><div class="metric-value" style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOutReal).toLocaleString()}</div>${totalOutOther>0?'<div style="font-size:11px;color:var(--text2);margin-top:1px">其他 '+Math.round(totalOutOther).toLocaleString()+'</div>':''}</div>
+    <div class="metric"><div class="metric-label">本月結餘 (約TWD)</div><div class="metric-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div></div>
+    <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
+
+  // 圓餅圖
+  renderPieChart();
+
+    const months=[];
   for(let i=_barMonths-1;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
   const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
