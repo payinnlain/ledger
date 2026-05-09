@@ -375,10 +375,10 @@
       <div class="card">
         <div class="section-header">
           <span class="section-title" id="bar-chart-title">近6個月收支</span>
-          <div style="display:flex;gap:4px">
-            <button onclick="setBarMonths(3)" id="bar-btn-3" class="chip-btn" style="font-size:11px;padding:3px 8px">3個月</button>
-            <button onclick="setBarMonths(6)" id="bar-btn-6" class="chip-btn chip-active" style="font-size:11px;padding:3px 8px">6個月</button>
-            <button onclick="setBarMonths(12)" id="bar-btn-12" class="chip-btn" style="font-size:11px;padding:3px 8px">12個月</button>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <input type="month" id="bar-start-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <span style="font-size:11px;color:var(--text2)">～</span>
+            <input type="month" id="bar-end-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
           </div>
         </div>
         <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
@@ -2029,7 +2029,7 @@ function editTxn(id){
         <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1"><label style="font-size:11px;color:var(--text2)">專案</label>
           <select id="e-project" style="${inpStyle}">
             <option value="">無</option>
-            ${projects.map(p=>`<option value="${p.name}"${t.project===p.name?' selected':''}>${p.name}</option>`).join('')}
+            ${projects.map(p=>`<option value="${p.id}"${String(t.project)===String(p.id)?' selected':''}>${p.name}</option>`).join('')}
           </select></div>
         <div style="display:flex;flex-direction:column;gap:2px"><label style="font-size:11px;color:var(--text2)">國外手續費</label>
           <input type="number" id="e-foreign-fee" value="${t.foreignFee||0}" min="0" step="any" style="${inpStyle}"></div>
@@ -2074,7 +2074,8 @@ function saveEdit(id){
   t.cat=document.getElementById('e-cat').value;
   t.date=document.getElementById('e-date').value;
   t.note=document.getElementById('e-note').value;
-  t.project=document.getElementById('e-project')?.value||null;
+  const projVal=document.getElementById('e-project')?.value;
+  t.project=projVal?(parseInt(projVal)||projVal):null;
   const subVal=document.getElementById('e-sub')?.value||null;
   t.tag=subVal;
   const newAcct=parseInt(document.getElementById('e-acct')?.value);
@@ -3114,16 +3115,39 @@ function buildPieMonthOptions(){
   const sorted=[...months].sort().reverse();
   sel.innerHTML=sorted.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.slice(0,4)}年${m.slice(5)}月</option>`).join('');
 }
-let _barMonths=6;
-function setBarMonths(n){
-  _barMonths=n;
-  ['3','6','12'].forEach(m=>{
-    const btn=document.getElementById('bar-btn-'+m);
-    if(btn) btn.className='chip-btn'+(String(m)===String(n)?' chip-active':'');
-  });
+function renderBarChart(){
+  const startEl=document.getElementById('bar-start-month');
+  const endEl=document.getElementById('bar-end-month');
+  const today=new Date();
+  // 預設：最近6個月
+  if(!startEl||!endEl) return;
+  if(!startEl.value){
+    const d=new Date(); d.setMonth(d.getMonth()-5);
+    startEl.value=d.toISOString().slice(0,7);
+  }
+  if(!endEl.value) endEl.value=today.toISOString().slice(0,7);
+  const start=startEl.value, end=endEl.value;
+  // 產生所有月份
+  const months=[];
+  let cur=new Date(start+'-01');
+  const endDate=new Date(end+'-01');
+  while(cur<=endDate){
+    months.push(cur.toISOString().slice(0,7));
+    cur.setMonth(cur.getMonth()+1);
+  }
+  const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
+  const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   const title=document.getElementById('bar-chart-title');
-  if(title) title.textContent=`近${n}個月收支`;
-  renderDashboard();
+  if(title) title.textContent=`${start.slice(0,4)}年${start.slice(5)}月 ～ ${end.slice(0,4)}年${end.slice(5)}月`;
+  if(barInst) barInst.destroy();
+  barInst=new Chart(document.getElementById('barChart'),{type:'bar',
+    data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
+      {label:'收入',data:bIn,backgroundColor:'#5DCAA5',borderRadius:4},
+      {label:'支出',data:bOut,backgroundColor:'#F0997B',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:12},boxWidth:12}}},
+      scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:12},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}}}});
 }
 
 function renderPieChart(){
@@ -3189,20 +3213,7 @@ function renderDashboard(){
 
   // 圓餅圖
   renderPieChart();
-
-    const months=[];
-  for(let i=_barMonths-1;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
-  const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
-  const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
-  if(barInst) barInst.destroy();
-  barInst=new Chart(document.getElementById('barChart'),{type:'bar',
-    data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
-      {label:'收入',data:bIn,backgroundColor:'#5DCAA5',borderRadius:4},
-      {label:'支出',data:bOut,backgroundColor:'#F0997B',borderRadius:4}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{font:{size:12},boxWidth:12}}},
-      scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:12},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}}}});
+  renderBarChart();
 
   const recentEl=document.getElementById('recent-list');
   if(!txns.length){recentEl.innerHTML='<div class="empty-state">尚無記錄，前往收支頁新增</div>';return;}
