@@ -41,7 +41,7 @@
   /* cards */
   .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; }
   .section-title { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
-  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; min-height: 32px; }
 
   /* summary grid */
   .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
@@ -3138,7 +3138,7 @@ function renderBarChart(){
   const bIn =months.map(mo=>Math.round(txns.filter(t=>t.type==='in' &&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   const bOut=months.map(mo=>Math.round(txns.filter(t=>t.type==='out'&&t.date.startsWith(mo)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0)));
   const title=document.getElementById('bar-chart-title');
-  if(title) title.textContent=`${start.slice(0,4)}年${start.slice(5)}月 ～ ${end.slice(0,4)}年${end.slice(5)}月`;
+  if(title) title.textContent=`收支趨勢`;
   if(barInst) barInst.destroy();
   barInst=new Chart(document.getElementById('barChart'),{type:'bar',
     data:{labels:months.map(m=>m.slice(5)+'月'),datasets:[
@@ -3155,7 +3155,7 @@ function renderPieChart(){
   const pieMT=txns.filter(t=>t.date.startsWith(pieM));
   buildPieMonthOptions();
   const pieTitle=document.getElementById('pie-chart-title');
-  if(pieTitle) pieTitle.textContent=`${pieM.slice(0,4)}年${pieM.slice(5)}月支出分類`;
+  if(pieTitle) pieTitle.textContent=`支出分類`;
   const pieIn=Math.round(pieMT.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieOut=Math.round(pieMT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieNet=pieIn-pieOut;
