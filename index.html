@@ -535,16 +535,16 @@
       <div class="section-header">
         <span class="section-title">專案管理</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <input type="text" id="new-project-name" placeholder="專案名稱（例：日本旅遊）" style="flex:1;min-width:140px">
-        <input type="number" id="new-project-budget" placeholder="預算（選填）" inputmode="numeric" style="width:110px;min-width:0;flex-shrink:1">
-        <button class="btn-primary" onclick="addProject()" style="white-space:nowrap;flex-shrink:0">新增</button>
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:nowrap">
+        <input type="text" id="new-project-name" placeholder="專案名稱" style="flex:1;min-width:0">
+        <input type="number" id="new-project-budget" placeholder="預算" inputmode="numeric" style="width:80px;flex-shrink:0">
+        <button class="btn-primary" onclick="addProject()" style="white-space:nowrap;flex-shrink:0;padding:0 12px">新增</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
-        <label style="font-size:12px;color:var(--text2);white-space:nowrap">起始年月</label>
-        <input type="month" id="new-project-start" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;flex:1">
-        <label style="font-size:12px;color:var(--text2);white-space:nowrap">結束年月</label>
-        <input type="month" id="new-project-end" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;flex:1">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <label style="font-size:12px;color:var(--text2);white-space:nowrap;flex-shrink:0">起始</label>
+        <input type="month" id="new-project-start" style="font-family:inherit;font-size:13px;padding:5px 4px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;flex:1">
+        <label style="font-size:12px;color:var(--text2);white-space:nowrap;flex-shrink:0">結束</label>
+        <input type="month" id="new-project-end" style="font-family:inherit;font-size:13px;padding:5px 4px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);min-width:0;flex:1">
       </div>
     </div>
     <div id="project-list"></div>
