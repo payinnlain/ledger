@@ -373,12 +373,12 @@
         </div>
       </div>
       <div class="card">
-        <div class="section-header">
-          <span class="section-title" id="bar-chart-title">近6個月收支</span>
-          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-            <input type="month" id="bar-start-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <div class="section-header" style="flex-wrap:nowrap;gap:8px">
+          <span class="section-title" id="bar-chart-title" style="white-space:nowrap;font-size:13px">收支趨勢</span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <input type="month" id="bar-start-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 4px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);max-width:130px">
             <span style="font-size:11px;color:var(--text2)">～</span>
-            <input type="month" id="bar-end-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 5px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+            <input type="month" id="bar-end-month" onchange="renderBarChart()" style="font-family:inherit;font-size:11px;padding:3px 4px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);max-width:130px">
           </div>
         </div>
         <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="近6個月收支長條圖">收支趨勢</canvas></div>
@@ -2029,7 +2029,7 @@ function editTxn(id){
         <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1"><label style="font-size:11px;color:var(--text2)">專案</label>
           <select id="e-project" style="${inpStyle}">
             <option value="">無</option>
-            ${projects.map(p=>`<option value="${p.id}"${String(t.project)===String(p.id)?' selected':''}>${p.name}</option>`).join('')}
+            ${projects.map(p=>`<option value="${p.id}"${String(t.project)===String(p.id)||t.project===p.name?' selected':''}>${p.name}</option>`).join('')}
           </select></div>
         <div style="display:flex;flex-direction:column;gap:2px"><label style="font-size:11px;color:var(--text2)">國外手續費</label>
           <input type="number" id="e-foreign-fee" value="${t.foreignFee||0}" min="0" step="any" style="${inpStyle}"></div>
@@ -2218,7 +2218,7 @@ function renderTxnList(){
       <div class="txn-icon" style="background:${bg}">${ic}</div>
       <div class="txn-meta">
         <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
-        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}${t.project?` · <span style="background:${(projects.find(p=>String(p.id)===String(t.project))||{}).color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${(projects.find(p=>String(p.id)===String(t.project))||{}).name||''}</span>`:''}</div>
+        <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}${t.project?(()=>{const pr=projects.find(p=>String(p.id)===String(t.project))||projects.find(p=>p.name===t.project);return pr?` · <span style="background:${pr.color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${pr.name}</span>`:''})():''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
       <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
@@ -3221,7 +3221,7 @@ function renderDashboard(){
     const bg=t.type==='in'?'var(--green-bg)':t.type==='out'?'var(--red-bg)':'var(--purple-bg)';
     const c=t.type==='in'?'var(--green)':t.type==='out'?'var(--red)':'var(--purple)';
     const s=t.type==='in'?'+':t.type==='out'?'-':'';
-    const proj=t.project?projects.find(p=>String(p.id)===String(t.project)):null;
+    const proj=t.project?projects.find(p=>String(p.id)===String(t.project)||p.name===t.project):null;
     return `<div class="txn-item">
       <div class="txn-icon" style="background:${bg};font-size:12px">${t.type==='in'?'+':t.type==='out'?'-':'⇄'}</div>
       <div class="txn-meta"><div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div><div class="txn-sub">${t.date}${t.acctId?' · '+acctName(t.acctId):''}${proj?` · <span style="color:${proj.color||'var(--blue)'}">${proj.name}</span>`:''}</div></div>
@@ -3236,7 +3236,7 @@ function renderDashboard(){
   if(!projects.length){projCard.style.display='none';return;}
   projCard.style.display='block';
   projEl.innerHTML=projects.map(p=>{
-    const ptxns=txns.filter(t=>String(t.project)===String(p.id));
+    const ptxns=txns.filter(t=>String(t.project)===String(p.id)||t.project===p.name);
     const totalIn =ptxns.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
     const totalOut=ptxns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
     const net=totalIn-totalOut;
@@ -3316,7 +3316,7 @@ function renderProjects(){
   if(!el) return;
   if(!projects.length){el.innerHTML='<div class="empty-state">尚無專案，新增一個開始追蹤</div>';return;}
   el.innerHTML = projects.map(p=>{
-    const ptxns = txns.filter(t=>String(t.project)===String(p.id));
+    const ptxns = txns.filter(t=>String(t.project)===String(p.id)||t.project===p.name);
     const totalIn  = ptxns.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
     const totalOut = ptxns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
     const net = totalIn - totalOut;
