@@ -364,11 +364,7 @@
       <div class="card">
         <div class="section-header">
           <span class="section-title" id="pie-chart-title">本月支出分類</span>
-          <div style="display:flex;align-items:center;gap:4px">
-            <button onclick="changePieMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">‹</button>
-            <span id="pie-month-label" style="font-size:12px;color:var(--text2);min-width:48px;text-align:center"></span>
-            <button onclick="changePieMonth(1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">›</button>
-          </div>
+          <select id="pie-month-select" onchange="setPieMonth(this.value)" style="font-family:inherit;font-size:12px;padding:3px 6px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></select>
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
           <div class="chart-wrap" style="width:160px;height:160px;flex-shrink:0"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
@@ -3099,16 +3095,23 @@ function renderDueReminder(){
   el.innerHTML=html;
 }
 
-let _pieMonthOffset=0;
-function changePieMonth(dir){
-  _pieMonthOffset+=dir;
-  if(_pieMonthOffset>0) _pieMonthOffset=0;
+let _pieMonth='';
+function setPieMonth(val){
+  _pieMonth=val;
   renderDashboard();
 }
 function getPieMonth(){
-  const d=new Date();
-  d.setMonth(d.getMonth()+_pieMonthOffset);
-  return d.toISOString().slice(0,7);
+  if(!_pieMonth) _pieMonth=thisMonth();
+  return _pieMonth;
+}
+function buildPieMonthOptions(){
+  const sel=document.getElementById('pie-month-select'); if(!sel) return;
+  const cur=getPieMonth();
+  // 從最早的交易月份到當月
+  const months=new Set(txns.map(t=>t.date.slice(0,7)));
+  months.add(cur);
+  const sorted=[...months].sort().reverse();
+  sel.innerHTML=sorted.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.slice(0,4)}年${m.slice(5)}月</option>`).join('');
 }
 let _barMonths=6;
 function setBarMonths(n){
@@ -3142,10 +3145,9 @@ function renderDashboard(){
   // 圓餅圖用選擇的月份
   const pieM=getPieMonth();
   const pieMT=txns.filter(t=>t.date.startsWith(pieM));
-  const pieLabel=document.getElementById('pie-month-label');
+  buildPieMonthOptions();
   const pieTitle=document.getElementById('pie-chart-title');
-  if(pieLabel) pieLabel.textContent=pieM.slice(5)+'月';
-  if(pieTitle) pieTitle.textContent=pieM.slice(0,7)==='m'?'本月支出分類':`${pieM.slice(5)}月支出分類`;
+  if(pieTitle) pieTitle.textContent=`${pieM.slice(0,4)}年${pieM.slice(5)}月支出分類`;
   const catSpend={};
   pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
