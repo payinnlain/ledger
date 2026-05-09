@@ -362,7 +362,14 @@
     <div class="summary-grid" id="summary-cards"></div>
     <div class="two-col">
       <div class="card">
-        <div class="section-header"><span class="section-title">本月支出分類</span></div>
+        <div class="section-header">
+          <span class="section-title" id="pie-chart-title">本月支出分類</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <button onclick="changePieMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">‹</button>
+            <span id="pie-month-label" style="font-size:12px;color:var(--text2);min-width:48px;text-align:center"></span>
+            <button onclick="changePieMonth(1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">›</button>
+          </div>
+        </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
           <div class="chart-wrap" style="width:160px;height:160px;flex-shrink:0"><canvas id="pieChart" role="img" aria-label="本月支出分類圓餅圖">支出分類統計</canvas></div>
           <div id="cat-spend-list" style="flex:1;overflow-y:auto;max-height:160px;padding-top:4px"></div>
@@ -3092,6 +3099,17 @@ function renderDueReminder(){
   el.innerHTML=html;
 }
 
+let _pieMonthOffset=0;
+function changePieMonth(dir){
+  _pieMonthOffset+=dir;
+  if(_pieMonthOffset>0) _pieMonthOffset=0;
+  renderDashboard();
+}
+function getPieMonth(){
+  const d=new Date();
+  d.setMonth(d.getMonth()+_pieMonthOffset);
+  return d.toISOString().slice(0,7);
+}
 let _barMonths=6;
 function setBarMonths(n){
   _barMonths=n;
@@ -3121,8 +3139,15 @@ function renderDashboard(){
     <div class="metric"><div class="metric-label">本月結餘 (約TWD)</div><div class="metric-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${Math.round(net).toLocaleString()}</div></div>
     <div class="metric"><div class="metric-label">應收 / 應付</div><div class="metric-value" style="color:var(--amber)">${Math.round(arTotal).toLocaleString()} / ${Math.round(apTotal).toLocaleString()}</div></div>`;
 
+  // 圓餅圖用選擇的月份
+  const pieM=getPieMonth();
+  const pieMT=txns.filter(t=>t.date.startsWith(pieM));
+  const pieLabel=document.getElementById('pie-month-label');
+  const pieTitle=document.getElementById('pie-chart-title');
+  if(pieLabel) pieLabel.textContent=pieM.slice(5)+'月';
+  if(pieTitle) pieTitle.textContent=pieM.slice(0,7)==='m'?'本月支出分類':`${pieM.slice(5)}月支出分類`;
   const catSpend={};
-  mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
+  pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
   const cV=cL.map(cat=>Math.round(catSpend[cat]));
   const totalCatOut=cV.reduce((s,v)=>s+v,0);
