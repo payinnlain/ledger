@@ -944,13 +944,28 @@ function setSyncStatus(state, msg){
 
 async function loadAll(){
   setSyncStatus('ing','載入中...');
+  // 先立即顯示 localStorage 的資料，不等 Supabase
   try {
+    const local = localStorage.getItem(KEY);
+    if(local){
+      const d = JSON.parse(local);
+      txns=d.txns||[]; arItems=d.arItems||[]; budgets=d.budgets||{}; accounts=d.accounts||[]; projects=d.projects||[];
+      window._acctGroupCollapsed=d.acctCollapsed||{};
+      if(d.manualFxRate>0){ manualFxRate=d.manualFxRate; }
+      refreshAcctSelects(); refreshProjectSelect(); renderDashboard();
+    }
+  } catch(e){}
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 8000);
     const res = await fetch(`${SB_URL}/rest/v1/${SB_TABLE}?id=eq.${SB_ROW_ID}&select=data`, {
       headers: {
         'apikey': SB_KEY,
         'Authorization': 'Bearer '+SB_KEY
-      }
+      },
+      signal: controller.signal
     });
+    clearTimeout(timeout);
     if(res.ok){
       const rows = await res.json();
       if(rows.length && rows[0].data){
