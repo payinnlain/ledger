@@ -1354,7 +1354,8 @@ function getFilteredAccts(){
   return typeFilter ? accounts.filter(a=>a.type===typeFilter) : accounts;
 }
 function filterAcctByType(){
-  const filtered = getFilteredAccts();
+  const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
+  const filtered = [...getFilteredAccts()].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
   const opts = filtered.length
     ? filtered.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
     : '<option value="">（此類型無帳戶）</option>';
