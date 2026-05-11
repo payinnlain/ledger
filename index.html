@@ -602,6 +602,7 @@
 
 <!-- Edit Modal -->
 <div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box"></div>
+<div id="proj-txn-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1999;align-items:center;justify-content:center;padding:10px"></div>
 
 <!-- 浮動按鈕群 -->
 <button onclick="reloadData()" id="fab-reload" style="position:fixed;bottom:72px;right:16px;width:44px;height:44px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:18px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">↻</button>
@@ -1354,8 +1355,7 @@ function getFilteredAccts(){
   return typeFilter ? accounts.filter(a=>a.type===typeFilter) : accounts;
 }
 function filterAcctByType(){
-  const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
-  const filtered = [...getFilteredAccts()].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+  const filtered = getFilteredAccts();
   const opts = filtered.length
     ? filtered.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
     : '<option value="">（此類型無帳戶）</option>';
@@ -1388,23 +1388,17 @@ function calcInstEach(){
   document.getElementById('txn-inst-each').value = each > 0 ? each : '';
 }
 function refreshAcctSelects(){
-  // txn-acct: show filtered, txn-to-acct: show all but sorted by type
-  filterAcctByType();
-  const TYPE_ORDER=['bank','cash','credit','invest','crypto','loan','prepaid'];
-  const sorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
-  const allOpts=sorted.length
-    ?sorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
+  const allOpts=accounts.length
+    ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
     :'<option value="">（先至帳戶頁新增）</option>';
+  // txn-acct: show filtered, txn-to-acct: show all
+  filterAcctByType();
   const toEl=document.getElementById('txn-to-acct');
   if(toEl) toEl.innerHTML=allOpts;
   const ta=document.getElementById('txn-acct');
   if(ta) ta.onchange=populateCats;
   const fa=document.getElementById('filter-acct');
-  if(fa){
-    const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
-    const faSorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
-    fa.innerHTML='<option value="">全部帳戶</option>'+faSorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name}</option>`).join('');
-  }
+  if(fa) fa.innerHTML='<option value="">全部帳戶</option>'+accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
 }
 function loanProgress(a){
   if(!a.loanMonths) return '';
@@ -1754,9 +1748,7 @@ function setType(t,el){
   document.getElementById('txn-to-wrap').style.display=t==='xfer'?'':'none';
   // For transfer, show all accounts
   if(t==='xfer'){
-    const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
-    const sorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
-    const allOpts=sorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('');
+    const allOpts=accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('');
     const fromEl=document.getElementById('txn-acct');
     const toEl=document.getElementById('txn-to-acct');
     if(fromEl) fromEl.innerHTML=allOpts;
@@ -3406,6 +3398,52 @@ function saveEditProject(id){
   p.name=name; p.budget=budget; p.startMonth=startMonth; p.endMonth=endMonth;
   sv(); closeEdit(); renderProjects(); refreshProjectSelect(); refreshSheetProjectSelect();
 }
+function editProject(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  const inpStyle='font-family:inherit;font-size:13px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box';
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(400px,calc(100vw - 24px));box-sizing:border-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">編輯專案</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">專案名稱</label>
+          <input type="text" id="ep-name" value="${p.name}" style="${inpStyle}">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">預算金額（TWD，選填）</label>
+          <input type="number" id="ep-budget" value="${p.budget||''}" placeholder="不限" inputmode="numeric" style="${inpStyle}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">開始月份</label>
+            <input type="month" id="ep-start" value="${p.startMonth||''}" style="${inpStyle}">
+          </div>
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">結束月份</label>
+            <input type="month" id="ep-end" value="${p.endMonth||''}" style="${inpStyle}">
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 16px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveEditProject(${id})" class="btn-primary">儲存</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function saveEditProject(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  const name=document.getElementById('ep-name').value.trim();
+  if(!name){alert('請輸入專案名稱');return;}
+  const budget=parseFloat(document.getElementById('ep-budget').value)||null;
+  const startMonth=document.getElementById('ep-start').value||null;
+  const endMonth=document.getElementById('ep-end').value||null;
+  p.name=name; p.budget=budget; p.startMonth=startMonth; p.endMonth=endMonth;
+  sv(); closeEdit(); renderProjects(); refreshProjectSelect(); refreshSheetProjectSelect();
+}
 function deleteProject(id){
   if(!confirm('刪除此專案？相關交易的專案標籤會移除。')) return;
   projects=projects.filter(p=>p.id!==id);
@@ -3417,6 +3455,34 @@ function refreshProjectSelect(){
   if(!sel) return;
   sel.innerHTML='<option value="">無</option>'+
     projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+function showProjectTxns(pid){
+  const p=projects.find(x=>x.id===pid); if(!p) return;
+  const ptxns=txns.filter(t=>String(t.project)===String(pid)||t.project===p.name)
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const totalOut=ptxns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalIn =ptxns.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const rows=ptxns.map(t=>`
+    <div onclick="document.getElementById('proj-txn-modal').style.display='none';switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)"
+      style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid var(--border);cursor:pointer">
+      <div style="min-width:0">
+        <div style="font-size:13px;color:var(--text)">${t.date} <span style="color:var(--text2)">${t.cat}${t.note?' · '+t.note:''}</span></div>
+      </div>
+      <span style="color:${t.type==='in'?'var(--green)':'var(--red)'};flex-shrink:0;margin-left:10px;font-weight:500">${t.type==='in'?'+':'-'}${fmt(t.amount,t.currency)}</span>
+    </div>`).join('');
+  const modal=document.getElementById('proj-txn-modal');
+  modal.innerHTML=`
+    <div style="background:var(--bg);border-radius:var(--radius-lg);width:min(520px,calc(100vw - 20px));max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+      <div style="padding:16px 16px 12px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div>
+          <div style="font-size:15px;font-weight:600">${p.name}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">共 ${ptxns.length} 筆・收入 <span style="color:var(--green)">${fmt(totalIn,'TWD')}</span>・支出 <span style="color:var(--red)">${fmt(totalOut,'TWD')}</span></div>
+        </div>
+        <button onclick="document.getElementById('proj-txn-modal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2);padding:4px">✕</button>
+      </div>
+      <div style="overflow-y:auto;padding:0 16px 16px;flex:1">${rows||'<div style="text-align:center;color:var(--text2);padding:20px">沒有記錄</div>'}</div>
+    </div>`;
+  modal.style.display='flex';
 }
 function renderProjects(){
   const el = document.getElementById('project-list');
@@ -3439,7 +3505,10 @@ function renderProjects(){
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn-sm" onclick="editProject(${p.id})">編輯</button>
+          <div style="display:flex;gap:6px">
+          <button class="btn-sm" onclick="editProject(${p.id})">編輯</button>
           <button class="btn-sm danger" onclick="deleteProject(${p.id})">刪除</button>
+        </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:${pct!==null?'10px':'0'}">
@@ -3470,7 +3539,9 @@ function renderProjects(){
           <span style="color:var(--text2)">${t.date} ${t.cat}${t.note?' · '+t.note:''}</span>
           <span style="color:${t.type==='in'?'var(--green)':'var(--red)'};flex-shrink:0;margin-left:8px">${t.type==='in'?'+':'-'}${fmt(t.amount,t.currency)}</span>
         </div>`).join('')}
-        ${ptxns.length>5?`<div style="font-size:12px;color:var(--text2);margin-top:4px">...還有 ${ptxns.length-5} 筆</div>`:''}
+        ${ptxns.length>5?`<div style="margin-top:8px;text-align:center">
+          <button onclick="showProjectTxns(${p.id})" style="font-size:12px;color:var(--green);background:none;border:0.5px solid var(--green);border-radius:20px;padding:3px 14px;cursor:pointer;font-family:inherit">查看全部 ${ptxns.length} 筆 ›</button>
+        </div>`:''}
       </div>`:''}
     </div>`;
   }).join('');
@@ -3480,13 +3551,17 @@ const PROJECT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#3B6D
 let sheetType = 'in';
 
 function buildAcctOptgroups(curId, forOut){
-  const groups= [
+  const groups= forOut ? [
     {type:'cash',label:'💵 現金'},
     {type:'credit',label:'💳 信用卡'},
     {type:'bank',label:'🏦 銀行帳戶'},
     {type:'prepaid',label:'🎴 預付/儲值卡'},
-    {type:'invest',label:'📈 投資帳戶'},
-    {type:'crypto',label:'🪙 加密貨幣'},
+    {type:'invest',label:'📈 投資帳戶'},{type:'crypto',label:'🪙 加密貨幣'},
+    {type:'loan',label:'🏛 貸款'},
+  ] : [
+    {type:'bank',label:'🏦 銀行帳戶'},{type:'cash',label:'💵 現金'},
+    {type:'prepaid',label:'🎴 預付/儲值卡'},{type:'credit',label:'💳 信用卡'},
+    {type:'invest',label:'📈 投資帳戶'},{type:'crypto',label:'🪙 加密貨幣'},
     {type:'loan',label:'🏛 貸款'},
   ];
   let html='<option value="">選擇帳戶</option>';
@@ -3503,13 +3578,13 @@ function renderSheetAcctChips(){
   const curId=document.getElementById('sheet-acct')?.value||'';
   const selEl=document.getElementById('sheet-acct-sel');
   if(selEl){
-    const forOut=sheetType==='out'||sheetType==='xfer';
+    const forOut=sheetType==='out';
     selEl.innerHTML=buildAcctOptgroups(curId, forOut);
     selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; };
   }
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
-    toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'', true);
+    toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
     toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
   }
 }
