@@ -145,7 +145,31 @@
   .chip-btn.chip-active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
 
 
-  /* 所有兩欄 grid 內的欄位防止溢出（全裝置） */
+  /* Modal 手機版強制全寬 */
+  #edit-modal > div {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    box-sizing: border-box !important;
+  }
+  #edit-modal select {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  #add-sheet select, #add-sheet input:not([type=checkbox]):not([type=hidden]) {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #add-sheet input[type=checkbox] {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  /* 所有兩欄 grid 內的欄位防止溢出 */
   .form-grid input:not([type=checkbox]), .form-grid select,
   [style*="grid-template-columns"] input:not([type=checkbox]),
   [style*="grid-template-columns"] select,
@@ -155,31 +179,6 @@
     width: 100% !important;
     box-sizing: border-box !important;
   }
-  @media (max-width: 640px) {
-    /* Modal 手機版強制全寬 */
-    #edit-modal > div {
-      width: calc(100vw - 32px) !important;
-      max-width: calc(100vw - 32px) !important;
-      box-sizing: border-box !important;
-    }
-    #edit-modal select {
-      max-width: 100% !important;
-      min-width: 0 !important;
-      width: 100% !important;
-    }
-    #add-sheet select, #add-sheet input:not([type=checkbox]):not([type=hidden]) {
-      max-width: 100% !important;
-      min-width: 0 !important;
-      width: 100% !important;
-      box-sizing: border-box !important;
-    }
-    #add-sheet input[type=checkbox] {
-      width: 16px !important;
-      height: 16px !important;
-      min-width: 16px !important;
-      padding: 0 !important;
-      flex-shrink: 0 !important;
-    }
     /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
