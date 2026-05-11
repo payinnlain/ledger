@@ -1387,11 +1387,13 @@ function calcInstEach(){
   document.getElementById('txn-inst-each').value = each > 0 ? each : '';
 }
 function refreshAcctSelects(){
-  const allOpts=accounts.length
-    ?accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
-    :'<option value="">（先至帳戶頁新增）</option>';
-  // txn-acct: show filtered, txn-to-acct: show all
+  // txn-acct: show filtered, txn-to-acct: show all but sorted by type
   filterAcctByType();
+  const TYPE_ORDER=['bank','cash','credit','invest','crypto','loan','prepaid'];
+  const sorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+  const allOpts=sorted.length
+    ?sorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('')
+    :'<option value="">（先至帳戶頁新增）</option>';
   const toEl=document.getElementById('txn-to-acct');
   if(toEl) toEl.innerHTML=allOpts;
   const ta=document.getElementById('txn-acct');
