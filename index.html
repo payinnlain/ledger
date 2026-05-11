@@ -147,7 +147,7 @@
 
   /* 所有兩欄 grid 內的欄位防止溢出（全裝置） */
   .form-grid input:not([type=checkbox]), .form-grid select,
-  [style*="grid-template-columns"] input:not([type=checkbox]),
+  [style*="grid-template-columns"] input:not([type=checkbox]):not(#usd-twd-rate),
   [style*="grid-template-columns"] select,
   [style*="grid-template-columns"] textarea {
     min-width: 0 !important;
@@ -2989,8 +2989,8 @@ function renderTotalAssets(){
         '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">USD/TWD 匯率</div>'+
         '<div style="display:flex;align-items:center;gap:6px">'+
           '<input type="text" id="usd-twd-rate" value="'+(manualFxRate||'')+
-            '" placeholder="31.5" inputmode="decimal"'+
-            ' style="width:72px;padding:4px 8px;font-family:inherit;font-size:14px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center">'+
+            '" placeholder="例：31.5" inputmode="decimal"'+
+            ' style="width:80px!important;max-width:80px!important;padding:4px 8px;font-family:inherit;font-size:14px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center">'+
           '<button onclick="saveManualFxRate(document.getElementById(\'usd-twd-rate\').value)"'+
             ' style="padding:4px 10px;font-size:12px;font-weight:500;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.25);color:inherit;cursor:pointer;font-family:inherit">套用</button>'+
         '</div>'+
