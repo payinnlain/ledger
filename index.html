@@ -145,31 +145,7 @@
   .chip-btn.chip-active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
 
 
-  /* Modal 手機版強制全寬 */
-  #edit-modal > div {
-    width: calc(100vw - 32px) !important;
-    max-width: calc(100vw - 32px) !important;
-    box-sizing: border-box !important;
-  }
-  #edit-modal select {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: 100% !important;
-  }
-  #add-sheet select, #add-sheet input:not([type=checkbox]):not([type=hidden]) {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-  #add-sheet input[type=checkbox] {
-    width: 16px !important;
-    height: 16px !important;
-    min-width: 16px !important;
-    padding: 0 !important;
-    flex-shrink: 0 !important;
-  }
-  /* 所有兩欄 grid 內的欄位防止溢出 */
+  /* 所有兩欄 grid 內的欄位防止溢出（全裝置） */
   .form-grid input:not([type=checkbox]), .form-grid select,
   [style*="grid-template-columns"] input:not([type=checkbox]),
   [style*="grid-template-columns"] select,
@@ -179,6 +155,31 @@
     width: 100% !important;
     box-sizing: border-box !important;
   }
+  @media (max-width: 640px) {
+    /* Modal 手機版強制全寬 */
+    #edit-modal > div {
+      width: calc(100vw - 32px) !important;
+      max-width: calc(100vw - 32px) !important;
+      box-sizing: border-box !important;
+    }
+    #edit-modal select {
+      max-width: 100% !important;
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+    #add-sheet select, #add-sheet input:not([type=checkbox]):not([type=hidden]) {
+      max-width: 100% !important;
+      min-width: 0 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    #add-sheet input[type=checkbox] {
+      width: 16px !important;
+      height: 16px !important;
+      min-width: 16px !important;
+      padding: 0 !important;
+      flex-shrink: 0 !important;
+    }
     /* 基本佈局 */
     .app { padding: 0 12px 80px; }
     .topbar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 0 12px; }
@@ -634,7 +635,7 @@
     <div class="form-group"><label>日期</label><input type="date" id="sheet-date" style="padding:10px 8px;width:100%"></div>
     <div class="form-group"><label>幣別</label><select id="sheet-currency" style="padding:10px 8px;width:100%"><option>TWD</option><option>USD</option><option>EUR</option><option>JPY</option><option>KRW</option><option>IDR</option><option>CNY</option><option>HKD</option><option>GBP</option><optgroup label="加密貨幣"><option>BTC</option><option>ETH</option><option>SOL</option><option>USDT</option><option>USDC</option></optgroup></select></div>
   </div>
-  <div style="margin-bottom:12px">
+  <div id="sheet-amount-wrap" style="margin-bottom:12px">
     <div class="form-group">
       <label>金額</label>
       <div style="display:flex;gap:8px;align-items:center">
@@ -666,18 +667,43 @@
       <select id="sheet-acct-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
       <input type="hidden" id="sheet-acct">
     </div>
-    <!-- 轉帳：左右帳戶 + 互換 -->
+    <!-- 轉帳：MOZE 風格雙欄 -->
     <div id="sheet-acct-xfer" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end">
-        <div class="form-group" style="margin-bottom:0">
-          <label>轉出</label>
-          <select id="sheet-from-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
+      <!-- 帳戶選擇列 -->
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">轉出帳戶</div>
+          <select id="sheet-from-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency()"></select>
         </div>
-        <button onclick="swapXferAccts()" style="width:40px;height:40px;border-radius:50%;background:var(--green);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-bottom:2px">⇄</button>
-        <div class="form-group" style="margin-bottom:0">
-          <label>轉入</label>
-          <select id="sheet-to-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
+        <button onclick="swapXferAccts()" style="width:36px;height:36px;border-radius:50%;background:var(--green);color:#fff;border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:16px">⇄</button>
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">轉入帳戶</div>
+          <select id="sheet-to-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency()"></select>
         </div>
+      </div>
+      <!-- 跨幣：雙金額輸入 -->
+      <div id="sheet-xfer-fx-wrap" style="display:none;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:0.5px solid var(--purple);border-radius:var(--radius);overflow:hidden">
+          <div style="padding:10px 12px;border-right:0.5px solid var(--purple);background:var(--bg)">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span id="sheet-xfer-from-cur-badge" style="font-size:11px;font-weight:700;color:#fff;background:var(--text2);border-radius:4px;padding:2px 6px">TWD</span>
+              <span style="font-size:11px;color:var(--text2)">轉出</span>
+            </div>
+            <input type="text" id="sheet-xfer-from-amt" inputmode="decimal" pattern="[0-9.]*" placeholder="0"
+              style="width:100%;border:none;outline:none;font-size:22px;font-weight:700;color:var(--text);background:transparent;font-family:inherit;padding:0"
+              oninput="calcXferRate('from')">
+          </div>
+          <div style="padding:10px 12px;background:var(--purple-bg)">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span id="sheet-xfer-to-cur-badge" style="font-size:11px;font-weight:700;color:#fff;background:var(--purple);border-radius:4px;padding:2px 6px">USD</span>
+              <span style="font-size:11px;color:var(--purple)">到帳</span>
+            </div>
+            <input type="text" id="sheet-xfer-to-amt" inputmode="decimal" pattern="[0-9.]*" placeholder="0"
+              style="width:100%;border:none;outline:none;font-size:22px;font-weight:700;color:var(--purple);background:transparent;font-family:inherit;padding:0"
+              oninput="calcXferRate('to')">
+          </div>
+        </div>
+        <div id="sheet-xfer-rate-display" style="text-align:center;font-size:11px;color:var(--text2);margin-top:4px"></div>
       </div>
       <input type="hidden" id="sheet-acct">
       <input type="hidden" id="sheet-to-acct">
@@ -3450,6 +3476,8 @@ function setSheetType(t, el){
   document.getElementById('sheet-acct-label').style.display = t==='xfer'?'none':'block';
   document.getElementById('sheet-acct-single').style.display = t==='xfer'?'none':'block';
   document.getElementById('sheet-acct-xfer').style.display = t==='xfer'?'block':'none';
+  const amtWrap=document.getElementById('sheet-amount-wrap');
+  if(amtWrap) amtWrap.style.display=t==='xfer'?'none':'block';
   const fwrap=document.getElementById('sheet-has-foreign-wrap');
   if(fwrap) fwrap.style.display=(t==='in'||t==='xfer')?'none':'block';
   renderSheetCatChips();
@@ -3482,6 +3510,7 @@ function refreshXferSelects(){
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
   if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
+  setTimeout(checkXferCurrency,0);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -3490,6 +3519,48 @@ function swapXferAccts(){
   const tmp=from.value;
   from.value=to.value;
   to.value=tmp;
+  const fa=document.getElementById('sheet-xfer-from-amt');
+  const ta=document.getElementById('sheet-xfer-to-amt');
+  if(fa&&ta){const tv=fa.value;fa.value=ta.value;ta.value=tv;}
+  checkXferCurrency();
+}
+function checkXferCurrency(){
+  const fromId=parseInt(document.getElementById('sheet-from-sel')?.value)||0;
+  const toId=parseInt(document.getElementById('sheet-to-sel')?.value)||0;
+  const fromAcct=accounts.find(a=>a.id===fromId);
+  const toAcct=accounts.find(a=>a.id===toId);
+  const wrap=document.getElementById('sheet-xfer-fx-wrap');
+  if(!wrap) return;
+  if(fromAcct&&toAcct&&fromAcct.currency!==toAcct.currency){
+    wrap.style.display='block';
+    const fb=document.getElementById('sheet-xfer-from-cur-badge');
+    const tb=document.getElementById('sheet-xfer-to-cur-badge');
+    if(fb) fb.textContent=fromAcct.currency;
+    if(tb) tb.textContent=toAcct.currency;
+    calcXferRate('');
+  } else {
+    wrap.style.display='none';
+    const el=document.getElementById('sheet-xfer-rate-display');
+    if(el) el.textContent='';
+  }
+}
+function calcXferRate(changed){
+  const fromId=parseInt(document.getElementById('sheet-from-sel')?.value)||0;
+  const toId=parseInt(document.getElementById('sheet-to-sel')?.value)||0;
+  const fromAcct=accounts.find(a=>a.id===fromId);
+  const toAcct=accounts.find(a=>a.id===toId);
+  const fa=document.getElementById('sheet-xfer-from-amt');
+  const ta=document.getElementById('sheet-xfer-to-amt');
+  const fromAmt=parseFloat(fa?.value)||0;
+  const toAmt=parseFloat(ta?.value)||0;
+  const el=document.getElementById('sheet-xfer-rate-display');
+  if(!el||!fromAcct||!toAcct) return;
+  if(fromAmt>0&&toAmt>0){
+    const rate=fromAmt/toAmt;
+    el.textContent=`匯率：1 ${toAcct.currency} = ${rate.toFixed(4)} ${fromAcct.currency}`;
+  } else {
+    el.textContent='';
+  }
 }
 function updateSheetXferSub(){
   const cat=document.getElementById('sheet-xfer-cat')?.value;
@@ -3800,7 +3871,13 @@ function addTxnFromSheet(){
     : null;
   if(sheetType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
   const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
-  const cur=document.getElementById('sheet-currency').value;
+  const fromAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===acctId):null;
+  const toAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===toAcctId):null;
+  const isFxXfer=sheetType==='xfer'&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
+  const xferFromAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0):0;
+  const xferToAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-to-amt')?.value)||0):0;
+  if(isFxXfer&&(xferFromAmt<=0||xferToAmt<=0)){alert('請填入轉出及到帳金額');return;}
+  const cur=isFxXfer?toAcctObj.currency:document.getElementById('sheet-currency').value;
   const date=document.getElementById('sheet-date').value||todayStr();
   const note=document.getElementById('sheet-note').value;
   const proj=document.getElementById('sheet-project').value||null;
@@ -3847,8 +3924,14 @@ function addTxnFromSheet(){
   } else {
     const xferCat=sheetType==='xfer'?(document.getElementById('sheet-xfer-cat')?.value||null):null;
     const xferSub=sheetType==='xfer'?(document.getElementById('sheet-xfer-sub')?.value||null):null;
-    const newTxn={id:Date.now(),type:sheetType,amount:amt,currency:cur,cat,date,note,project:proj,acctId,toAcctId,tag,
-      foreignFee:foreignFee||0, xferCat, xferSub,
+    const finalAmt=isFxXfer?xferToAmt:amt;
+    const fromAmountSave=isFxXfer?xferFromAmt:undefined;
+    const fxRateSave=isFxXfer&&xferToAmt>0?(xferFromAmt/xferToAmt):undefined;
+    const autoNote=isFxXfer&&!note?`換匯：${xferFromAmt} ${fromAcctObj.currency} → ${xferToAmt} ${toAcctObj.currency}（匯率 ${fxRateSave?.toFixed(4)}）`:'';
+    const newTxn={id:Date.now(),type:sheetType,amount:finalAmt,currency:cur,cat,date,
+      note:note||autoNote,project:proj,acctId,toAcctId,tag,
+      fromAmount:fromAmountSave,fxRate:fxRateSave,
+      foreignFee:foreignFee||0,xferCat,xferSub,
       receiptUrl:document.getElementById('sheet-receipt-url')?.value||null};
     txns.unshift(newTxn);
     syncInvestCash(newTxn);
@@ -3860,6 +3943,10 @@ function addTxnFromSheet(){
   const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
   const srate=document.getElementById('sheet-inst-rate'); if(srate) srate.value='';
   const sfee=document.getElementById('sheet-foreign-fee'); if(sfee) sfee.value='';
+  const sxferfrom=document.getElementById('sheet-xfer-from-amt'); if(sxferfrom) sxferfrom.value='';
+  const sxferto=document.getElementById('sheet-xfer-to-amt'); if(sxferto) sxferto.value='';
+  const sxferrate=document.getElementById('sheet-xfer-rate-display'); if(sxferrate) sxferrate.textContent='';
+  const sxferwrap=document.getElementById('sheet-xfer-fx-wrap'); if(sxferwrap) sxferwrap.style.display='none';
   const shasf=document.getElementById('sheet-has-foreign'); if(shasf) shasf.checked=false;
   const sfwrap=document.getElementById('sheet-foreign-wrap'); if(sfwrap) sfwrap.style.display='none';
   const stotal=document.getElementById('sheet-total-display'); if(stotal) stotal.value='';
