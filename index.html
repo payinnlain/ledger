@@ -2019,8 +2019,21 @@ function editTxn(id){
   const catOpts=cats.map(c=>`<option${c===t.cat?' selected':''}>${c}</option>`).join('');
   const curOpts=['TWD','USD','EUR','JPY','KRW','IDR','CNY','HKD','GBP','BTC','ETH','SOL','USDT','USDC','BNB','XRP']
     .map(c=>`<option${c===t.currency?' selected':''}>${c}</option>`).join('');
-  const acctOpts=accounts.map(a=>`<option value="${a.id}"${a.id===t.acctId?' selected':''}>${a.name} (${a.currency})</option>`).join('');
-  const toAcctOpts=accounts.map(a=>`<option value="${a.id}"${a.id===t.toAcctId?' selected':''}>${a.name} (${a.currency})</option>`).join('');
+  const editAcctOrder=['credit','bank','cash','prepaid','invest','crypto','loan'];
+  const editAcctGroupLabel={'bank':'🏦 銀行帳戶','cash':'💵 現金','prepaid':'🎴 預付/儲值','credit':'💳 信用卡','invest':'📈 投資帳戶','crypto':'🪙 加密貨幣','loan':'🏛 貸款'};
+  function buildEditAcctOpts(selId){
+    let html='';
+    editAcctOrder.forEach(type=>{
+      const list=accounts.filter(a=>a.type===type);
+      if(!list.length) return;
+      html+=`<optgroup label="${editAcctGroupLabel[type]}">`;
+      list.forEach(a=>{ html+=`<option value="${a.id}"${a.id===selId?' selected':''}>${a.name} (${a.currency})</option>`; });
+      html+='</optgroup>';
+    });
+    return html;
+  }
+  const acctOpts=buildEditAcctOpts(t.acctId);
+  const toAcctOpts=buildEditAcctOpts(t.toAcctId);
   const isXfer=t.type==='xfer';
   const acctLabel=isXfer?'轉出帳戶':'帳戶';
   const isMobile=window.innerWidth<=640;
@@ -3868,13 +3881,11 @@ function addTxnFromSheet(){
     : null;
   if(sheetType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
   const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
-  // 跨幣轉帳：幣別用轉入帳戶，fromAmount=轉出金額
   const fromAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===acctId):null;
   const toAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===toAcctId):null;
   const isFxXfer=sheetType==='xfer'&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
   const xferFromAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0):0;
   const xferToAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-to-amt')?.value)||0):0;
-  // 驗證金額：跨幣看雙欄，一般看 amt
   if(isFxXfer){
     if(xferFromAmt<=0||xferToAmt<=0){alert('請填入轉出及到帳金額');return;}
   } else {
