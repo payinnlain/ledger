@@ -1749,7 +1749,9 @@ function setType(t,el){
   document.getElementById('txn-to-wrap').style.display=t==='xfer'?'':'none';
   // For transfer, show all accounts
   if(t==='xfer'){
-    const allOpts=accounts.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('');
+    const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
+    const sorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+    const allOpts=sorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name} (${a.currency})</option>`).join('');
     const fromEl=document.getElementById('txn-acct');
     const toEl=document.getElementById('txn-to-acct');
     if(fromEl) fromEl.innerHTML=allOpts;
@@ -3506,7 +3508,7 @@ function renderSheetAcctChips(){
   }
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
-    toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
+    toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'', true);
     toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
   }
 }
