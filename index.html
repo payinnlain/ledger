@@ -3075,7 +3075,7 @@ function renderDueReminder(){
   overdue.forEach(a=>{
     const diff=dayDiff(a.adjDue);
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:8px;height:8px;border-radius:50%;background:${a.type==='ar'?'var(--green)':\'var(--red)'};flex-shrink:0"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
         <span style="background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
@@ -3094,7 +3094,7 @@ function renderDueReminder(){
     const badgeBg=diff===0?'#FFF7ED':diff<=3?'#FFFBEB':'#EFF6FF';
     const badgeColor=diff===0?'#9A3412':diff<=3?'#92400E':'#1D4ED8';
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:8px;height:8px;border-radius:50%;background:${a.type==='ar'?'var(--green)':\'var(--red)'};flex-shrink:0"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:${a.type==='ar'?'var(--green)':'var(--red)'};flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
         <span style="background:${badgeBg};color:${badgeColor};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${dayLabel(diff)}</span>
