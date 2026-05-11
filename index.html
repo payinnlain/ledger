@@ -2990,7 +2990,7 @@ function renderTotalAssets(){
         '<div style="display:flex;align-items:center;gap:6px;min-width:0">'+
           '<input type="text" id="usd-twd-rate" value="'+(manualFxRate||'')+
             '" placeholder="例：31.5" inputmode="decimal"'+
-            ' style="flex:1;min-width:0;padding:5px 8px;font-family:inherit;font-size:15px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center;box-sizing:border-box">'+
+            ' style="flex:1;min-width:0;padding:5px 8px;box-sizing:border-box;font-family:inherit;font-size:15px;font-weight:600;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.2);color:inherit;text-align:center">'+
           '<button onclick="saveManualFxRate(document.getElementById(\'usd-twd-rate\').value)"'+
             ' style="flex-shrink:0;padding:5px 12px;font-size:12px;font-weight:500;border:0.5px solid rgba(255,255,255,0.4);border-radius:6px;background:rgba(255,255,255,0.25);color:inherit;cursor:pointer;font-family:inherit">套用</button>'+
         '</div>'+
@@ -3336,6 +3336,52 @@ function addProject(){
   renderProjects();
   refreshProjectSelect();
 }
+function editProject(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  const inpStyle='font-family:inherit;font-size:13px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box';
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(400px,calc(100vw - 24px));box-sizing:border-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">編輯專案</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">專案名稱</label>
+          <input type="text" id="ep-name" value="${p.name}" style="${inpStyle}">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">預算金額（TWD，選填）</label>
+          <input type="number" id="ep-budget" value="${p.budget||''}" placeholder="不限" inputmode="numeric" style="${inpStyle}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">開始月份</label>
+            <input type="month" id="ep-start" value="${p.startMonth||''}" style="${inpStyle}">
+          </div>
+          <div class="form-group">
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">結束月份</label>
+            <input type="month" id="ep-end" value="${p.endMonth||''}" style="${inpStyle}">
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 16px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="saveEditProject(${id})" class="btn-primary">儲存</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function saveEditProject(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  const name=document.getElementById('ep-name').value.trim();
+  if(!name){alert('請輸入專案名稱');return;}
+  const budget=parseFloat(document.getElementById('ep-budget').value)||null;
+  const startMonth=document.getElementById('ep-start').value||null;
+  const endMonth=document.getElementById('ep-end').value||null;
+  p.name=name; p.budget=budget; p.startMonth=startMonth; p.endMonth=endMonth;
+  sv(); closeEdit(); renderProjects(); refreshProjectSelect(); refreshSheetProjectSelect();
+}
 function deleteProject(id){
   if(!confirm('刪除此專案？相關交易的專案標籤會移除。')) return;
   projects=projects.filter(p=>p.id!==id);
@@ -3367,7 +3413,10 @@ function renderProjects(){
           <span style="font-size:12px;color:var(--text2)">${ptxns.length} 筆</span>
           ${p.startMonth||p.endMonth?`<span style="font-size:11px;color:var(--text2);background:var(--bg2);padding:1px 7px;border-radius:8px">${p.startMonth||'?'} ～ ${p.endMonth||'進行中'}</span>`:''}
         </div>
-        <button class="btn-sm danger" onclick="deleteProject(${p.id})">刪除</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm" onclick="editProject(${p.id})">編輯</button>
+          <button class="btn-sm danger" onclick="deleteProject(${p.id})">刪除</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:${pct!==null?'10px':'0'}">
         <div style="text-align:center">
