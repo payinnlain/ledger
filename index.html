@@ -1400,7 +1400,11 @@ function refreshAcctSelects(){
   const ta=document.getElementById('txn-acct');
   if(ta) ta.onchange=populateCats;
   const fa=document.getElementById('filter-acct');
-  if(fa) fa.innerHTML='<option value="">全部帳戶</option>'+accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  if(fa){
+    const TYPE_ORDER=['cash','credit','bank','prepaid','invest','crypto','loan'];
+    const faSorted=[...accounts].sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+    fa.innerHTML='<option value="">全部帳戶</option>'+faSorted.map(a=>`<option value="${a.id}">${ICONS[a.type]} ${a.name}</option>`).join('');
+  }
 }
 function loanProgress(a){
   if(!a.loanMonths) return '';
