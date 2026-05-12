@@ -1881,19 +1881,30 @@ function deleteTxn(id){
   }
 }
 function reverseInvestCash(t){
-  if(t.type!=='xfer') return;
-  if(t.toAcctId){
-    const toAcct=accounts.find(a=>a.id===t.toAcctId);
-    if(toAcct&&toAcct.type==='invest'){
-      toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
+  // 轉帳進投資帳戶 → 刪除時扣回
+  if(t.type==='xfer'){
+    if(t.toAcctId){
+      const toAcct=accounts.find(a=>a.id===t.toAcctId);
+      if(toAcct&&(toAcct.type==='invest'||toAcct.type==='crypto')){
+        toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
+      }
+    }
+    if(t.acctId){
+      const fromAcct=accounts.find(a=>a.id===t.acctId);
+      if(fromAcct&&(fromAcct.type==='invest'||fromAcct.type==='crypto')){
+        fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
+      }
+    }
+    return;
+  }
+  // 換匯到帳（收入記錄到投資帳戶）→ 刪除時扣回
+  if(t.type==='in'&&t.acctId){
+    const acct=accounts.find(a=>String(a.id)===String(t.acctId));
+    if(acct&&(acct.type==='invest'||acct.type==='crypto')){
+      acct.investCash=Math.max(0,(acct.investCash||0)-t.amount);
     }
   }
-  if(t.acctId){
-    const fromAcct=accounts.find(a=>a.id===t.acctId);
-    if(fromAcct&&fromAcct.type==='invest'){
-      fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
-    }
-  }
+  // 換匯支出（應付結清，investCash 已加過）→ 若備註包含「換匯到帳」則不額外處理
 }
 function doDeleteTxn(id, mode){
   const t=txns.find(x=>x.id===id);
