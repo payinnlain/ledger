@@ -3220,7 +3220,7 @@ function renderPieChart(){
   const pieTitle=document.getElementById('pie-chart-title');
   if(pieTitle) pieTitle.textContent=`支出分類`;
   const MV_TAGS=['市值紀錄','餘額調整'];
-  const pieIn=Math.round(pieMT.filter(t=>t.type==='in'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieIn=Math.round(pieMT.filter(t=>t.type==='in'&&!MV_TAGS.includes(t.tag)&&t.cat!=='暫收').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieInMv=Math.round(pieMT.filter(t=>t.type==='in'&&MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieOutMv=Math.round(pieMT.filter(t=>t.type==='out'&&MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieInvest=pieInMv-pieOutMv; // 投資淨損益
