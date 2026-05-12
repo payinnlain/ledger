@@ -4809,6 +4809,7 @@ function drillDownCat(cat){
 function saveManualFxRate(val){
   manualFxRate=parseFloat(val)||0;
   localStorage.setItem('manualFxRate', manualFxRate);
+  sv();
   renderDashboard();
 }
 function switchTab(t,el){
