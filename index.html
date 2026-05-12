@@ -530,18 +530,26 @@
 
   <!-- TAGS -->
   <div id="tab-ledger" class="panel">
-    <div class="section-header" style="margin-bottom:12px">
-      <span class="section-title">分類帳</span>
-      <div style="display:flex;gap:8px;align-items:center">
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="section-title">分類帳</span>
         <select id="ledger-type" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
           <option value="out">支出</option>
           <option value="in">收入</option>
         </select>
-        <select id="ledger-period" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select id="ledger-period" onchange="ledgerPeriodChange()" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
           <option value="all">全部期間</option>
           <option value="year">今年</option>
           <option value="month">本月</option>
+          <option value="custom">自訂</option>
         </select>
+        <div id="ledger-custom-wrap" style="display:none;display:flex;gap:4px;align-items:center">
+          <input type="month" id="ledger-from" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <span style="font-size:12px;color:var(--text2)">～</span>
+          <input type="month" id="ledger-to" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        </div>
       </div>
     </div>
     <div id="ledger-content"></div>
@@ -4835,6 +4843,12 @@ function drillDownCat(cat){
   setTimeout(()=>renderTxnList(), 150);
 }
 
+function ledgerPeriodChange(){
+  const period=document.getElementById('ledger-period')?.value;
+  const wrap=document.getElementById('ledger-custom-wrap');
+  if(wrap) wrap.style.display=period==='custom'?'flex':'none';
+  renderLedger();
+}
 function renderLedger(){
   const el=document.getElementById('ledger-content'); if(!el) return;
   const type=document.getElementById('ledger-type')?.value||'out';
@@ -4842,11 +4856,17 @@ function renderLedger(){
   const today=todayStr();
   const thisY=today.slice(0,4);
   const thisM=today.slice(0,7);
+  const fromM=document.getElementById('ledger-from')?.value||'';
+  const toM=document.getElementById('ledger-to')?.value||'';
 
   // 篩出符合條件的交易
   let filtered=txns.filter(t=>t.type===type);
-  if(period==='year')  filtered=filtered.filter(t=>t.date.startsWith(thisY));
-  if(period==='month') filtered=filtered.filter(t=>t.date.startsWith(thisM));
+  if(period==='year')   filtered=filtered.filter(t=>t.date.startsWith(thisY));
+  if(period==='month')  filtered=filtered.filter(t=>t.date.startsWith(thisM));
+  if(period==='custom'){
+    if(fromM) filtered=filtered.filter(t=>t.date.slice(0,7)>=fromM);
+    if(toM)   filtered=filtered.filter(t=>t.date.slice(0,7)<=toM);
+  }
 
   // 按分類分組
   const groups={};
@@ -4857,8 +4877,15 @@ function renderLedger(){
     groups[cat].txns.push(t);
   });
 
-  // 按金額排序
-  const cats=Object.keys(groups).sort((a,b)=>groups[b].total-groups[a].total);
+  // 按照收支頁分類順序排列，未在清單的排最後
+  const catOrder=type==='in'?CATS_IN:CATS_OUT;
+  const cats=Object.keys(groups).sort((a,b)=>{
+    const ai=catOrder.indexOf(a), bi=catOrder.indexOf(b);
+    if(ai===-1&&bi===-1) return groups[b].total-groups[a].total;
+    if(ai===-1) return 1;
+    if(bi===-1) return -1;
+    return ai-bi;
+  });
   const grandTotal=cats.reduce((s,c)=>s+groups[c].total,0);
 
   if(!cats.length){
