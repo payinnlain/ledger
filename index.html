@@ -2491,11 +2491,15 @@ function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date,
     cat, date, note:`結清：${a.name} (${origAmt} ${origCur}，${rateStr})`,
     tag:sub||null, acctId:debitAcctId, toAcctId:null, project:null,
     foreignFee:fee||0});
-  // 若指定了投資/加密帳戶，把原幣金額加入 investCash（用字串比對 id）
+  // 若指定了投資/加密帳戶，把原幣金額加入 investCash，並建立收入記錄
   if(investAcctIdStr){
     const investAcct=accounts.find(x=>String(x.id)===String(investAcctIdStr));
     if(investAcct && (investAcct.type==='invest'||investAcct.type==='crypto')){
       investAcct.investCash=(investAcct.investCash||0)+origAmt;
+      // 建立到帳記錄（轉入投資帳戶）
+      txns.unshift({id:Date.now()+1, type:'in', amount:origAmt, currency:origCur,
+        cat, date, note:`換匯到帳：${a.name} (${origAmt} ${origCur})`,
+        tag:sub||null, acctId:investAcct.id, toAcctId:null, project:null});
     }
   }
   if(a.recurring && a.freq && a.due){
