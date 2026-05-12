@@ -2533,10 +2533,10 @@ function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date,
     const investAcct=accounts.find(x=>String(x.id)===String(investAcctIdStr));
     if(investAcct && (investAcct.type==='invest'||investAcct.type==='crypto')){
       investAcct.investCash=(investAcct.investCash||0)+origAmt;
-      // 建立到帳記錄（轉入投資帳戶）
+      // 建立到帳記錄（轉入投資帳戶），標記為換匯到帳不計入分類帳
       txns.unshift({id:Date.now()+1, type:'in', amount:origAmt, currency:origCur,
         cat, date, note:`換匯到帳：${a.name} (${origAmt} ${origCur})`,
-        tag:sub||null, acctId:investAcct.id, toAcctId:null, project:null});
+        tag:sub||null, acctId:investAcct.id, toAcctId:null, project:null, isXferIn:true});
     }
   }
   if(a.recurring && a.freq && a.due){
@@ -4859,8 +4859,8 @@ function renderLedger(){
   const fromM=document.getElementById('ledger-from')?.value||'';
   const toM=document.getElementById('ledger-to')?.value||'';
 
-  // 篩出符合條件的交易
-  let filtered=txns.filter(t=>t.type===type);
+  // 篩出符合條件的交易（排除換匯到帳記錄）
+  let filtered=txns.filter(t=>t.type===type&&!t.isXferIn&&!(t.note&&t.note.startsWith('換匯到帳：')));
   if(period==='year')   filtered=filtered.filter(t=>t.date.startsWith(thisY));
   if(period==='month')  filtered=filtered.filter(t=>t.date.startsWith(thisM));
   if(period==='custom'){
