@@ -2462,7 +2462,7 @@ function openApFxGeneralModal(arId, a, debitAcct, date, cat, sub){
       </div>
       <div style="text-align:right;margin-top:14px">
         <button onclick="closeEdit()" style="margin-right:8px;padding:7px 14px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
-        <button onclick="confirmApFxGeneral(${arId},${debitAcct.id},'${debitAcct.currency}',${a.amount},'${a.currency}','${date}','${cat}','${sub||''}',parseInt(document.getElementById('apfx-invest-acct')?.value)||0)"
+        <button onclick="confirmApFxGeneral(${arId},${debitAcct.id},'${debitAcct.currency}',${a.amount},'${a.currency}','${date}','${cat}','${sub||''}',document.getElementById('apfx-invest-acct')?.value||'')"
           style="padding:7px 14px;font-size:13px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">確認結清</button>
       </div>
     </div>`;
@@ -2479,7 +2479,7 @@ function updateApFxGeneral(origAmt){
   if(debit>0&&fee>0) lines+=`合計扣款：${(debit+fee).toLocaleString('zh-TW',{maximumFractionDigits:2})}`;
   el.innerHTML=lines;
 }
-function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date, cat, sub, investAcctId){
+function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date, cat, sub, investAcctIdStr){
   const debit=parseFloat(document.getElementById('apfx-debit')?.value)||0;
   const fee=parseFloat(document.getElementById('apfx-fee')?.value)||0;
   if(debit<=0){alert('請輸入實際扣款金額');return;}
@@ -2491,9 +2491,9 @@ function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date,
     cat, date, note:`結清：${a.name} (${origAmt} ${origCur}，${rateStr})`,
     tag:sub||null, acctId:debitAcctId, toAcctId:null, project:null,
     foreignFee:fee||0});
-  // 若指定了投資/加密帳戶，把原幣金額加入 investCash
-  if(investAcctId){
-    const investAcct=accounts.find(x=>x.id===investAcctId);
+  // 若指定了投資/加密帳戶，把原幣金額加入 investCash（用字串比對 id）
+  if(investAcctIdStr){
+    const investAcct=accounts.find(x=>String(x.id)===String(investAcctIdStr));
     if(investAcct && (investAcct.type==='invest'||investAcct.type==='crypto')){
       investAcct.investCash=(investAcct.investCash||0)+origAmt;
     }
