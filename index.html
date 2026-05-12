@@ -3220,19 +3220,20 @@ function renderPieChart(){
   const pieTitle=document.getElementById('pie-chart-title');
   if(pieTitle) pieTitle.textContent=`支出分類`;
   const pieIn=Math.round(pieMT.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
-  const pieOutAll=Math.round(pieMT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
-  const pieOutOther=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat==='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
-  const pieOut=pieOutAll; // 顯示總支出（含其他）
+  const MV_TAGS=['市值紀錄','餘額調整'];
+  const pieOutCat=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOutOther=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat==='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOutAll=pieOutCat+pieOutOther;
   const pieNet=pieIn-pieOutAll;
   const pieSummaryEl=document.getElementById('pie-summary');
   if(pieSummaryEl) pieSummaryEl.innerHTML=`
     <div style="display:flex;gap:12px;margin-bottom:8px;font-size:12px;flex-wrap:wrap">
       <span style="color:var(--green)">+${pieIn.toLocaleString()}</span>
-      <span style="color:var(--red)">-${pieOutAll.toLocaleString()}${pieOutOther>0?` <span style="color:var(--text2);font-size:10px">（其他 ${pieOutOther.toLocaleString()}）</span>`:''}</span>
+      <span style="color:var(--red)">-${pieOutCat.toLocaleString()}${pieOutOther>0?` <span style="color:var(--text2);font-size:10px">+其他 ${pieOutOther.toLocaleString()}</span>`:''}</span>
       <span style="color:${pieNet>=0?'var(--green)':'var(--red)'}">結餘 ${pieNet.toLocaleString()}</span>
     </div>`;
   const catSpend={};
-  pieMT.filter(t=>t.type==='out').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
+  pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!MV_TAGS.includes(t.tag)).forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
   const cV=cL.map(cat=>Math.round(catSpend[cat]));
   const totalCatOut=cV.reduce((s,v)=>s+v,0);
