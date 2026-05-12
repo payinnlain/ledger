@@ -4920,7 +4920,7 @@ function renderLedger(){
               // 按細項（sub）分組
               const subGroups={};
               sorted.forEach(t=>{
-                const sub=t.sub||'（未分細項）';
+                const sub=t.tag||'（未分細項）';
                 if(!subGroups[sub]) subGroups[sub]={total:0,txns:[]};
                 subGroups[sub].total+=twdEq(t.amount,t.currency);
                 subGroups[sub].txns.push(t);
