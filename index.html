@@ -4914,19 +4914,63 @@ function renderLedger(){
             </div>
             <span style="font-size:14px;font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${type==='in'?'+':'-'}${Math.round(g.total).toLocaleString()}</span>
           </div>
-          <!-- 明細（預設收合） -->
+          <!-- 明細（預設收合）：先按細項分組，再列逐筆 -->
           <div style="display:none;margin-top:8px;border-top:0.5px solid var(--border);padding-top:8px">
-            ${sorted.map(t=>`
-              <div onclick="switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)"
-                style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:13px"
-                onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-                <div style="min-width:0;flex:1">
-                  <span style="color:var(--text2)">${t.date}</span>
-                  <span style="color:var(--text);margin-left:6px">${t.note||''}</span>
-                  ${t.tag?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px;margin-left:4px">${t.tag}</span>`:''}
-                </div>
-                <span style="flex-shrink:0;margin-left:8px;font-weight:500;color:${type==='in'?'var(--green)':'var(--red)'}">${fmt(t.amount,t.currency)}</span>
-              </div>`).join('')}
+            ${(()=>{
+              // 按細項（sub）分組
+              const subGroups={};
+              sorted.forEach(t=>{
+                const sub=t.sub||'（未分細項）';
+                if(!subGroups[sub]) subGroups[sub]={total:0,txns:[]};
+                subGroups[sub].total+=twdEq(t.amount,t.currency);
+                subGroups[sub].txns.push(t);
+              });
+              const hasSub=Object.keys(subGroups).length>1||!subGroups['（未分細項）'];
+              if(!hasSub){
+                // 沒有細項，直接列明細
+                return sorted.map(t=>`
+                  <div onclick="switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)"
+                    style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:13px"
+                    onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+                    <div style="min-width:0;flex:1">
+                      <span style="color:var(--text2)">${t.date}</span>
+                      <span style="color:var(--text);margin-left:6px">${t.note||''}</span>
+                      ${t.tag?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px;margin-left:4px">${t.tag}</span>`:''}
+                    </div>
+                    <span style="flex-shrink:0;margin-left:8px;font-weight:500;color:${type==='in'?'var(--green)':'var(--red)'}">${fmt(t.amount,t.currency)}</span>
+                  </div>`).join('');
+              }
+              // 有細項，按細項分組顯示
+              return Object.keys(subGroups).sort().map(sub=>{
+                const sg=subGroups[sub];
+                const subSorted=[...sg.txns].sort((a,b)=>b.date.localeCompare(a.date));
+                const uid='sub_'+Math.random().toString(36).slice(2);
+                return `
+                  <!-- 細項標題 -->
+                  <div onclick="document.getElementById('${uid}').style.display=document.getElementById('${uid}').style.display==='none'?'block':'none'"
+                    style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer;background:var(--bg2);margin:0 -14px;padding:6px 14px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:12px;font-weight:500;color:var(--text)">${sub==='（未分細項）'?'其他':sub}</span>
+                      <span style="font-size:10px;color:var(--text2)">${sg.txns.length} 筆</span>
+                    </div>
+                    <span style="font-size:12px;font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${type==='in'?'+':'-'}${Math.round(sg.total).toLocaleString()}</span>
+                  </div>
+                  <!-- 細項明細（預設收合） -->
+                  <div id="${uid}" style="display:none">
+                    ${subSorted.map(t=>`
+                      <div onclick="switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)"
+                        style="display:flex;justify-content:space-between;align-items:center;padding:5px 0 5px 12px;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:12px"
+                        onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+                        <div style="min-width:0;flex:1">
+                          <span style="color:var(--text2)">${t.date}</span>
+                          <span style="color:var(--text);margin-left:6px">${t.note||''}</span>
+                          ${t.tag?`<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 5px;border-radius:6px;margin-left:4px">${t.tag}</span>`:''}
+                        </div>
+                        <span style="flex-shrink:0;margin-left:8px;font-weight:500;color:${type==='in'?'var(--green)':'var(--red)'}">${fmt(t.amount,t.currency)}</span>
+                      </div>`).join('')}
+                  </div>`;
+              }).join('');
+            })()}
             <div style="text-align:right;font-size:12px;color:var(--text2);padding-top:6px">
               小計 <span style="font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${Math.round(g.total).toLocaleString()} TWD</span>
             </div>
