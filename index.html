@@ -3227,13 +3227,16 @@ function renderPieChart(){
   const pieOutCat=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieOutOther=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat==='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieOutAll=pieOutCat+pieOutOther;
-  const pieNet=pieIn-pieOutAll;
+  const pieNet=pieIn-pieOutCat; // 結餘 = 一般收入 - 有分類支出（排除其他支出和市值調整）
   const pieSummaryEl=document.getElementById('pie-summary');
+  const pieInTempRecv=Math.round(pieMT.filter(t=>t.type==='in'&&t.cat==='暫收').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   if(pieSummaryEl) pieSummaryEl.innerHTML=`
-    <div style="display:flex;gap:12px;margin-bottom:8px;font-size:12px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:8px;margin-bottom:8px;font-size:12px;flex-wrap:wrap;align-items:center">
       <span style="color:var(--green)">+${pieIn.toLocaleString()} <span style="color:var(--text2);font-size:10px">收入</span></span>
+      ${pieInTempRecv>0?`<span onclick="drillDownCat('暫收')" style="color:var(--text2);font-size:10px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">暫收 ${pieInTempRecv.toLocaleString()} ›</span>`:''}
       ${pieInvest!==0?`<span style="color:${pieInvest>=0?'var(--green)':'var(--red)'};">${pieInvest>=0?'+':''}${pieInvest.toLocaleString()} <span style="color:var(--text2);font-size:10px">投資損益</span></span>`:''}
-      <span style="color:var(--red)">-${pieOutCat.toLocaleString()}${pieOutOther>0?` <span style="color:var(--text2);font-size:10px">+其他 ${pieOutOther.toLocaleString()}</span>`:''} <span style="color:var(--text2);font-size:10px">支出</span></span>
+      <span style="color:var(--red)">-${pieOutCat.toLocaleString()} <span style="color:var(--text2);font-size:10px">支出</span></span>
+      ${pieOutOther>0?`<span onclick="drillDownCat('其他支出')" style="color:var(--text2);font-size:10px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">其他 ${pieOutOther.toLocaleString()} ›</span>`:''}
       <span style="color:${pieNet>=0?'var(--green)':'var(--red)'}">結餘 ${pieNet.toLocaleString()}</span>
     </div>`;
   const catSpend={};
