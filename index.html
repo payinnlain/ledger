@@ -4696,26 +4696,29 @@ function quickCreditPayment(id){
   if(!a) return;
   // Calculate this period bill（優先用手動覆蓋金額）
   let thisBillPay=0;
-  if(a.manualBill){
-    thisBillPay=a.manualBill;
-  } else if(a.billDay){
+  let currBill2=null;
+  if(a.billDay){
     const td2=new Date(); td2.setHours(0,0,0,0);
     const d2=td2.getDate();
-    let currBill2;
     if(d2>=a.billDay){ currBill2=new Date(td2.getFullYear(),td2.getMonth(),a.billDay); }
     else { currBill2=new Date(td2.getFullYear(),td2.getMonth()-1,a.billDay); }
-    const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
-    const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-    const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-    const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
-    thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
+    if(a.manualBill){
+      thisBillPay=a.manualBill;
+    } else {
+      const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
+      const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
+      thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
+    }
+  } else if(a.manualBill){
+    thisBillPay=a.manualBill;
   }
-  // Calculate due date：從已結帳日（currBill2）加 dueDays
+  // Calculate due date：從已結帳日加 dueDays
   let dueDateStr=todayStr();
-  if(a.billDay){
-    // currBill2 已在上方算好（4/11～5/11 的話 currBill2 = 5/11）
+  if(currBill2&&a.dueDays){
     const dueDate=new Date(currBill2.getTime());
-    if(a.dueDays){ dueDate.setDate(dueDate.getDate()+parseInt(a.dueDays)); }
+    dueDate.setDate(dueDate.getDate()+parseInt(a.dueDays));
     dueDateStr=dueDate.toISOString().slice(0,10);
   }
   // Build bank account options
