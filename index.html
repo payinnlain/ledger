@@ -1249,7 +1249,11 @@ function editAccount(id){
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">付款期限（結帳後幾天）</label>
           <input type="number" id="ea-duedays" value="${a.dueDays||''}" min="1" max="60" placeholder="例：25" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">信用額度</label>
-          <input type="number" id="ea-limit" value="${a.creditLimit||''}" min="0" step="1000" placeholder="例：100000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>`:''}
+          <input type="number" id="ea-limit" value="${a.creditLimit||''}" min="0" step="1000" placeholder="例：100000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:var(--text2)">本期帳單金額（手動覆蓋，選填）</label>
+          <input type="number" id="ea-manual-bill" value="${a.manualBill||''}" min="0" step="1" placeholder="留空 = 自動計算" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">輸入後繳費按鈕會以此金額為準，繳費完成請清空</div>
+        </div>`:''}
         ${a.type==='loan'?`<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">貸款總金額</label>
           <input type="number" id="ea-loantotal" value="${a.loanTotal||''}" min="0" step="1000" placeholder="例：3000000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">年利率（%）</label>
@@ -1284,6 +1288,7 @@ function saveAccountEdit(id){
     a.billDay=parseInt(document.getElementById('ea-billday')?.value)||null;
     a.dueDays=parseInt(document.getElementById('ea-duedays')?.value)||null;
     a.creditLimit=parseFloat(document.getElementById('ea-limit')?.value)||null;
+    a.manualBill=parseFloat(document.getElementById('ea-manual-bill')?.value)||null;
     a.loanTotal=null; a.loanRate=null; a.loanDay=null; a.loanPayment=null;
   } else if(a.type==='loan'){
     a.loanTotal=parseFloat(document.getElementById('ea-loantotal')?.value)||null;
@@ -4689,9 +4694,11 @@ function confirmCreditAdj(id, currentAmt, currency){
 function quickCreditPayment(id){
   const a=accounts.find(x=>x.id===id);
   if(!a) return;
-  // Calculate this period bill
+  // Calculate this period bill（優先用手動覆蓋金額）
   let thisBillPay=0;
-  if(a.billDay){
+  if(a.manualBill){
+    thisBillPay=a.manualBill;
+  } else if(a.billDay){
     const td2=new Date(); td2.setHours(0,0,0,0);
     const d2=td2.getDate();
     let currBill2;
@@ -4703,15 +4710,13 @@ function quickCreditPayment(id){
     const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
     thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
   }
-  // Calculate due date
+  // Calculate due date：從已結帳日（currBill2）加 dueDays
   let dueDateStr=todayStr();
   if(a.billDay){
-    const td=new Date(); const d=td.getDate();
-    let bm=td.getMonth(), by=td.getFullYear();
-    if(d>=a.billDay){bm+=1; if(bm>11){bm=0;by+=1;}}
-    const billDate=new Date(by,bm,a.billDay);
-    if(a.dueDays){ billDate.setDate(billDate.getDate()+parseInt(a.dueDays)); }
-    dueDateStr=billDate.toISOString().slice(0,10);
+    // currBill2 已在上方算好（4/11～5/11 的話 currBill2 = 5/11）
+    const dueDate=new Date(currBill2.getTime());
+    if(a.dueDays){ dueDate.setDate(dueDate.getDate()+parseInt(a.dueDays)); }
+    dueDateStr=dueDate.toISOString().slice(0,10);
   }
   // Build bank account options
   const bankAccts=accounts.filter(x=>x.type==='bank');
@@ -4724,7 +4729,10 @@ function quickCreditPayment(id){
         <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text2)">✕</button>
       </div>
       <div style="background:var(--red-bg);border-radius:var(--radius);padding:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;color:var(--red)">${a.name} 本期帳單</span>
+        <div>
+          <div style="font-size:13px;color:var(--red)">${a.name} 本期帳單</div>
+          <div style="font-size:10px;color:var(--red);opacity:0.7;margin-top:2px">${a.manualBill?'手動設定金額':'系統自動計算'}</div>
+        </div>
         <span style="font-size:18px;font-weight:700;color:var(--red)">${fmt(thisBillPay,a.currency)}</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">
@@ -4764,6 +4772,9 @@ function confirmCreditPayment(creditId, currency){
     acctId:bankId, toAcctId:creditId,
     project:null, tag:null
   });
+  // 繳費後清除手動帳單金額
+  const creditAcct=accounts.find(x=>x.id===creditId);
+  if(creditAcct) creditAcct.manualBill=null;
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 let _detailAcctId=null;
