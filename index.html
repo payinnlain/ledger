@@ -3717,8 +3717,17 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
-  setTimeout(checkXferCurrency,0);
+  if(to){
+    to.innerHTML=opts;
+    // 預設選第二個帳戶（跟 from 不同）
+    const fromId=String(from?.value||'');
+    const second=accounts.find(a=>String(a.id)!==fromId);
+    if(second) to.value=String(second.id);
+  }
+  // 強制更新幣別標籤
+  setTimeout(()=>{
+    checkXferCurrency();
+  },50);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
