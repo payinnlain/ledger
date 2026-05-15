@@ -3681,7 +3681,10 @@ function setSheetType(t, el){
   document.getElementById('sheet-acct-single').style.display = t==='xfer'?'none':'block';
   document.getElementById('sheet-acct-xfer').style.display = t==='xfer'?'block':'none';
   const amtWrap=document.getElementById('sheet-amount-wrap');
-  if(amtWrap) amtWrap.style.display='block'; // 同幣時顯示，跨幣由 checkXferCurrency 隱藏
+  if(amtWrap) amtWrap.style.display=t==='xfer'?'none':'block';
+  // 轉帳永遠顯示雙欄框
+  const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
+  if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
   const fwrap=document.getElementById('sheet-has-foreign-wrap');
   if(fwrap) fwrap.style.display=(t==='in'||t==='xfer')?'none':'block';
   renderSheetCatChips();
@@ -3729,29 +3732,16 @@ function swapXferAccts(){
   checkXferCurrency();
 }
 function checkXferCurrency(){
-  const fromId=parseInt(document.getElementById('sheet-from-sel')?.value)||0;
-  const toId=parseInt(document.getElementById('sheet-to-sel')?.value)||0;
-  const fromAcct=accounts.find(a=>a.id===fromId);
-  const toAcct=accounts.find(a=>a.id===toId);
-  const fxWrap=document.getElementById('sheet-xfer-fx-wrap');
-  const amtWrap=document.getElementById('sheet-amount-wrap');
-  if(!fxWrap) return;
-  if(fromAcct&&toAcct&&fromAcct.currency!==toAcct.currency){
-    // 跨幣：隱藏一般金額欄，顯示雙欄框
-    if(amtWrap) amtWrap.style.display='none';
-    fxWrap.style.display='block';
-    const fb=document.getElementById('sheet-xfer-from-cur-badge');
-    const tb=document.getElementById('sheet-xfer-to-cur-badge');
-    if(fb) fb.textContent=fromAcct.currency;
-    if(tb) tb.textContent=toAcct.currency;
-    calcXferRate('');
-  } else {
-    // 同幣：顯示一般金額欄，隱藏雙欄框
-    if(amtWrap) amtWrap.style.display='block';
-    fxWrap.style.display='none';
-    const el=document.getElementById('sheet-xfer-rate-display');
-    if(el) el.textContent='';
-  }
+  const fromVal=document.getElementById('sheet-from-sel')?.value||'';
+  const toVal=document.getElementById('sheet-to-sel')?.value||'';
+  const fromAcct=accounts.find(a=>String(a.id)===String(fromVal));
+  const toAcct=accounts.find(a=>String(a.id)===String(toVal));
+  // 永遠顯示雙欄，只更新幣別標籤
+  const fb=document.getElementById('sheet-xfer-from-cur-badge');
+  const tb=document.getElementById('sheet-xfer-to-cur-badge');
+  if(fb) fb.textContent=fromAcct?fromAcct.currency:'TWD';
+  if(tb) tb.textContent=toAcct?toAcct.currency:'TWD';
+  calcXferRate('');
 }
 function calcXferRate(changed){
   const fromId=parseInt(document.getElementById('sheet-from-sel')?.value)||0;
@@ -4084,15 +4074,18 @@ function addTxnFromSheet(){
   const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
   const fromAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===acctId):null;
   const toAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===toAcctId):null;
-  const isFxXfer=sheetType==='xfer'&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
-  const xferFromAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0):0;
-  const xferToAmt=isFxXfer?(parseFloat(document.getElementById('sheet-xfer-to-amt')?.value)||0):0;
-  if(isFxXfer){
-    if(xferFromAmt<=0||xferToAmt<=0){alert('請填入轉出及到帳金額');return;}
+  // 轉帳永遠用雙欄金額（同幣時兩欄相同）
+  const isXfer=sheetType==='xfer';
+  const xferFromAmt=isXfer?(parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0):0;
+  const xferToAmt=isXfer?(parseFloat(document.getElementById('sheet-xfer-to-amt')?.value)||0):0;
+  const isFxXfer=isXfer&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
+  if(isXfer){
+    if(xferFromAmt<=0){alert('請填入轉出金額');return;}
+    if(xferToAmt<=0){alert('請填入轉入金額');return;}
   } else {
     if(!amt||amt<=0){alert('請輸入有效金額');return;}
   }
-  const cur=isFxXfer?toAcctObj.currency:document.getElementById('sheet-currency').value;
+  const cur=isXfer?(toAcctObj?toAcctObj.currency:document.getElementById('sheet-currency').value):document.getElementById('sheet-currency').value;
   const date=document.getElementById('sheet-date').value||todayStr();
   const note=document.getElementById('sheet-note').value;
   const proj=document.getElementById('sheet-project').value||null;
@@ -4139,10 +4132,10 @@ function addTxnFromSheet(){
   } else {
     const xferCat=sheetType==='xfer'?(document.getElementById('sheet-xfer-cat')?.value||null):null;
     const xferSub=sheetType==='xfer'?(document.getElementById('sheet-xfer-sub')?.value||null):null;
-    const finalAmt=isFxXfer?xferToAmt:amt;
-    const fromAmountSave=isFxXfer?xferFromAmt:undefined;
-    const fxRateSave=isFxXfer&&xferToAmt>0?(xferFromAmt/xferToAmt):undefined;
-    const autoNote=isFxXfer&&!note?`換匯：${xferFromAmt} ${fromAcctObj.currency} → ${xferToAmt} ${toAcctObj.currency}（匯率 ${fxRateSave?.toFixed(4)}）`:'';
+    const finalAmt=isXfer?xferToAmt:amt;
+    const fromAmountSave=isXfer?xferFromAmt:undefined;
+    const fxRateSave=isXfer&&xferToAmt>0?(xferFromAmt/xferToAmt):undefined;
+    const autoNote=isFxXfer&&!note?`換匯：${xferFromAmt} ${fromAcctObj?.currency||''} → ${xferToAmt} ${toAcctObj?.currency||''}（匯率 ${fxRateSave?.toFixed(4)}）`:'';
     const newTxn={id:Date.now(),type:sheetType,amount:finalAmt,currency:cur,cat,date,
       note:note||autoNote,project:proj,acctId,toAcctId,tag,
       fromAmount:fromAmountSave,fxRate:fxRateSave,
