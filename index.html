@@ -3681,7 +3681,7 @@ function setSheetType(t, el){
   document.getElementById('sheet-acct-single').style.display = t==='xfer'?'none':'block';
   document.getElementById('sheet-acct-xfer').style.display = t==='xfer'?'block':'none';
   const amtWrap=document.getElementById('sheet-amount-wrap');
-  if(amtWrap) amtWrap.style.display=t==='xfer'?'none':'block';
+  if(amtWrap) amtWrap.style.display='block'; // 同幣時顯示，跨幣由 checkXferCurrency 隱藏
   const fwrap=document.getElementById('sheet-has-foreign-wrap');
   if(fwrap) fwrap.style.display=(t==='in'||t==='xfer')?'none':'block';
   renderSheetCatChips();
@@ -3733,17 +3733,22 @@ function checkXferCurrency(){
   const toId=parseInt(document.getElementById('sheet-to-sel')?.value)||0;
   const fromAcct=accounts.find(a=>a.id===fromId);
   const toAcct=accounts.find(a=>a.id===toId);
-  const wrap=document.getElementById('sheet-xfer-fx-wrap');
-  if(!wrap) return;
+  const fxWrap=document.getElementById('sheet-xfer-fx-wrap');
+  const amtWrap=document.getElementById('sheet-amount-wrap');
+  if(!fxWrap) return;
   if(fromAcct&&toAcct&&fromAcct.currency!==toAcct.currency){
-    wrap.style.display='block';
+    // 跨幣：隱藏一般金額欄，顯示雙欄框
+    if(amtWrap) amtWrap.style.display='none';
+    fxWrap.style.display='block';
     const fb=document.getElementById('sheet-xfer-from-cur-badge');
     const tb=document.getElementById('sheet-xfer-to-cur-badge');
     if(fb) fb.textContent=fromAcct.currency;
     if(tb) tb.textContent=toAcct.currency;
     calcXferRate('');
   } else {
-    wrap.style.display='none';
+    // 同幣：顯示一般金額欄，隱藏雙欄框
+    if(amtWrap) amtWrap.style.display='block';
+    fxWrap.style.display='none';
     const el=document.getElementById('sheet-xfer-rate-display');
     if(el) el.textContent='';
   }
