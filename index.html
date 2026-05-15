@@ -3632,7 +3632,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
   }
 }
 function refreshSheetProjectSelect(){
