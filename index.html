@@ -3682,13 +3682,12 @@ function setSheetType(t, el){
   document.getElementById('sheet-acct-xfer').style.display = t==='xfer'?'block':'none';
   const amtWrap=document.getElementById('sheet-amount-wrap');
   if(amtWrap) amtWrap.style.display=t==='xfer'?'none':'block';
-  const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
-  if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
   const fwrap=document.getElementById('sheet-has-foreign-wrap');
   if(fwrap) fwrap.style.display=(t==='in'||t==='xfer')?'none':'block';
-  // 轉帳時隱藏幣別選單（幣別由帳戶決定）
   const curWrap=document.getElementById('sheet-currency-wrap');
   if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
+  const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
+  if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
@@ -3738,7 +3737,6 @@ function checkXferCurrency(){
   const toVal=document.getElementById('sheet-to-sel')?.value||'';
   const fromAcct=accounts.find(a=>String(a.id)===String(fromVal));
   const toAcct=accounts.find(a=>String(a.id)===String(toVal));
-  // 永遠顯示雙欄，更新幣別標籤
   const fb=document.getElementById('sheet-xfer-from-cur-badge');
   const tb=document.getElementById('sheet-xfer-to-cur-badge');
   if(fb) fb.textContent=fromAcct?fromAcct.currency:'TWD';
