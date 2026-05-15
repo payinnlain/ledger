@@ -3682,11 +3682,13 @@ function setSheetType(t, el){
   document.getElementById('sheet-acct-xfer').style.display = t==='xfer'?'block':'none';
   const amtWrap=document.getElementById('sheet-amount-wrap');
   if(amtWrap) amtWrap.style.display=t==='xfer'?'none':'block';
-  // 轉帳永遠顯示雙欄框
   const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
   if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
   const fwrap=document.getElementById('sheet-has-foreign-wrap');
   if(fwrap) fwrap.style.display=(t==='in'||t==='xfer')?'none':'block';
+  // 轉帳時隱藏幣別選單（幣別由帳戶決定）
+  const curWrap=document.getElementById('sheet-currency-wrap');
+  if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
@@ -3736,7 +3738,7 @@ function checkXferCurrency(){
   const toVal=document.getElementById('sheet-to-sel')?.value||'';
   const fromAcct=accounts.find(a=>String(a.id)===String(fromVal));
   const toAcct=accounts.find(a=>String(a.id)===String(toVal));
-  // 永遠顯示雙欄，只更新幣別標籤
+  // 永遠顯示雙欄，更新幣別標籤
   const fb=document.getElementById('sheet-xfer-from-cur-badge');
   const tb=document.getElementById('sheet-xfer-to-cur-badge');
   if(fb) fb.textContent=fromAcct?fromAcct.currency:'TWD';
@@ -3744,10 +3746,10 @@ function checkXferCurrency(){
   calcXferRate('');
 }
 function calcXferRate(changed){
-  const fromId=parseInt(document.getElementById('sheet-from-sel')?.value)||0;
-  const toId=parseInt(document.getElementById('sheet-to-sel')?.value)||0;
-  const fromAcct=accounts.find(a=>a.id===fromId);
-  const toAcct=accounts.find(a=>a.id===toId);
+  const fromVal=document.getElementById('sheet-from-sel')?.value||'';
+  const toVal=document.getElementById('sheet-to-sel')?.value||'';
+  const fromAcct=accounts.find(a=>String(a.id)===String(fromVal));
+  const toAcct=accounts.find(a=>String(a.id)===String(toVal));
   const fa=document.getElementById('sheet-xfer-from-amt');
   const ta=document.getElementById('sheet-xfer-to-amt');
   const fromAmt=parseFloat(fa?.value)||0;
@@ -4065,20 +4067,19 @@ function addTxnFromSheet(){
   const foreignFee=hasForeign?(parseFloat(document.getElementById('sheet-foreign-fee')?.value)||0):0;
   const amt=baseAmt+foreignFee;
   const acctId = sheetType==='xfer'
-    ? (parseInt(document.getElementById('sheet-from-sel')?.value)||null)
+    ? (document.getElementById('sheet-from-sel')?.value||null)
     : (parseInt(document.getElementById('sheet-acct-sel')?.value)||null);
   const toAcctId = sheetType==='xfer'
-    ? (parseInt(document.getElementById('sheet-to-sel')?.value)||null)
+    ? (document.getElementById('sheet-to-sel')?.value||null)
     : null;
   if(sheetType==='xfer'&&acctId===toAcctId){alert('轉出與轉入帳戶不能相同');return;}
   const cat=document.getElementById('sheet-cat').value||CATS_OUT[0];
-  const fromAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===acctId):null;
-  const toAcctObj=sheetType==='xfer'?accounts.find(a=>a.id===toAcctId):null;
-  // 轉帳永遠用雙欄金額（同幣時兩欄相同）
+  const fromAcctObj=sheetType==='xfer'?accounts.find(a=>String(a.id)===String(acctId)):null;
+  const toAcctObj=sheetType==='xfer'?accounts.find(a=>String(a.id)===String(toAcctId)):null;
   const isXfer=sheetType==='xfer';
+  const isFxXfer=isXfer&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
   const xferFromAmt=isXfer?(parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0):0;
   const xferToAmt=isXfer?(parseFloat(document.getElementById('sheet-xfer-to-amt')?.value)||0):0;
-  const isFxXfer=isXfer&&fromAcctObj&&toAcctObj&&fromAcctObj.currency!==toAcctObj.currency;
   if(isXfer){
     if(xferFromAmt<=0){alert('請填入轉出金額');return;}
     if(xferToAmt<=0){alert('請填入轉入金額');return;}
