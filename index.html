@@ -307,6 +307,7 @@
         <button class="tab-btn" onclick="switchTab('ar',this)">應收應付</button>
         <button class="tab-btn" onclick="switchTab('budget',this)">預算</button>
         <button class="tab-btn" onclick="switchTab('projects',this)">專案</button>
+        <button class="tab-btn" onclick="switchTab('ledger',this)">分類帳</button>
         <button class="tab-btn" onclick="switchTab('tags',this)">標籤</button>
         <button class="tab-btn" onclick="switchTab('accounts',this)">帳戶</button>
       </div>
@@ -528,6 +529,25 @@
   </div>
 
   <!-- TAGS -->
+  <div id="tab-ledger" class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <span class="section-title">分類帳</span>
+      <select id="ledger-type" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <option value="out">支出</option><option value="in">收入</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <select id="ledger-period" onchange="ledgerPeriodChange()" style="font-family:inherit;font-size:13px;padding:5px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <option value="all">全部期間</option><option value="year">今年</option><option value="month">本月</option><option value="custom">自訂</option>
+      </select>
+      <div id="ledger-custom-wrap" style="display:none;display:flex;gap:4px;align-items:center">
+        <input type="month" id="ledger-from" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        <span style="font-size:12px;color:var(--text2)">～</span>
+        <input type="month" id="ledger-to" onchange="renderLedger()" style="font-family:inherit;font-size:13px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+      </div>
+    </div>
+    <div id="ledger-content"></div>
+  </div>
   <div id="tab-tags" class="panel">
     <div id="tag-list-panel"></div>
     <div id="tag-detail-panel" style="display:none">
@@ -1223,7 +1243,11 @@ function editAccount(id){
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">付款期限（結帳後幾天）</label>
           <input type="number" id="ea-duedays" value="${a.dueDays||''}" min="1" max="60" placeholder="例：25" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">信用額度</label>
-          <input type="number" id="ea-limit" value="${a.creditLimit||''}" min="0" step="1000" placeholder="例：100000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>`:''}
+          <input type="number" id="ea-limit" value="${a.creditLimit||''}" min="0" step="1000" placeholder="例：100000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:var(--text2)">本期帳單金額（手動覆蓋，選填）</label>
+          <input type="number" id="ea-manual-bill" value="${a.manualBill||''}" min="0" step="1" placeholder="留空 = 自動計算" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">輸入後繳費以此為準，繳費完成請清空</div>
+        </div>`:''}
         ${a.type==='loan'?`<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">貸款總金額</label>
           <input type="number" id="ea-loantotal" value="${a.loanTotal||''}" min="0" step="1000" placeholder="例：3000000" style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)"></div>
         <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:var(--text2)">年利率（%）</label>
@@ -1258,6 +1282,7 @@ function saveAccountEdit(id){
     a.billDay=parseInt(document.getElementById('ea-billday')?.value)||null;
     a.dueDays=parseInt(document.getElementById('ea-duedays')?.value)||null;
     a.creditLimit=parseFloat(document.getElementById('ea-limit')?.value)||null;
+    a.manualBill=parseFloat(document.getElementById('ea-manual-bill')?.value)||null;
     a.loanTotal=null; a.loanRate=null; a.loanDay=null; a.loanPayment=null;
   } else if(a.type==='loan'){
     a.loanTotal=parseFloat(document.getElementById('ea-loantotal')?.value)||null;
@@ -2510,7 +2535,7 @@ function confirmApFxGeneral(arId, debitAcctId, debitCur, origAmt, origCur, date,
       // 建立到帳記錄（轉入投資帳戶）
       txns.unshift({id:Date.now()+1, type:'in', amount:origAmt, currency:origCur,
         cat, date, note:`換匯到帳：${a.name} (${origAmt} ${origCur})`,
-        tag:sub||null, acctId:investAcct.id, toAcctId:null, project:null});
+        tag:sub||null, acctId:investAcct.id, toAcctId:null, project:null, isXferIn:true});
     }
   }
   if(a.recurring && a.freq && a.due){
@@ -3219,18 +3244,29 @@ function renderPieChart(){
   buildPieMonthOptions();
   const pieTitle=document.getElementById('pie-chart-title');
   if(pieTitle) pieTitle.textContent=`支出分類`;
-  const pieIn=Math.round(pieMT.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const MV_TAGS=['市值紀錄','餘額調整'];
+  const pieIn=Math.round(pieMT.filter(t=>t.type==='in'&&!MV_TAGS.includes(t.tag)&&t.cat!=='暫收').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieInMv=Math.round(pieMT.filter(t=>t.type==='in'&&MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOutMv=Math.round(pieMT.filter(t=>t.type==='out'&&MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieInvest=pieInMv-pieOutMv;
+  const pieOutCat=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOutOther=Math.round(pieMT.filter(t=>t.type==='out'&&t.cat==='其他支出'&&!MV_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
   const pieOut=Math.round(pieMT.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
-  const pieNet=pieIn-pieOut;
+  const pieInTempRecv=Math.round(pieMT.filter(t=>t.type==='in'&&t.cat==='暫收').reduce((s,t)=>s+twdEq(t.amount,t.currency),0));
+  const pieOutAll=pieOutCat+pieOutOther;
+  const pieNet=pieIn-pieOutCat;
   const pieSummaryEl=document.getElementById('pie-summary');
   if(pieSummaryEl) pieSummaryEl.innerHTML=`
-    <div style="display:flex;gap:12px;margin-bottom:8px;font-size:12px">
-      <span style="color:var(--green)">+${pieIn.toLocaleString()}</span>
-      <span style="color:var(--red)">-${pieOut.toLocaleString()}</span>
+    <div style="display:flex;gap:8px;margin-bottom:8px;font-size:12px;flex-wrap:wrap;align-items:center">
+      <span style="color:var(--green)">+${pieIn.toLocaleString()} <span style="color:var(--text2);font-size:10px">收入</span></span>
+      ${pieInTempRecv>0?`<span onclick="drillDownCat('暫收')" style="color:var(--text2);font-size:10px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">暫收 ${pieInTempRecv.toLocaleString()} ›</span>`:''}
+      ${pieInvest!==0?`<span style="color:${pieInvest>=0?'var(--green)':'var(--red)'};">${pieInvest>=0?'+':''}${pieInvest.toLocaleString()} <span style="color:var(--text2);font-size:10px">投資損益</span></span>`:''}
+      <span style="color:var(--red)">-${pieOutCat.toLocaleString()} <span style="color:var(--text2);font-size:10px">支出</span></span>
+      ${pieOutOther>0?`<span onclick="drillDownCat('其他支出')" style="color:var(--text2);font-size:10px;cursor:pointer;text-decoration:underline;text-underline-offset:2px">其他 ${pieOutOther.toLocaleString()} ›</span>`:''}
       <span style="color:${pieNet>=0?'var(--green)':'var(--red)'}">結餘 ${pieNet.toLocaleString()}</span>
     </div>`;
   const catSpend={};
-  pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出').forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
+  pieMT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!MV_TAGS.includes(t.tag)).forEach(t=>{catSpend[t.cat]=(catSpend[t.cat]||0)+twdEq(t.amount,t.currency);});
   const cL=Object.keys(catSpend).sort((a,b)=>catSpend[b]-catSpend[a]);
   const cV=cL.map(cat=>Math.round(catSpend[cat]));
   const totalCatOut=cV.reduce((s,v)=>s+v,0);
@@ -3261,13 +3297,14 @@ function renderDashboard(){
   renderDueReminder();
   renderAcctOverview();
   const m=thisMonth(), mT=txns.filter(t=>t.date.startsWith(m));
-  const totalIn =mT.filter(t=>t.type==='in') .reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOutReal=mT.filter(t=>t.type==='out'&&t.cat!=='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
-  const totalOutOther=mT.filter(t=>t.type==='out'&&t.cat==='其他支出').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const EXCL_TAGS=['市值紀錄','餘額調整'];
+  const totalIn =mT.filter(t=>t.type==='in' &&!EXCL_TAGS.includes(t.tag)&&t.cat!=='暫收').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutReal=mT.filter(t=>t.type==='out'&&t.cat!=='其他支出'&&!EXCL_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
+  const totalOutOther=mT.filter(t=>t.type==='out'&&t.cat==='其他支出'&&!EXCL_TAGS.includes(t.tag)).reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
   const totalOut=totalOutReal+totalOutOther;
   const arTotal =arItems.filter(a=>a.type==='ar'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
   const apTotal =arItems.filter(a=>a.type==='ap'&&a.status!=='paid').reduce((s,a)=>s+twdEq(a.amount,a.currency),0);
-  const net=totalIn-totalOut;
+  const net=totalIn-totalOutReal;
   document.getElementById('summary-cards').innerHTML=`
     <div class="metric"><div class="metric-label">本月收入 (約TWD)</div><div class="metric-value" style="color:var(--green)">+${Math.round(totalIn).toLocaleString()}</div></div>
     <div class="metric"><div class="metric-label">本月支出 (約TWD)</div><div class="metric-value" style="color:var(--red)">-${Math.round(totalOutReal).toLocaleString()}</div>${totalOutOther>0?'<div style="font-size:11px;color:var(--text2);margin-top:1px">其他 '+Math.round(totalOutOther).toLocaleString()+'</div>':''}</div>
@@ -4009,6 +4046,9 @@ function confirmFxInvest(acctId, acctType, fromAmt, fromCur, date, txnId){
       t.currency=a.currency;
     }
   }
+  // 繳費後清除手動帳單金額
+  const creditAcct2=accounts.find(x=>x.id===creditId);
+  if(creditAcct2) creditAcct2.manualBill=null;
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function updateFxRateDual(){
@@ -4652,29 +4692,30 @@ function confirmCreditAdj(id, currentAmt, currency){
 function quickCreditPayment(id){
   const a=accounts.find(x=>x.id===id);
   if(!a) return;
-  // Calculate this period bill
+  // Calculate this period bill（優先用手動覆蓋金額）
   let thisBillPay=0;
+  let currBill2=null;
   if(a.billDay){
     const td2=new Date(); td2.setHours(0,0,0,0);
     const d2=td2.getDate();
-    let currBill2;
     if(d2>=a.billDay){ currBill2=new Date(td2.getFullYear(),td2.getMonth(),a.billDay); }
     else { currBill2=new Date(td2.getFullYear(),td2.getMonth()-1,a.billDay); }
-    const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
-    const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-    const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-    const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
-    thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
-  }
-  // Calculate due date
+    if(a.manualBill){
+      thisBillPay=a.manualBill;
+    } else {
+      const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
+      const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
+      thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
+    }
+  } else if(a.manualBill){ thisBillPay=a.manualBill; }
+  // Calculate due date from current bill + dueDays
   let dueDateStr=todayStr();
-  if(a.billDay){
-    const td=new Date(); const d=td.getDate();
-    let bm=td.getMonth(), by=td.getFullYear();
-    if(d>=a.billDay){bm+=1; if(bm>11){bm=0;by+=1;}}
-    const billDate=new Date(by,bm,a.billDay);
-    if(a.dueDays){ billDate.setDate(billDate.getDate()+parseInt(a.dueDays)); }
-    dueDateStr=billDate.toISOString().slice(0,10);
+  if(currBill2&&a.dueDays){
+    const dueDate=new Date(currBill2.getTime());
+    dueDate.setDate(dueDate.getDate()+parseInt(a.dueDays));
+    dueDateStr=dueDate.toISOString().slice(0,10);
   }
   // Build bank account options
   const bankAccts=accounts.filter(x=>x.type==='bank');
@@ -4806,6 +4847,63 @@ function drillDownCat(cat){
   setTimeout(()=>renderTxnList(), 150);
 }
 
+function ledgerPeriodChange(){
+  const period=document.getElementById('ledger-period')?.value;
+  const wrap=document.getElementById('ledger-custom-wrap');
+  if(wrap) wrap.style.display=period==='custom'?'flex':'none';
+  renderLedger();
+}
+function renderLedger(){
+  const el=document.getElementById('ledger-content'); if(!el) return;
+  const type=document.getElementById('ledger-type')?.value||'out';
+  const period=document.getElementById('ledger-period')?.value||'all';
+  const today=todayStr(); const thisY=today.slice(0,4); const thisM=today.slice(0,7);
+  const fromM=document.getElementById('ledger-from')?.value||'';
+  const toM=document.getElementById('ledger-to')?.value||'';
+  const MV_TAGS2=['市值紀錄','餘額調整'];
+  let filtered=txns.filter(t=>t.type===type&&!t.isXferIn&&!(t.note&&t.note.startsWith('換匯到帳：'))&&!MV_TAGS2.includes(t.tag));
+  if(period==='year')  filtered=filtered.filter(t=>t.date.startsWith(thisY));
+  if(period==='month') filtered=filtered.filter(t=>t.date.startsWith(thisM));
+  if(period==='custom'){
+    if(fromM) filtered=filtered.filter(t=>t.date.slice(0,7)>=fromM);
+    if(toM)   filtered=filtered.filter(t=>t.date.slice(0,7)<=toM);
+  }
+  const groups={};
+  filtered.forEach(t=>{ const cat=t.cat||'未分類'; if(!groups[cat]) groups[cat]={total:0,txns:[]}; groups[cat].total+=twdEq(t.amount,t.currency); groups[cat].txns.push(t); });
+  const catOrder=type==='in'?CATS_IN:CATS_OUT;
+  const cats=Object.keys(groups).sort((a,b)=>{ const ai=catOrder.indexOf(a),bi=catOrder.indexOf(b); if(ai===-1&&bi===-1) return groups[b].total-groups[a].total; if(ai===-1) return 1; if(bi===-1) return -1; return ai-bi; });
+  const grandTotal=cats.reduce((s,c)=>s+groups[c].total,0);
+  if(!cats.length){ el.innerHTML='<div style="text-align:center;color:var(--text2);padding:40px 0;font-size:14px">沒有記錄</div>'; return; }
+  el.innerHTML=`<div style="margin-bottom:12px;font-size:13px;color:var(--text2)">共 ${filtered.length} 筆・合計 <span style="color:${type==='in'?'var(--green)':'var(--red)'};font-weight:600">${type==='in'?'+':'-'}${Math.round(grandTotal).toLocaleString()} TWD</span></div>`+
+  cats.map(cat=>{
+    const g=groups[cat]; const pct=grandTotal>0?((g.total/grandTotal)*100).toFixed(1):0;
+    const sorted=[...g.txns].sort((a,b)=>b.date.localeCompare(a.date));
+    return `<div class="card" style="margin-bottom:10px">
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:14px;font-weight:500">${cat}</span>
+          <span style="font-size:11px;color:var(--text2)">${g.txns.length} 筆</span>
+          <span style="font-size:11px;color:var(--text2);background:var(--bg2);padding:1px 7px;border-radius:8px">${pct}%</span>
+        </div>
+        <span style="font-size:14px;font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${type==='in'?'+':'-'}${Math.round(g.total).toLocaleString()}</span>
+      </div>
+      <div style="display:none;margin-top:8px;border-top:0.5px solid var(--border);padding-top:8px">
+        ${(()=>{
+          const subGroups={};
+          sorted.forEach(t=>{ const sub=t.tag||'（未分細項）'; if(!subGroups[sub]) subGroups[sub]={total:0,txns:[]}; subGroups[sub].total+=twdEq(t.amount,t.currency); subGroups[sub].txns.push(t); });
+          const hasSub=Object.keys(subGroups).length>1||!subGroups['（未分細項）'];
+          if(!hasSub) return sorted.map(t=>`<div onclick="switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:13px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><div style="min-width:0;flex:1"><span style="color:var(--text2)">${t.date}</span><span style="color:var(--text);margin-left:6px">${t.note||''}</span>${t.tag?'<span style="font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px;margin-left:4px">'+t.tag+'</span>':''}</div><span style="flex-shrink:0;margin-left:8px;font-weight:500;color:${type==='in'?'var(--green)':'var(--red)'}">${fmt(t.amount,t.currency)}</span></div>`).join('');
+          return Object.keys(subGroups).sort().map(sub=>{
+            const sg=subGroups[sub]; const uid='sub_'+Math.random().toString(36).slice(2);
+            return `<div onclick="document.getElementById('${uid}').style.display=document.getElementById('${uid}').style.display==='none'?'block':'none'" style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);margin:0 -14px;padding:6px 14px;cursor:pointer;border-bottom:0.5px solid var(--border)"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:500">${sub==='（未分細項）'?'其他':sub}</span><span style="font-size:10px;color:var(--text2)">${sg.txns.length} 筆</span></div><span style="font-size:12px;font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${type==='in'?'+':'-'}${Math.round(sg.total).toLocaleString()}</span></div>
+            <div id="${uid}" style="display:none">${[...sg.txns].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`<div onclick="switchTab('txn',document.querySelector('.tab-btn[onclick*=txn]'));setTimeout(()=>editTxn(${t.id}),300)" style="display:flex;justify-content:space-between;align-items:center;padding:5px 0 5px 12px;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:12px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><div style="min-width:0;flex:1"><span style="color:var(--text2)">${t.date}</span><span style="color:var(--text);margin-left:6px">${t.note||''}</span></div><span style="flex-shrink:0;margin-left:8px;font-weight:500;color:${type==='in'?'var(--green)':'var(--red)'}">${fmt(t.amount,t.currency)}</span></div>`).join('')}</div>`;
+          }).join('');
+        })()}
+        <div style="text-align:right;font-size:12px;color:var(--text2);padding-top:6px">小計 <span style="font-weight:600;color:${type==='in'?'var(--green)':'var(--red)'}">${Math.round(g.total).toLocaleString()} TWD</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
 function saveManualFxRate(val){
   manualFxRate=parseFloat(val)||0;
   localStorage.setItem('manualFxRate', manualFxRate);
@@ -4825,6 +4923,7 @@ function switchTab(t,el){
   if(t==='tags') renderTags();
   if(t==='projects'){ renderProjects(); refreshProjectSelect(); }
   if(t==='accounts') renderAccounts();
+  if(t==='ledger') renderLedger();
 }
 
 // init
