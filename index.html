@@ -3086,19 +3086,31 @@ function renderDueReminder(){
 
   // Loan payment reminders
   const loanReminders=accounts.filter(a=>a.type==='loan'&&a.loanDay&&a.loanPayment).filter(a=>{
-    const d=today.getDate(), lDay=parseInt(a.loanDay);
+    const lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
-    const thisMonth=new Date(y,m,lDay);
-    const nextMonth=new Date(y,m+1,lDay);
-    const baseDate=today<=thisMonth?thisMonth:nextMonth;
-    // 假日延後調整
-    let payDate=new Date(baseDate);
-    while(twHolidays.has(payDate.toISOString().slice(0,10))||payDate.getDay()===0||payDate.getDay()===6){
-      payDate.setDate(payDate.getDate()+1);
+    // 找出最近的還款基準日（可能是本月或上月，考慮假日延後可能讓今天還在上月的還款期）
+    const candidates=[
+      new Date(y,m-1,lDay), // 上個月
+      new Date(y,m,lDay),   // 本月
+      new Date(y,m+1,lDay), // 下個月
+    ];
+    // 每個候選日做假日調整
+    const adjusted=candidates.map(base=>{
+      let d=new Date(base);
+      while(twHolidays.has(d.toISOString().slice(0,10))||d.getDay()===0||d.getDay()===6){
+        d.setDate(d.getDate()+1);
+      }
+      return d;
+    });
+    // 找最近的：逾期不超過5天 或 未來10天內
+    for(const payDate of adjusted){
+      const diff=Math.round((payDate-today)/(1000*60*60*24));
+      if(diff>=-5&&diff<=10){
+        a._loanPayDate=payDate;
+        return true;
+      }
     }
-    const diff=Math.round((payDate-today)/(1000*60*60*24));
-    a._loanPayDate=payDate; // 暫存調整後日期
-    return diff>=-3&&diff<=10; // 逾期3天內或10天內都顯示
+    return false;
   });
 
   if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
