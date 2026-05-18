@@ -3090,9 +3090,15 @@ function renderDueReminder(){
     const m=today.getMonth(), y=today.getFullYear();
     const thisMonth=new Date(y,m,lDay);
     const nextMonth=new Date(y,m+1,lDay);
-    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const baseDate=today<=thisMonth?thisMonth:nextMonth;
+    // 假日延後調整
+    let payDate=new Date(baseDate);
+    while(twHolidays.has(payDate.toISOString().slice(0,10))||payDate.getDay()===0||payDate.getDay()===6){
+      payDate.setDate(payDate.getDate()+1);
+    }
     const diff=Math.round((payDate-today)/(1000*60*60*24));
-    return diff>=0&&diff<=7;
+    a._loanPayDate=payDate; // 暫存調整後日期
+    return diff>=-3&&diff<=10; // 逾期3天內或10天內都顯示
   });
 
   if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
@@ -3165,16 +3171,18 @@ function renderDueReminder(){
   // Loan reminders
   loanReminders.forEach(a=>{
     const lDay=parseInt(a.loanDay);
-    const thisMonth=new Date(today.getFullYear(),today.getMonth(),lDay);
-    const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,lDay);
-    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const payDate=a._loanPayDate||new Date(today.getFullYear(),today.getMonth(),lDay);
     const diff=Math.round((payDate-today)/(1000*60*60*24));
+    const payDateStr=`${payDate.getMonth()+1}/${payDate.getDate()}`;
+    const diffLabel=diff<0?`逾期${Math.abs(diff)}天`:diff===0?'今天還款':`還款${diff}天後`;
+    const adjNote=payDate.getDate()!==lDay?`<span style="font-size:10px;color:var(--text2);margin-left:4px">（原${lDay}號，遇假日順延）</span>`:'';
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
-        <span style="background:#ECFDF5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">還款${diff===0?'今天':diff+'天後'}</span>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號</div>
+        <span style="background:${diff<0?'#FEF2F2':'#ECFDF5'};color:${diff<0?'#991B1B':'#065F46'};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${diffLabel}</span>
+        ${adjNote}
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號 · ${payDateStr}</div>
       </div>
       <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(a.loanPayment,a.currency)}</span>
       <button onclick="quickLoanPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">還款</button>
@@ -3632,7 +3640,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3717,17 +3725,8 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){
-    to.innerHTML=opts;
-    // 預設選第二個帳戶（跟 from 不同）
-    const fromId=String(from?.value||'');
-    const second=accounts.find(a=>String(a.id)!==fromId);
-    if(second) to.value=String(second.id);
-  }
-  // 強制更新幣別標籤
-  setTimeout(()=>{
-    checkXferCurrency();
-  },50);
+  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
+  setTimeout(checkXferCurrency,0);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -4221,12 +4220,14 @@ function confirmLoanPayment(id){
   const amt=parseFloat(document.getElementById('loan-pay-amt').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
   const date=document.getElementById('loan-pay-date').value||todayStr();
-  const acctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
+  const bankAcctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
   const note=document.getElementById('loan-pay-note').value||a.name+'還款';
+  // 用轉帳方式：從銀行帳戶轉入貸款帳戶（減少負債）
   txns.unshift({
-    id:Date.now(), type:'out', amount:amt,
-    currency:a.currency, cat:'其他支出',
-    date, note, acctId, toAcctId:null, project:null
+    id:Date.now(), type:'xfer', amount:amt,
+    currency:a.currency, cat:'轉帳',
+    date, note, acctId:bankAcctId, toAcctId:a.id,
+    fromAmount:amt, project:null, tag:null
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
   alert('還款記錄已新增！');
