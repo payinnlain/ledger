@@ -1165,12 +1165,12 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&t.acctId===acct.id){
+    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
+    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
@@ -1182,7 +1182,7 @@ function acctBalance(acct){
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -3088,13 +3088,21 @@ function renderDueReminder(){
 
   // Loan payment reminders
   const loanReminders=accounts.filter(a=>a.type==='loan'&&a.loanDay&&a.loanPayment).filter(a=>{
-    const d=today.getDate(), lDay=parseInt(a.loanDay);
+    const lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
-    const thisMonth=new Date(y,m,lDay);
-    const nextMonth=new Date(y,m+1,lDay);
-    const payDate=today<=thisMonth?thisMonth:nextMonth;
-    const diff=Math.round((payDate-today)/(1000*60*60*24));
-    return diff>=0&&diff<=7;
+    const candidates=[new Date(y,m-1,lDay),new Date(y,m,lDay),new Date(y,m+1,lDay)];
+    const adjusted=candidates.map(base=>{
+      let d=new Date(base);
+      while(twHolidays.has(d.toISOString().slice(0,10))||d.getDay()===0||d.getDay()===6){
+        d.setDate(d.getDate()+1);
+      }
+      return d;
+    });
+    for(const payDate of adjusted){
+      const diff=Math.round((payDate-today)/(1000*60*60*24));
+      if(diff>=-5&&diff<=10){ a._loanPayDate=payDate; return true; }
+    }
+    return false;
   });
 
   if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
@@ -3167,16 +3175,17 @@ function renderDueReminder(){
   // Loan reminders
   loanReminders.forEach(a=>{
     const lDay=parseInt(a.loanDay);
-    const thisMonth=new Date(today.getFullYear(),today.getMonth(),lDay);
-    const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,lDay);
-    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const payDate=a._loanPayDate||new Date(today.getFullYear(),today.getMonth(),lDay);
     const diff=Math.round((payDate-today)/(1000*60*60*24));
+    const payDateStr=`${payDate.getMonth()+1}/${payDate.getDate()}`;
+    const diffLabel=diff<0?`逾期${Math.abs(diff)}天`:diff===0?'今天還款':`還款${diff}天後`;
+    const adjNote=payDate.getDate()!==lDay?`（原${lDay}號，遇假日順延）`:'';
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
-        <span style="background:#ECFDF5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">還款${diff===0?'今天':diff+'天後'}</span>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號</div>
+        <span style="background:${diff<0?'#FEF2F2':'#ECFDF5'};color:${diff<0?'#991B1B':'#065F46'};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${diffLabel}</span>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號 · 繳款${payDateStr}${adjNote}</div>
       </div>
       <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(a.loanPayment,a.currency)}</span>
       <button onclick="quickLoanPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">還款</button>
@@ -3634,7 +3643,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3690,6 +3699,10 @@ function setSheetType(t, el){
   if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
   const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
   if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
+  curWrap=document.getElementById('sheet-currency-wrap');
+  if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
+  fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
+  if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
@@ -3719,8 +3732,13 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
-  setTimeout(checkXferCurrency,0);
+  if(to){
+    to.innerHTML=opts;
+    const fromId=String(from?.value||'');
+    const second=accounts.find(a=>String(a.id)!==fromId);
+    if(second) to.value=String(second.id);
+  }
+  setTimeout(()=>{ checkXferCurrency(); },50);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -4214,12 +4232,13 @@ function confirmLoanPayment(id){
   const amt=parseFloat(document.getElementById('loan-pay-amt').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
   const date=document.getElementById('loan-pay-date').value||todayStr();
-  const acctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
+  const bankAcctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
   const note=document.getElementById('loan-pay-note').value||a.name+'還款';
   txns.unshift({
-    id:Date.now(), type:'out', amount:amt,
-    currency:a.currency, cat:'其他支出',
-    date, note, acctId, toAcctId:null, project:null
+    id:Date.now(), type:'xfer', amount:amt,
+    currency:a.currency, cat:'轉帳',
+    date, note, acctId:bankAcctId, toAcctId:a.id,
+    fromAmount:amt, project:null, tag:null
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
   alert('還款記錄已新增！');
@@ -4643,7 +4662,7 @@ function quickAdjustLoan(id){
       <div style="display:flex;flex-direction:column;gap:12px">
         <div>
           <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">實際剩餘欠款（銀行顯示的數字）</label>
-          <input type="number" id="loan-adj-actual" min="0" step="1" placeholder="例：560,000" inputmode="decimal" style="${inpStyle}">
+          <input type="number" id="loan-adj-actual" min="0" step="1" placeholder="例：560000" inputmode="decimal" style="${inpStyle}">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">日期</label>
@@ -4662,11 +4681,10 @@ function confirmAdjustLoan(id){
   const actual=parseFloat(document.getElementById('loan-adj-actual')?.value);
   if(isNaN(actual)||actual<0){alert('請輸入正確的剩餘欠款金額');return;}
   const date=document.getElementById('loan-adj-date')?.value||todayStr();
-  const cur=acctBalance(a); // 目前帳本餘額（負數）
-  const curAbs=Math.abs(cur); // 帳本顯示欠款
-  const diff=actual-curAbs; // 實際 - 帳本 = 差額
+  const cur=acctBalance(a);
+  const curAbs=Math.abs(cur);
+  const diff=actual-curAbs;
   if(Math.abs(diff)<0.01){alert('金額相同，不需要調整');return;}
-  // diff > 0 表示實際欠更多（補支出）；diff < 0 表示實際欠更少（補收入）
   txns.unshift({
     id:Date.now(), type:diff>0?'out':'in',
     amount:Math.abs(diff), currency:a.currency,
