@@ -3091,11 +3091,23 @@ function renderDueReminder(){
     const lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
     const candidates=[new Date(y,m-1,lDay),new Date(y,m,lDay),new Date(y,m+1,lDay)];
+    const localDateStr=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     for(const base of candidates){
       let pd=new Date(base);
-      while(twHolidays.has(pd.toISOString().slice(0,10))||pd.getDay()===0||pd.getDay()===6) pd.setDate(pd.getDate()+1);
+      while(twHolidays.has(localDateStr(pd))||pd.getDay()===0||pd.getDay()===6) pd.setDate(pd.getDate()+1);
       const diff=Math.round((pd-today)/(1000*60*60*24));
-      if(diff>=-5&&diff<=10){ a._loanPayDate=pd; return true; }
+      if(diff>=-5&&diff<=10){
+        a._loanPayDate=pd;
+        // 若此還款月份已有還款記錄則不顯示
+        const payMonth=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+        const alreadyPaid=txns.some(t=>
+          t.type==='xfer' &&
+          String(t.toAcctId)===String(a.id) &&
+          t.date && t.date.startsWith(payMonth)
+        );
+        if(alreadyPaid) return false;
+        return true;
+      }
     }
     return false;
   });
