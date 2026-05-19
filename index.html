@@ -156,18 +156,11 @@
     box-sizing: border-box !important;
   }
   @media (max-width: 640px) {
-    /* Modal 手機版強制全寬且可捲動 */
-    #edit-modal {
-      align-items: flex-end !important;
-      padding: 0 !important;
-    }
+    /* Modal 手機版強制全寬 */
     #edit-modal > div {
-      width: 100vw !important;
-      max-width: 100vw !important;
-      max-height: 92vh !important;
-      overflow-y: auto !important;
+      width: calc(100vw - 32px) !important;
+      max-width: calc(100vw - 32px) !important;
       box-sizing: border-box !important;
-      border-radius: 16px 16px 0 0 !important;
     }
     #edit-modal select {
       max-width: 100% !important;
@@ -1172,12 +1165,12 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&t.acctId===acct.id){
+    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
+    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
@@ -1189,7 +1182,7 @@ function acctBalance(acct){
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
