@@ -646,7 +646,7 @@
     <button id="sheet-btn-out" onclick="setSheetType('out',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">－ 支出</button>
     <button id="sheet-btn-xfer" onclick="setSheetType('xfer',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⇄ 轉帳</button>
   </div>
-  <div style="margin-bottom:14px">
+  <div id="sheet-cat-section" style="margin-bottom:14px">
     <div id="sheet-cat-label" style="font-size:12px;color:var(--text2);margin-bottom:8px">類別</div>
     <div id="sheet-cat-chips" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
     <input type="hidden" id="sheet-cat">
@@ -3694,10 +3694,9 @@ function setSheetType(t, el){
   if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
   const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
   if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
-  curWrap=document.getElementById('sheet-currency-wrap');
-  if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
-  fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
-  if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
+  // 轉帳時隱藏分類區塊
+  const catSection=document.getElementById('sheet-cat-section');
+  if(catSection) catSection.style.display=t==='xfer'?'none':'block';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
