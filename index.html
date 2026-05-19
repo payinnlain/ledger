@@ -3091,16 +3091,11 @@ function renderDueReminder(){
     const lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
     const candidates=[new Date(y,m-1,lDay),new Date(y,m,lDay),new Date(y,m+1,lDay)];
-    const adjusted=candidates.map(base=>{
-      let d=new Date(base);
-      while(twHolidays.has(d.toISOString().slice(0,10))||d.getDay()===0||d.getDay()===6){
-        d.setDate(d.getDate()+1);
-      }
-      return d;
-    });
-    for(const payDate of adjusted){
-      const diff=Math.round((payDate-today)/(1000*60*60*24));
-      if(diff>=-5&&diff<=10){ a._loanPayDate=payDate; return true; }
+    for(const base of candidates){
+      let pd=new Date(base);
+      while(twHolidays.has(pd.toISOString().slice(0,10))||pd.getDay()===0||pd.getDay()===6) pd.setDate(pd.getDate()+1);
+      const diff=Math.round((pd-today)/(1000*60*60*24));
+      if(diff>=-5&&diff<=10){ a._loanPayDate=pd; return true; }
     }
     return false;
   });
@@ -3606,7 +3601,7 @@ function renderProjects(){
 }
 const PROJECT_COLORS = ['#1D9E75','#185FA5','#BA7517','#993C1D','#533AB7','#3B6D11','#993556'];
 /* ── Add Sheet ── */
-let sheetType = 'out';
+let sheetType = 'in';
 
 function buildAcctOptgroups(curId, forOut){
   const groups= forOut ? [
