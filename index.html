@@ -156,11 +156,18 @@
     box-sizing: border-box !important;
   }
   @media (max-width: 640px) {
-    /* Modal 手機版強制全寬 */
+    /* Modal 手機版強制全寬且可捲動 */
+    #edit-modal {
+      align-items: flex-end !important;
+      padding: 0 !important;
+    }
     #edit-modal > div {
-      width: calc(100vw - 32px) !important;
-      max-width: calc(100vw - 32px) !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+      max-height: 92vh !important;
+      overflow-y: auto !important;
       box-sizing: border-box !important;
+      border-radius: 16px 16px 0 0 !important;
     }
     #edit-modal select {
       max-width: 100% !important;
@@ -646,7 +653,7 @@
     <button id="sheet-btn-out" onclick="setSheetType('out',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">－ 支出</button>
     <button id="sheet-btn-xfer" onclick="setSheetType('xfer',this)" style="padding:10px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⇄ 轉帳</button>
   </div>
-  <div id="sheet-cat-section" style="margin-bottom:14px">
+  <div style="margin-bottom:14px">
     <div id="sheet-cat-label" style="font-size:12px;color:var(--text2);margin-bottom:8px">類別</div>
     <div id="sheet-cat-chips" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
     <input type="hidden" id="sheet-cat">
@@ -1165,12 +1172,12 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
+    if(t.type==='xfer'&&t.acctId===acct.id){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
+    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
@@ -1182,7 +1189,7 @@ function acctBalance(acct){
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -1574,8 +1581,6 @@ function renderAcctOverview(){
         ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
-        :a.type==='loan'
-        ?`<button onclick="quickAdjustLoan(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
 
       if(a.type==='invest'){
@@ -3088,28 +3093,13 @@ function renderDueReminder(){
 
   // Loan payment reminders
   const loanReminders=accounts.filter(a=>a.type==='loan'&&a.loanDay&&a.loanPayment).filter(a=>{
-    const lDay=parseInt(a.loanDay);
+    const d=today.getDate(), lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
-    const candidates=[new Date(y,m-1,lDay),new Date(y,m,lDay),new Date(y,m+1,lDay)];
-    const localDateStr=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    for(const base of candidates){
-      let pd=new Date(base);
-      while(twHolidays.has(localDateStr(pd))||pd.getDay()===0||pd.getDay()===6) pd.setDate(pd.getDate()+1);
-      const diff=Math.round((pd-today)/(1000*60*60*24));
-      if(diff>=-5&&diff<=10){
-        a._loanPayDate=pd;
-        // 若此還款月份已有還款記錄則不顯示
-        const payMonth=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
-        const alreadyPaid=txns.some(t=>
-          t.type==='xfer' &&
-          String(t.toAcctId)===String(a.id) &&
-          t.date && t.date.startsWith(payMonth)
-        );
-        if(alreadyPaid) return false;
-        return true;
-      }
-    }
-    return false;
+    const thisMonth=new Date(y,m,lDay);
+    const nextMonth=new Date(y,m+1,lDay);
+    const payDate=today<=thisMonth?thisMonth:nextMonth;
+    const diff=Math.round((payDate-today)/(1000*60*60*24));
+    return diff>=0&&diff<=7;
   });
 
   if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
@@ -3182,17 +3172,16 @@ function renderDueReminder(){
   // Loan reminders
   loanReminders.forEach(a=>{
     const lDay=parseInt(a.loanDay);
-    const payDate=a._loanPayDate||new Date(today.getFullYear(),today.getMonth(),lDay);
+    const thisMonth=new Date(today.getFullYear(),today.getMonth(),lDay);
+    const nextMonth=new Date(today.getFullYear(),today.getMonth()+1,lDay);
+    const payDate=today<=thisMonth?thisMonth:nextMonth;
     const diff=Math.round((payDate-today)/(1000*60*60*24));
-    const payDateStr=`${payDate.getMonth()+1}/${payDate.getDate()}`;
-    const diffLabel=diff<0?`逾期${Math.abs(diff)}天`:diff===0?'今天還款':`還款${diff}天後`;
-    const adjNote=payDate.getDate()!==lDay?`（原${lDay}號，遇假日順延）`:'';
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
       <div style="flex:1">
         <span style="font-size:13px;font-weight:500">${a.name}</span>
-        <span style="background:${diff<0?'#FEF2F2':'#ECFDF5'};color:${diff<0?'#991B1B':'#065F46'};padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">${diffLabel}</span>
-        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號 · 繳款${payDateStr}${adjNote}</div>
+        <span style="background:#ECFDF5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500;margin-left:5px">還款${diff===0?'今天':diff+'天後'}</span>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">貸款 · 還款日每月${lDay}號</div>
       </div>
       <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">${fmt(a.loanPayment,a.currency)}</span>
       <button onclick="quickLoanPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">還款</button>
@@ -3650,7 +3639,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3706,9 +3695,6 @@ function setSheetType(t, el){
   if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
   const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
   if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
-  // 轉帳時隱藏分類區塊
-  const catSection=document.getElementById('sheet-cat-section');
-  if(catSection) catSection.style.display=t==='xfer'?'none':'block';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
@@ -3738,13 +3724,8 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){
-    to.innerHTML=opts;
-    const fromId=String(from?.value||'');
-    const second=accounts.find(a=>String(a.id)!==fromId);
-    if(second) to.value=String(second.id);
-  }
-  setTimeout(()=>{ checkXferCurrency(); },50);
+  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
+  setTimeout(checkXferCurrency,0);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -4238,13 +4219,12 @@ function confirmLoanPayment(id){
   const amt=parseFloat(document.getElementById('loan-pay-amt').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
   const date=document.getElementById('loan-pay-date').value||todayStr();
-  const bankAcctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
+  const acctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
   const note=document.getElementById('loan-pay-note').value||a.name+'還款';
   txns.unshift({
-    id:Date.now(), type:'xfer', amount:amt,
-    currency:a.currency, cat:'轉帳',
-    date, note, acctId:bankAcctId, toAcctId:a.id,
-    fromAmount:amt, project:null, tag:null
+    id:Date.now(), type:'out', amount:amt,
+    currency:a.currency, cat:'其他支出',
+    date, note, acctId, toAcctId:null, project:null
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
   alert('還款記錄已新增！');
@@ -4651,54 +4631,6 @@ function freqLabel(freq){
     return '每'+n+'個月';
   }
   return {weekly:'每週',monthly:'每月',quarterly:'每季',yearly:'每年'}[freq]||'定期';
-}
-function quickAdjustLoan(id){
-  const a=accounts.find(x=>x.id===id); if(!a) return;
-  const cur=acctBalance(a);
-  const inpStyle='font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box';
-  document.getElementById('edit-modal').innerHTML=`
-    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(400px,calc(100vw - 24px));box-sizing:border-box">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <span style="font-size:15px;font-weight:500">對帳調整 — ${a.name}</span>
-        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
-      </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
-        目前帳本剩餘欠款：<span style="font-weight:600;color:var(--red)">${fmt(Math.abs(cur),a.currency)}</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        <div>
-          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">實際剩餘欠款（銀行顯示的數字）</label>
-          <input type="number" id="loan-adj-actual" min="0" step="1" placeholder="例：560000" inputmode="decimal" style="${inpStyle}">
-        </div>
-        <div>
-          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">日期</label>
-          <input type="date" id="loan-adj-date" value="${todayStr()}" style="${inpStyle}">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
-        <button onclick="closeEdit()" style="padding:8px 16px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
-        <button onclick="confirmAdjustLoan(${id})" class="btn-primary">確認調整</button>
-      </div>
-    </div>`;
-  document.getElementById('edit-modal').style.display='flex';
-}
-function confirmAdjustLoan(id){
-  const a=accounts.find(x=>x.id===id); if(!a) return;
-  const actual=parseFloat(document.getElementById('loan-adj-actual')?.value);
-  if(isNaN(actual)||actual<0){alert('請輸入正確的剩餘欠款金額');return;}
-  const date=document.getElementById('loan-adj-date')?.value||todayStr();
-  const cur=acctBalance(a);
-  const curAbs=Math.abs(cur);
-  const diff=actual-curAbs;
-  if(Math.abs(diff)<0.01){alert('金額相同，不需要調整');return;}
-  txns.unshift({
-    id:Date.now(), type:diff>0?'out':'in',
-    amount:Math.abs(diff), currency:a.currency,
-    cat:'其他支出', date,
-    note:'貸款對帳調整',
-    acctId:a.id, toAcctId:null, project:null, tag:'餘額調整'
-  });
-  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function quickAdjustCredit(id){
   const a=accounts.find(x=>x.id===id);
