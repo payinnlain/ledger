@@ -1605,6 +1605,8 @@ function renderAcctOverview(){
         ?`<button onclick="quickAdjustBalance(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">調整餘額</button>`
         :a.type==='credit'
         ?`<button onclick="quickAdjustCredit(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
+        :a.type==='loan'
+        ?`<button onclick="quickAdjustLoan(${a.id})" style="margin-top:6px;width:100%;padding:4px;background:transparent;color:${col.text};border:0.5px solid ${col.border};border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">對帳調整</button>`
         :'';
 
       if(a.type==='invest'){
@@ -4707,6 +4709,54 @@ function freqLabel(freq){
     return '每'+n+'個月';
   }
   return {weekly:'每週',monthly:'每月',quarterly:'每季',yearly:'每年'}[freq]||'定期';
+}
+function quickAdjustLoan(id){
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  const cur=acctBalance(a);
+  const inpStyle='font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box';
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(400px,calc(100vw - 24px));box-sizing:border-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">對帳調整 — ${a.name}</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        目前帳本剩餘欠款：<span style="font-weight:600;color:var(--red)">${fmt(Math.abs(cur),a.currency)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">實際剩餘欠款（銀行顯示的數字）</label>
+          <input type="number" id="loan-adj-actual" min="0" step="1" placeholder="例：560000" inputmode="decimal" style="${inpStyle}">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">日期</label>
+          <input type="date" id="loan-adj-date" value="${todayStr()}" style="${inpStyle}">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 16px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmAdjustLoan(${id})" class="btn-primary">確認調整</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function confirmAdjustLoan(id){
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  const actual=parseFloat(document.getElementById('loan-adj-actual')?.value);
+  if(isNaN(actual)||actual<0){alert('請輸入正確的剩餘欠款金額');return;}
+  const date=document.getElementById('loan-adj-date')?.value||todayStr();
+  const cur=acctBalance(a);
+  const curAbs=Math.abs(cur);
+  const diff=actual-curAbs;
+  if(Math.abs(diff)<0.01){alert('金額相同，不需要調整');return;}
+  txns.unshift({
+    id:Date.now(), type:diff>0?'out':'in',
+    amount:Math.abs(diff), currency:a.currency,
+    cat:'其他支出', date,
+    note:'貸款對帳調整',
+    acctId:a.id, toAcctId:null, project:null, tag:'餘額調整'
+  });
+  sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 function quickAdjustCredit(id){
   const a=accounts.find(x=>x.id===id);
