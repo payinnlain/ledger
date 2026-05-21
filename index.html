@@ -1173,7 +1173,7 @@ function importJSON(e){
 function exportCSV(){
   const rows=[['日期','類型','類別','金額','幣別','帳戶','備註']];
   txns.forEach(t=>{
-    const aName=accounts.find(a=>a.id===t.acctId)?.name||'';
+    const aName=accounts.find(a=>String(a.id)===String(t.acctId))?.name||'';
     const type=t.type==='in'?'收入':t.type==='out'?'支出':'轉帳';
     rows.push([t.date,type,t.cat,t.amount,t.currency,aName,t.note||'']);
   });
@@ -1196,24 +1196,24 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&t.acctId===acct.id){
+    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
+    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
     // 一般收支：幣別要對
     if(t.currency!==acct.currency) return;
     if(t.acctId!==acct.id&&t.toAcctId!==acct.id) return;
-    if(t.type==='in' &&t.acctId===acct.id) bal+=t.amount;
-    if(t.type==='out'&&t.acctId===acct.id) bal-=t.amount;
+    if(t.type==='in' &&String(t.acctId)===String(acct.id)) bal+=t.amount;
+    if(t.type==='out'&&String(t.acctId)===String(acct.id)) bal-=t.amount;
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -1828,7 +1828,7 @@ function updateArFormSub(){
   subSel.innerHTML='<option value="">不指定</option>'+subs.map(s=>`<option>${s}</option>`).join('');
 }
 function isCryptoAcct(id){
-  return accounts.find(a=>a.id===id)?.type==='crypto';
+  return accounts.find(a=>String(a.id)===String(id))?.type==='crypto';
 }
 function populateCats(){
   const selAcctId=parseInt(document.getElementById('txn-acct')?.value)||null;
@@ -1940,13 +1940,13 @@ function reverseInvestCash(t){
   // 轉帳進投資帳戶 → 刪除時扣回
   if(t.type==='xfer'){
     if(t.toAcctId){
-      const toAcct=accounts.find(a=>a.id===t.toAcctId);
+      const toAcct=accounts.find(a=>String(a.id)===String(t.toAcctId));
       if(toAcct&&(toAcct.type==='invest'||toAcct.type==='crypto')){
         toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
       }
     }
     if(t.acctId){
-      const fromAcct=accounts.find(a=>a.id===t.acctId);
+      const fromAcct=accounts.find(a=>String(a.id)===String(t.acctId));
       if(fromAcct&&(fromAcct.type==='invest'||fromAcct.type==='crypto')){
         fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
       }
@@ -3117,13 +3117,23 @@ function renderDueReminder(){
 
   // Loan payment reminders
   const loanReminders=accounts.filter(a=>a.type==='loan'&&a.loanDay&&a.loanPayment).filter(a=>{
-    const d=today.getDate(), lDay=parseInt(a.loanDay);
+    const lDay=parseInt(a.loanDay);
     const m=today.getMonth(), y=today.getFullYear();
-    const thisMonth=new Date(y,m,lDay);
-    const nextMonth=new Date(y,m+1,lDay);
-    const payDate=today<=thisMonth?thisMonth:nextMonth;
-    const diff=Math.round((payDate-today)/(1000*60*60*24));
-    return diff>=0&&diff<=7;
+    const candidates=[new Date(y,m-1,lDay),new Date(y,m,lDay),new Date(y,m+1,lDay)];
+    const localDateStr=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    for(const base of candidates){
+      let pd=new Date(base);
+      while(twHolidays.has(localDateStr(pd))||pd.getDay()===0||pd.getDay()===6) pd.setDate(pd.getDate()+1);
+      const diff=Math.round((pd-today)/(1000*60*60*24));
+      if(diff>=-5&&diff<=10){
+        a._loanPayDate=pd;
+        const payMonth=`${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+        const alreadyPaid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date.startsWith(payMonth));
+        if(alreadyPaid) return false;
+        return true;
+      }
+    }
+    return false;
   });
 
   if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
@@ -3663,7 +3673,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3750,8 +3760,13 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
-  setTimeout(checkXferCurrency,0);
+  if(to){
+    to.innerHTML=opts;
+    const fromVal2=String(from?.value||'');
+    const second=accounts.find(a=>String(a.id)!==fromVal2);
+    if(second) to.value=String(second.id);
+  }
+  setTimeout(()=>checkXferCurrency(),50);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -4279,12 +4294,13 @@ function confirmLoanPayment(id){
   const amt=parseFloat(document.getElementById('loan-pay-amt').value);
   if(!amt||amt<=0){alert('請輸入有效金額');return;}
   const date=document.getElementById('loan-pay-date').value||todayStr();
-  const acctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
+  const bankAcctId=parseInt(document.getElementById('loan-pay-acct').value)||null;
   const note=document.getElementById('loan-pay-note').value||a.name+'還款';
   txns.unshift({
-    id:Date.now(), type:'out', amount:amt,
-    currency:a.currency, cat:'其他支出',
-    date, note, acctId, toAcctId:null, project:null
+    id:Date.now(), type:'xfer', amount:amt,
+    currency:a.currency, cat:'轉帳',
+    date, note, acctId:bankAcctId, toAcctId:a.id,
+    fromAmount:amt, project:null, tag:null
   });
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
   alert('還款記錄已新增！');
