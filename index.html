@@ -1165,12 +1165,12 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
+    if(t.type==='xfer'&&t.acctId===acct.id){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
+    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
@@ -1182,7 +1182,7 @@ function acctBalance(acct){
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -3632,7 +3632,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3717,8 +3717,14 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
-  setTimeout(checkXferCurrency,0);
+  if(to){
+    to.innerHTML=opts;
+    // 預設選跟 from 不同的第一個帳戶，用字串比對
+    const fromVal=String(from?.value||'');
+    const second=accounts.find(a=>String(a.id)!==fromVal);
+    if(second) to.value=String(second.id);
+  }
+  setTimeout(()=>checkXferCurrency(),50);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
