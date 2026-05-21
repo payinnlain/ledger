@@ -1142,7 +1142,7 @@ function importJSON(e){
 function exportCSV(){
   const rows=[['日期','類型','類別','金額','幣別','帳戶','備註']];
   txns.forEach(t=>{
-    const aName=accounts.find(a=>a.id===t.acctId)?.name||'';
+    const aName=accounts.find(a=>String(a.id)===String(t.acctId))?.name||'';
     const type=t.type==='in'?'收入':t.type==='out'?'支出':'轉帳';
     rows.push([t.date,type,t.cat,t.amount,t.currency,aName,t.note||'']);
   });
@@ -1165,24 +1165,24 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&t.acctId===acct.id){
+    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
+    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
     // 一般收支：幣別要對
     if(t.currency!==acct.currency) return;
     if(t.acctId!==acct.id&&t.toAcctId!==acct.id) return;
-    if(t.type==='in' &&t.acctId===acct.id) bal+=t.amount;
-    if(t.type==='out'&&t.acctId===acct.id) bal-=t.amount;
+    if(t.type==='in' &&String(t.acctId)===String(acct.id)) bal+=t.amount;
+    if(t.type==='out'&&String(t.acctId)===String(acct.id)) bal-=t.amount;
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -1797,7 +1797,7 @@ function updateArFormSub(){
   subSel.innerHTML='<option value="">不指定</option>'+subs.map(s=>`<option>${s}</option>`).join('');
 }
 function isCryptoAcct(id){
-  return accounts.find(a=>a.id===id)?.type==='crypto';
+  return accounts.find(a=>String(a.id)===String(id))?.type==='crypto';
 }
 function populateCats(){
   const selAcctId=parseInt(document.getElementById('txn-acct')?.value)||null;
@@ -1909,13 +1909,13 @@ function reverseInvestCash(t){
   // 轉帳進投資帳戶 → 刪除時扣回
   if(t.type==='xfer'){
     if(t.toAcctId){
-      const toAcct=accounts.find(a=>a.id===t.toAcctId);
+      const toAcct=accounts.find(a=>String(a.id)===String(t.toAcctId));
       if(toAcct&&(toAcct.type==='invest'||toAcct.type==='crypto')){
         toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
       }
     }
     if(t.acctId){
-      const fromAcct=accounts.find(a=>a.id===t.acctId);
+      const fromAcct=accounts.find(a=>String(a.id)===String(t.acctId));
       if(fromAcct&&(fromAcct.type==='invest'||fromAcct.type==='crypto')){
         fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
       }
@@ -3719,9 +3719,8 @@ function refreshXferSelects(){
   if(from) from.innerHTML=opts;
   if(to){
     to.innerHTML=opts;
-    // 預設選跟 from 不同的第一個帳戶，用字串比對
-    const fromVal=String(from?.value||'');
-    const second=accounts.find(a=>String(a.id)!==fromVal);
+    const fromVal2=String(from?.value||'');
+    const second=accounts.find(a=>String(a.id)!==fromVal2);
     if(second) to.value=String(second.id);
   }
   setTimeout(()=>checkXferCurrency(),50);
