@@ -739,6 +739,37 @@
       </select>
     </div>
   </div>
+  <!-- 轉帳手續費 -->
+  <div id="sheet-xfer-fee-wrap" style="display:none;margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer;margin-bottom:8px">
+      <input type="checkbox" id="sheet-xfer-has-fee" onchange="toggleXferFee()" style="flex-shrink:0">
+      <span>含手續費（從轉出帳戶扣）</span>
+    </label>
+    <div id="sheet-xfer-fee-fields" style="display:none;background:var(--bg2);border-radius:var(--radius);padding:10px 12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="xfer-fee-type" id="xfer-fee-fixed" value="fixed" checked onchange="calcXferFeeTotal()">
+          <span>固定金額</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="radio" name="xfer-fee-type" id="xfer-fee-pct" value="pct" onchange="calcXferFeeTotal()">
+          <span>百分比（%）</span>
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:3px" id="xfer-fee-input-label">手續費金額</div>
+          <input type="text" id="sheet-xfer-fee" inputmode="decimal" placeholder="0" oninput="calcXferFeeTotal()"
+            style="width:100%;padding:8px;font-family:inherit;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:3px">實際扣款（含手續費）</div>
+          <input type="text" id="xfer-fee-total" readonly
+            style="width:100%;padding:8px;font-family:inherit;font-size:14px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--red);font-weight:600">
+        </div>
+      </div>
+    </div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
     <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填"></div>
     <div class="form-group"><label>標籤</label><input type="text" id="sheet-tag" placeholder="自動帶入" list="tag-suggestions"><datalist id="tag-suggestions"></datalist></div>
@@ -1142,7 +1173,7 @@ function importJSON(e){
 function exportCSV(){
   const rows=[['日期','類型','類別','金額','幣別','帳戶','備註']];
   txns.forEach(t=>{
-    const aName=accounts.find(a=>String(a.id)===String(t.acctId))?.name||'';
+    const aName=accounts.find(a=>a.id===t.acctId)?.name||'';
     const type=t.type==='in'?'收入':t.type==='out'?'支出':'轉帳';
     rows.push([t.date,type,t.cat,t.amount,t.currency,aName,t.note||'']);
   });
@@ -1165,24 +1196,24 @@ function acctBalance(acct){
   txns.forEach(t=>{
     if(acct.type==='credit' && t.date && t.date>today) return;
     // 轉出：用 fromAmount（原始幣別），不限幣別
-    if(t.type==='xfer'&&String(t.acctId)===String(acct.id)){
+    if(t.type==='xfer'&&t.acctId===acct.id){
       bal-=(t.fromAmount||t.amount);
       return;
     }
     // 轉入：用 amount（到帳幣別），幣別要對
-    if(t.type==='xfer'&&String(t.toAcctId)===String(acct.id)&&t.currency===acct.currency){
+    if(t.type==='xfer'&&t.toAcctId===acct.id&&t.currency===acct.currency){
       bal+=t.amount;
       return;
     }
     // 一般收支：幣別要對
     if(t.currency!==acct.currency) return;
     if(t.acctId!==acct.id&&t.toAcctId!==acct.id) return;
-    if(t.type==='in' &&String(t.acctId)===String(acct.id)) bal+=t.amount;
-    if(t.type==='out'&&String(t.acctId)===String(acct.id)) bal-=t.amount;
+    if(t.type==='in' &&t.acctId===acct.id) bal+=t.amount;
+    if(t.type==='out'&&t.acctId===acct.id) bal-=t.amount;
   });
   return bal;
 }
-function acctName(id){ return accounts.find(a=>String(a.id)===String(id))?.name||'(已刪除)'; }
+function acctName(id){ return accounts.find(a=>a.id===id)?.name||'(已刪除)'; }
 function addAccount(){
   const name=document.getElementById('acct-name').value.trim();
   const bal=parseFloat(document.getElementById('acct-balance').value)||0;
@@ -1797,7 +1828,7 @@ function updateArFormSub(){
   subSel.innerHTML='<option value="">不指定</option>'+subs.map(s=>`<option>${s}</option>`).join('');
 }
 function isCryptoAcct(id){
-  return accounts.find(a=>String(a.id)===String(id))?.type==='crypto';
+  return accounts.find(a=>a.id===id)?.type==='crypto';
 }
 function populateCats(){
   const selAcctId=parseInt(document.getElementById('txn-acct')?.value)||null;
@@ -1909,13 +1940,13 @@ function reverseInvestCash(t){
   // 轉帳進投資帳戶 → 刪除時扣回
   if(t.type==='xfer'){
     if(t.toAcctId){
-      const toAcct=accounts.find(a=>String(a.id)===String(t.toAcctId));
+      const toAcct=accounts.find(a=>a.id===t.toAcctId);
       if(toAcct&&(toAcct.type==='invest'||toAcct.type==='crypto')){
         toAcct.investCash=Math.max(0,(toAcct.investCash||0)-t.amount);
       }
     }
     if(t.acctId){
-      const fromAcct=accounts.find(a=>String(a.id)===String(t.acctId));
+      const fromAcct=accounts.find(a=>a.id===t.acctId);
       if(fromAcct&&(fromAcct.type==='invest'||fromAcct.type==='crypto')){
         fromAcct.investCash=(fromAcct.investCash||0)+t.amount;
       }
@@ -3632,7 +3663,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3688,6 +3719,8 @@ function setSheetType(t, el){
   if(curWrap) curWrap.style.display=t==='xfer'?'none':'block';
   const fxWrap2=document.getElementById('sheet-xfer-fx-wrap');
   if(fxWrap2&&t==='xfer') fxWrap2.style.display='block';
+  const xferFeeWrap=document.getElementById('sheet-xfer-fee-wrap');
+  if(xferFeeWrap) xferFeeWrap.style.display=t==='xfer'?'block':'none';
   renderSheetCatChips();
   renderSheetAcctChips();
   if(t==='xfer') refreshXferSelects();
@@ -3717,13 +3750,8 @@ function refreshXferSelects(){
   const from=document.getElementById('sheet-from-sel');
   const to=document.getElementById('sheet-to-sel');
   if(from) from.innerHTML=opts;
-  if(to){
-    to.innerHTML=opts;
-    const fromVal2=String(from?.value||'');
-    const second=accounts.find(a=>String(a.id)!==fromVal2);
-    if(second) to.value=String(second.id);
-  }
-  setTimeout(()=>checkXferCurrency(),50);
+  if(to){ to.innerHTML=opts; if(accounts.length>1) to.value=accounts[1].id; }
+  setTimeout(checkXferCurrency,0);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -3736,6 +3764,29 @@ function swapXferAccts(){
   const ta=document.getElementById('sheet-xfer-to-amt');
   if(fa&&ta){const tv=fa.value;fa.value=ta.value;ta.value=tv;}
   checkXferCurrency();
+}
+function toggleXferFee(){
+  const checked=document.getElementById('sheet-xfer-has-fee')?.checked;
+  const fields=document.getElementById('sheet-xfer-fee-fields');
+  if(fields) fields.style.display=checked?'block':'none';
+  if(!checked){
+    const feeEl=document.getElementById('sheet-xfer-fee');
+    if(feeEl) feeEl.value='';
+    const totalEl=document.getElementById('xfer-fee-total');
+    if(totalEl) totalEl.value='';
+  }
+  calcXferFeeTotal();
+}
+function calcXferFeeTotal(){
+  const fromAmt=parseFloat(document.getElementById('sheet-xfer-from-amt')?.value)||0;
+  const feeVal=parseFloat(document.getElementById('sheet-xfer-fee')?.value)||0;
+  const isPct=document.getElementById('xfer-fee-pct')?.checked;
+  const label=document.getElementById('xfer-fee-input-label');
+  if(label) label.textContent=isPct?'百分比（%）':'手續費金額';
+  const fee=isPct?(fromAmt*feeVal/100):feeVal;
+  const total=fromAmt+fee;
+  const totalEl=document.getElementById('xfer-fee-total');
+  if(totalEl) totalEl.value=total>0?total.toFixed(2):'';
 }
 function checkXferCurrency(){
   const fromVal=document.getElementById('sheet-from-sel')?.value||'';
@@ -3765,6 +3816,7 @@ function calcXferRate(changed){
   } else {
     el.textContent='';
   }
+  if(typeof calcXferFeeTotal==='function') calcXferFeeTotal();
 }
 function updateSheetXferSub(){
   const cat=document.getElementById('sheet-xfer-cat')?.value;
@@ -4140,9 +4192,15 @@ function addTxnFromSheet(){
     const fromAmountSave=isXfer?xferFromAmt:undefined;
     const fxRateSave=isXfer&&xferToAmt>0?(xferFromAmt/xferToAmt):undefined;
     const autoNote=isFxXfer&&!note?`換匯：${xferFromAmt} ${fromAcctObj?.currency||''} → ${xferToAmt} ${toAcctObj?.currency||''}（匯率 ${fxRateSave?.toFixed(4)}）`:'';
+    // 手續費
+    const hasFee=isXfer&&document.getElementById('sheet-xfer-has-fee')?.checked;
+    const feeRaw=parseFloat(document.getElementById('sheet-xfer-fee')?.value)||0;
+    const isPct=document.getElementById('xfer-fee-pct')?.checked;
+    const xferFee=hasFee?(isPct?(xferFromAmt*feeRaw/100):feeRaw):0;
+    const fromAmountWithFee=isXfer?(xferFromAmt+xferFee):undefined;
     const newTxn={id:Date.now(),type:sheetType,amount:finalAmt,currency:cur,cat,date,
       note:note||autoNote,project:proj,acctId,toAcctId,tag,
-      fromAmount:fromAmountSave,fxRate:fxRateSave,
+      fromAmount:fromAmountWithFee,fxRate:fxRateSave,xferFee:xferFee||undefined,
       foreignFee:foreignFee||0,xferCat,xferSub,
       receiptUrl:document.getElementById('sheet-receipt-url')?.value||null};
     txns.unshift(newTxn);
@@ -4159,6 +4217,10 @@ function addTxnFromSheet(){
   const sxferto=document.getElementById('sheet-xfer-to-amt'); if(sxferto) sxferto.value='';
   const sxferrate=document.getElementById('sheet-xfer-rate-display'); if(sxferrate) sxferrate.textContent='';
   const sxferwrap=document.getElementById('sheet-xfer-fx-wrap'); if(sxferwrap) sxferwrap.style.display='none';
+  const sxferfee=document.getElementById('sheet-xfer-has-fee'); if(sxferfee) sxferfee.checked=false;
+  const sxferfeeval=document.getElementById('sheet-xfer-fee'); if(sxferfeeval) sxferfeeval.value='';
+  const sxferfields=document.getElementById('sheet-xfer-fee-fields'); if(sxferfields) sxferfields.style.display='none';
+  const sxfertotal=document.getElementById('xfer-fee-total'); if(sxfertotal) sxfertotal.value='';
   const shasf=document.getElementById('sheet-has-foreign'); if(shasf) shasf.checked=false;
   const sfwrap=document.getElementById('sheet-foreign-wrap'); if(sfwrap) sfwrap.style.display='none';
   const stotal=document.getElementById('sheet-total-display'); if(stotal) stotal.value='';
