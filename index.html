@@ -2112,7 +2112,7 @@ function editTxn(id){
       const list=accounts.filter(a=>a.type===type);
       if(!list.length) return;
       html+=`<optgroup label="${editAcctGroupLabel[type]}">`;
-      list.forEach(a=>{ html+=`<option value="${a.id}"${a.id===selId?' selected':''}>${a.name} (${a.currency})</option>`; });
+      list.forEach(a=>{ html+=`<option value="${a.id}"${String(a.id)===String(selId)?' selected':''}>${a.name} (${a.currency})</option>`; });
       html+='</optgroup>';
     });
     return html;
@@ -2337,7 +2337,7 @@ function renderTxnList(){
     return `<div class="txn-item">
       <div class="txn-icon" style="background:${bg}">${ic}</div>
       <div class="txn-meta">
-        <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}</div>
+        <div class="txn-desc">${t.cat}${t.note?' · '+t.note:''}${t.xferFee?` · 手續費 ${fmt(t.xferFee,t.currency)}`:''}</div>
         <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}${t.project?(()=>{const pr=projects.find(p=>String(p.id)===String(t.project))||projects.find(p=>p.name===t.project);return pr?` · <span style="background:${pr.color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${pr.name}</span>`:''})():''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
