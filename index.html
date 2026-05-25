@@ -687,17 +687,9 @@
           <div style="font-size:11px;color:var(--text3);margin-bottom:3px">代墊對象（欠你錢的人）</div>
           <input type="text" id="sheet-advance-name" placeholder="例：小明" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:3px">還款期限</div>
-            <input type="date" id="sheet-advance-due" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-          </div>
-          <div>
-            <div style="font-size:11px;color:var(--text3);margin-bottom:3px">到帳帳戶（選填）</div>
-            <select id="sheet-advance-acct" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
-              <option value="">同支出帳戶</option>
-            </select>
-          </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:3px">還款期限</div>
+          <input type="date" id="sheet-advance-due" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
       </div>
     </div>
@@ -4372,12 +4364,10 @@ function addTxnFromSheet(){
       const advName=document.getElementById('sheet-advance-name')?.value.trim();
       if(advName){
         const advDue=document.getElementById('sheet-advance-due')?.value||date;
-        const advAcctVal=document.getElementById('sheet-advance-acct')?.value;
-        const advAcctId=advAcctVal||acctId;
         arItems.push({
           id:Date.now()+2, type:'ar', name:advName,
           amount:newTxn.amount, currency:cur,
-          due:advDue, acctId:advAcctId,
+          due:advDue, acctId:null,
           note:`代墊：${cat}${note?' · '+note:''}`,
           cat:CATS_IN[0], status:'pending'
         });
@@ -4830,12 +4820,7 @@ function toggleAdvance(){
     // 預設還款期限為今天
     const dueEl=document.getElementById('sheet-advance-due');
     if(dueEl&&!dueEl.value) dueEl.value=todayStr();
-    // 填入帳戶選項
-    const acctSel=document.getElementById('sheet-advance-acct');
-    if(acctSel){
-      acctSel.innerHTML='<option value="">同支出帳戶</option>'+
-        accounts.map(a=>`<option value="${a.id}">${a.name} (${a.currency})</option>`).join('');
-    }
+
   }
 }
 function toggleForeignFee(){
