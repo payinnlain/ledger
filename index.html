@@ -2099,6 +2099,77 @@ async function removeReceipt(txnId){
   t.receiptUrl=null; sv();
   editTxn(txnId);
 }
+function createArFromTxn(id){
+  const t=txns.find(x=>x.id===id); if(!t) return;
+  if(t.type!=='out'){alert('只有支出才能建立代墊應收');return;}
+  const inpStyle='font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box';
+  const acctOpts=accounts.map(a=>`<option value="${a.id}"${String(a.id)===String(t.acctId)?' selected':''}>${a.name} (${a.currency})</option>`).join('');
+  document.getElementById('edit-modal').innerHTML=`
+    <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:20px 16px;width:min(420px,calc(100vw - 24px));box-sizing:border-box;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:500">建立代墊應收</span>
+        <button onclick="closeEdit()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">✕</button>
+      </div>
+      <div style="background:var(--bg2);border-radius:var(--radius);padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--text2)">
+        <div>${t.date} · ${t.cat}${t.note?' · '+t.note:''}</div>
+        <div style="font-weight:600;color:var(--red);margin-top:2px">-${fmt(t.amount,t.currency)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">應收對象（欠你錢的人）</label>
+          <input type="text" id="ar-from-name" placeholder="例：小明" style="${inpStyle}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">金額</label>
+            <input type="number" id="ar-from-amt" value="${t.amount}" min="0" step="any" inputmode="decimal" style="${inpStyle}">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">幣別</label>
+            <input type="text" id="ar-from-cur" value="${t.currency}" style="${inpStyle}">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">到期日</label>
+          <input type="date" id="ar-from-due" value="${t.date}" style="${inpStyle}">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">到帳帳戶</label>
+          <select id="ar-from-acct" style="${inpStyle}">${acctOpts}</select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">備註</label>
+          <input type="text" id="ar-from-note" value="${t.note||''}" placeholder="選填" style="${inpStyle}">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+        <button onclick="closeEdit()" style="padding:8px 16px;font-size:13px;border:0.5px solid var(--border2);background:transparent;border-radius:var(--radius);cursor:pointer;font-family:inherit;color:var(--text2)">取消</button>
+        <button onclick="confirmCreateArFromTxn()" class="btn-primary">建立應收</button>
+      </div>
+    </div>`;
+  document.getElementById('edit-modal').style.display='flex';
+}
+function confirmCreateArFromTxn(){
+  const name=document.getElementById('ar-from-name')?.value.trim();
+  if(!name){alert('請輸入應收對象');return;}
+  const amt=parseFloat(document.getElementById('ar-from-amt')?.value);
+  if(!amt||amt<=0){alert('請輸入有效金額');return;}
+  const cur=document.getElementById('ar-from-cur')?.value||'TWD';
+  const due=document.getElementById('ar-from-due')?.value||todayStr();
+  const acctId=document.getElementById('ar-from-acct')?.value||null;
+  const note=document.getElementById('ar-from-note')?.value||'';
+  arItems.push({
+    id:Date.now(), type:'ar', name, amount:amt, currency:cur,
+    due, acctId, note,
+    cat:CATS_IN[0], status:'pending'
+  });
+  sv(); closeEdit();
+  // 切到應收應付頁
+  const arTab=Array.from(document.querySelectorAll('.tab-btn')).find(b=>b.onclick?.toString().includes("'ar'"));
+  if(arTab) switchTab('ar', arTab);
+  renderArList();
+  alert(`已建立應收：${name} ${fmt(amt,cur)}`);
+}
 function editTxn(id){
   const t=txns.find(x=>x.id===id); if(!t) return;
   const isCrypto=isCryptoAcct(t.acctId);
@@ -2343,6 +2414,7 @@ function renderTxnList(){
         <div class="txn-sub">${t.date} ${badge}${an?' · '+an+tn:''}${t.tag?` <span style="background:var(--blue-bg);color:var(--blue);padding:1px 7px;border-radius:8px;font-size:10px;font-weight:500">#${t.tag}</span>`:''}${t.project?(()=>{const pr=projects.find(p=>String(p.id)===String(t.project))||projects.find(p=>p.name===t.project);return pr?` · <span style="background:${pr.color||'var(--blue)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${pr.name}</span>`:''})():''}</div>
       </div>
       <div class="txn-amount" style="color:${c}">${s}${fmt(t.amount,t.currency)}</div>
+      ${t.type==='out'?`<button class="btn-sm" onclick="createArFromTxn(${t.id})" title="建立代墊應收">代墊</button>`:''}
       <button class="btn-sm" onclick="editTxn(${t.id})">編輯</button>
       <button class="btn-sm danger" onclick="deleteTxn(${t.id})">刪除</button>
     </div>`;
@@ -3105,6 +3177,32 @@ function renderDueReminder(){
   const upcoming=arWithAdj.filter(a=>a.adjDue>=todayStr2&&a.adjDue<=in7Str).sort((a,b)=>a.adjDue.localeCompare(b.adjDue));
 
   // Credit card payment reminders
+  // 信用卡結帳日提醒：結帳日到了（含當天）且還沒到繳款日，顯示「已結帳，去繳費」
+  const billReminders=accounts.filter(a=>a.type==='credit'&&a.billDay).filter(a=>{
+    const bal=acctBalance(a);
+    if(bal>=0) return false; // 沒有欠款不提示
+    const td=new Date(); td.setHours(0,0,0,0);
+    const d=td.getDate(), billDay=parseInt(a.billDay);
+    // 計算本期結帳日
+    let currBill;
+    if(d>=billDay){ currBill=new Date(td.getFullYear(),td.getMonth(),billDay); }
+    else { currBill=new Date(td.getFullYear(),td.getMonth()-1,billDay); }
+    // 計算繳款截止日
+    const dueDate=new Date(currBill);
+    if(a.dueDays) dueDate.setDate(dueDate.getDate()+parseInt(a.dueDays));
+    const diffBill=Math.round((currBill-td)/(1000*60*60*24));
+    const diffDue=Math.round((dueDate-td)/(1000*60*60*24));
+    // 結帳日已到（diffBill<=0）且繳款日未過（diffDue>=0）
+    if(diffBill>0||diffDue<0) return false;
+    // 本月已繳則不顯示
+    const billMonth=`${currBill.getFullYear()}-${String(currBill.getMonth()+1).padStart(2,'0')}`;
+    const paid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date.startsWith(billMonth));
+    if(paid) return false;
+    a._currBill=currBill;
+    a._dueDate=dueDate;
+    a._diffDue=diffDue;
+    return true;
+  });
   const ccReminders=accounts.filter(a=>a.type==='credit'&&a.payDay).filter(a=>{
     const bal=acctBalance(a);
     if(bal>=0) return false;
@@ -3138,7 +3236,7 @@ function renderDueReminder(){
     return false;
   });
 
-  if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length){el.innerHTML='';return;}
+  if(!overdue.length&&!upcoming.length&&!ccReminders.length&&!loanReminders.length&&!billReminders.length){el.innerHTML='';return;}
 
   const dayDiff=(dateStr)=>{
     const d=new Date(dateStr); d.setHours(0,0,0,0);
@@ -3186,6 +3284,26 @@ function renderDueReminder(){
   });
 
   // Credit card reminders
+  // 信用卡結帳提醒
+  billReminders.forEach(a=>{
+    const bal=Math.abs(acctBalance(a));
+    const billAmt=a.manualBill||bal;
+    const dueStr=`${a._dueDate.getMonth()+1}/${a._dueDate.getDate()}`;
+    const diffLabel=a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:500">${a.name}</span>
+          <span style="background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500">已結帳</span>
+          <span style="font-size:10px;color:var(--text2)">繳款至 ${dueStr}（${diffLabel}）</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:1px">信用卡 · 結帳日每月${a.billDay}號</div>
+      </div>
+      <span style="font-size:13px;font-weight:600;color:var(--red);flex-shrink:0;margin-right:6px">-${fmt(billAmt,a.currency)}</span>
+      <button onclick="quickCreditPayment(${a.id})" style="flex-shrink:0;padding:4px 10px;font-size:12px;font-weight:500;background:var(--red);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-family:inherit">繳費</button>
+    </div>`;
+  });
   ccReminders.forEach(a=>{
     const payDay=parseInt(a.payDay);
     const thisMonth=new Date(today.getFullYear(),today.getMonth(),payDay);
