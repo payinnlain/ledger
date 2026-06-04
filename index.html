@@ -3805,7 +3805,7 @@ function renderSheetAcctChips(){
   if(selEl){
     const forOut=sheetType==='out';
     selEl.innerHTML=buildAcctOptgroups(curId, forOut);
-    selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; };
+    selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; syncSheetCurrency(); };
   }
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
