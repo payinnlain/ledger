@@ -703,7 +703,7 @@
     <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px" id="sheet-acct-label">帳戶</label>
     <!-- 一般收支：單一帳戶選單 -->
     <div id="sheet-acct-single">
-      <select id="sheet-acct-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px" onchange="syncSheetCurrency()"></select>
+      <select id="sheet-acct-sel" style="width:100%;padding:10px;font-family:inherit;font-size:14px"></select>
       <input type="hidden" id="sheet-acct">
     </div>
     <!-- 轉帳：MOZE 風格雙欄 -->
@@ -3805,7 +3805,7 @@ function renderSheetAcctChips(){
   if(selEl){
     const forOut=sheetType==='out';
     selEl.innerHTML=buildAcctOptgroups(curId, forOut);
-    selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; syncSheetCurrency(); };
+    selEl.onchange=()=>{ document.getElementById('sheet-acct').value=selEl.value; };
   }
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
@@ -3834,11 +3834,8 @@ function openAddSheet(){
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
   if(instStart) instStart.value = d.slice(0,7);
-  // 預設收入，隱藏外國手續費
-  const fwrap=document.getElementById('sheet-has-foreign-wrap');
-  if(fwrap) fwrap.style.display = sheetType==='out'?'block':'none';
-  renderSheetCatChips();
-  renderSheetAcctChips();
+  // 重新套用目前類型的顯示狀態（確保清除後重新開啟狀態正確）
+  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
   refreshSheetProjectSelect();
 }
 function closeAddSheet(){
@@ -3941,13 +3938,6 @@ function calcXferFeeTotal(){
   const total=fromAmt+fee;
   const totalEl=document.getElementById('xfer-fee-total');
   if(totalEl) totalEl.value=total>0?total.toFixed(2):'';
-}
-function syncSheetCurrency(){
-  const selId=document.getElementById('sheet-acct-sel')?.value||'';
-  const acct=accounts.find(a=>String(a.id)===String(selId));
-  if(!acct) return;
-  const curSel=document.getElementById('sheet-currency');
-  if(curSel) curSel.value=acct.currency;
 }
 function checkXferCurrency(){
   const fromVal=document.getElementById('sheet-from-sel')?.value||'';
