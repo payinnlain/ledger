@@ -711,14 +711,12 @@
       <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px">
         <div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">轉出帳戶</div>
-          <select id="sheet-from-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency();updateXferBalDisplay()"></select>
-          <div id="xfer-from-bal" style="font-size:11px;color:var(--text2);margin-top:3px;text-align:right"></div>
+          <select id="sheet-from-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency()"></select>
         </div>
         <button onclick="swapXferAccts()" style="width:36px;height:36px;border-radius:50%;background:var(--green);color:#fff;border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:16px">⇄</button>
         <div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">轉入帳戶</div>
-          <select id="sheet-to-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency();updateXferBalDisplay()"></select>
-          <div id="xfer-to-bal" style="font-size:11px;color:var(--text2);margin-top:3px;text-align:right"></div>
+          <select id="sheet-to-sel" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)" onchange="checkXferCurrency()"></select>
         </div>
       </div>
       <div id="sheet-xfer-fx-wrap" style="display:none;margin-bottom:8px">
@@ -1051,6 +1049,7 @@ async function loadAll(){
         if(d.manualFxRate>0){ manualFxRate=d.manualFxRate; localStorage.setItem('manualFxRate', manualFxRate); }
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
+        refreshAcctSelects(); refreshProjectSelect(); renderDashboard(); renderTwHolidays();
       } else {
         // No data yet, try local
         const local = localStorage.getItem(KEY);
@@ -3812,7 +3811,7 @@ function renderSheetAcctChips(){
   const toSel=document.getElementById('sheet-to-sel');
   if(toSel){
     toSel.innerHTML=buildAcctOptgroups(document.getElementById('sheet-to-acct')?.value||'');
-    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); updateXferBalDisplay(); };
+    toSel.onchange=()=>{ document.getElementById('sheet-to-acct').value=toSel.value; checkXferCurrency(); };
   }
 }
 function refreshSheetProjectSelect(){
@@ -3836,8 +3835,11 @@ function openAddSheet(){
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
   if(instStart) instStart.value = d.slice(0,7);
-  // 重新套用目前類型的顯示狀態（確保清除後重新開啟狀態正確）
-  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
+  // 預設收入，隱藏外國手續費
+  const fwrap=document.getElementById('sheet-has-foreign-wrap');
+  if(fwrap) fwrap.style.display = sheetType==='out'?'block':'none';
+  renderSheetCatChips();
+  renderSheetAcctChips();
   refreshSheetProjectSelect();
 }
 function closeAddSheet(){
@@ -3904,7 +3906,7 @@ function refreshXferSelects(){
     const second=accounts.find(a=>String(a.id)!==fromVal2);
     if(second) to.value=String(second.id);
   }
-  setTimeout(()=>{ checkXferCurrency(); updateXferBalDisplay(); },50);
+  setTimeout(()=>checkXferCurrency(),50);
 }
 function swapXferAccts(){
   const from=document.getElementById('sheet-from-sel');
@@ -3940,16 +3942,6 @@ function calcXferFeeTotal(){
   const total=fromAmt+fee;
   const totalEl=document.getElementById('xfer-fee-total');
   if(totalEl) totalEl.value=total>0?total.toFixed(2):'';
-}
-function updateXferBalDisplay(){
-  const fromVal=document.getElementById('sheet-from-sel')?.value||'';
-  const toVal=document.getElementById('sheet-to-sel')?.value||'';
-  const fromAcct=accounts.find(a=>String(a.id)===String(fromVal));
-  const toAcct=accounts.find(a=>String(a.id)===String(toVal));
-  const fromEl=document.getElementById('xfer-from-bal');
-  const toEl=document.getElementById('xfer-to-bal');
-  if(fromEl) fromEl.textContent=fromAcct?`餘額：${fmt(acctBalance(fromAcct),fromAcct.currency)}`:'';
-  if(toEl) toEl.textContent=toAcct?`餘額：${fmt(acctBalance(toAcct),toAcct.currency)}`:'';
 }
 function checkXferCurrency(){
   const fromVal=document.getElementById('sheet-from-sel')?.value||'';
