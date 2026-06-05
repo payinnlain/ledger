@@ -1049,7 +1049,7 @@ async function loadAll(){
         if(d.manualFxRate>0){ manualFxRate=d.manualFxRate; localStorage.setItem('manualFxRate', manualFxRate); }
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
-        refreshAcctSelects(); refreshProjectSelect(); renderDashboard(); renderTwHolidays();
+        refreshAcctSelects(); refreshProjectSelect(); renderDashboard();
       } else {
         // No data yet, try local
         const local = localStorage.getItem(KEY);
