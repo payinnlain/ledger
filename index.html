@@ -5013,7 +5013,7 @@ function quickCreditPayment(id){
       const prevBill2=new Date(currBill2.getFullYear(),currBill2.getMonth()-1,a.billDay);
       const prevStr=prevBill2.getFullYear()+'-'+String(prevBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
       const currStr=currBill2.getFullYear()+'-'+String(currBill2.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
-      const billTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>=prevStr&&t.date<=currStr);
+      const billTxns=txns.filter(t=>String(t.acctId)===String(a.id)&&t.currency===a.currency&&t.date>=prevStr&&t.date<currStr);
       thisBillPay=billTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
     }
   } else if(a.manualBill){ thisBillPay=a.manualBill; }
