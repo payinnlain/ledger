@@ -5075,6 +5075,9 @@ function confirmCreditPayment(creditId, currency){
     acctId:bankId, toAcctId:creditId,
     project:null, tag:null
   });
+  // 繳費後清除手動帳單金額
+  const ccAcct=accounts.find(x=>String(x.id)===String(creditId));
+  if(ccAcct) ccAcct.manualBill=null;
   sv(); closeEdit(); renderAcctOverview(); renderDashboard();
 }
 let _detailAcctId=null;
