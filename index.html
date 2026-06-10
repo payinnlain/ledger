@@ -1051,6 +1051,7 @@ async function loadAll(){
         if(d.manualFxRate>0){ manualFxRate=d.manualFxRate; localStorage.setItem('manualFxRate', manualFxRate); }
         localStorage.setItem(KEY, rows[0].data);
         setSyncStatus('ok','已同步 ✓');
+        refreshAcctSelects(); refreshProjectSelect(); renderDashboard();
       } else {
         // No data yet, try local
         const local = localStorage.getItem(KEY);
@@ -3108,7 +3109,7 @@ function renderTotalAssets(){
     if(bal>=0) return;
     const totalOwed=Math.abs(twdEq(bal,a.currency));
     // 未到期分期
-    const futureTxns=txns.filter(t=>t.acctId===a.id&&t.currency===a.currency&&t.date>todayStr2&&t.installmentGroup);
+    const futureTxns=txns.filter(t=>String(t.acctId)===String(a.id)&&t.currency===a.currency&&t.date>todayStr2&&t.installmentGroup);
     const futureAmt=twdEq(futureTxns.reduce((s,t)=>s+(t.type==='out'?t.amount:0),0),a.currency);
     creditFuture+=futureAmt;
     creditBilled+=Math.max(0,totalOwed-futureAmt);
@@ -3305,8 +3306,18 @@ function renderDueReminder(){
   // Credit card reminders
   // 信用卡結帳提醒
   billReminders.forEach(a=>{
-    const bal=Math.abs(acctBalance(a));
-    const billAmt=a.manualBill||bal;
+    // 計算本期帳單（同 quickCreditPayment 邏輯，排除未來分期）
+    let billAmt=0;
+    if(a.manualBill){
+      billAmt=a.manualBill;
+    } else if(a.billDay&&a._currBill){
+      const prevBillR=new Date(a._currBill.getFullYear(),a._currBill.getMonth()-1,a.billDay);
+      const prevStrR=prevBillR.getFullYear()+'-'+String(prevBillR.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const currStrR=a._currBill.getFullYear()+'-'+String(a._currBill.getMonth()+1).padStart(2,'0')+'-'+String(a.billDay).padStart(2,'0');
+      const todayStrR=todayStr();
+      const bt=txns.filter(t=>String(t.acctId)===String(a.id)&&t.currency===a.currency&&t.date>=prevStrR&&t.date<currStrR&&!(t.installmentGroup&&t.date>todayStrR));
+      billAmt=bt.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
+    }
     const dueStr=`${a._dueDate.getMonth()+1}/${a._dueDate.getDate()}`;
     const diffLabel=a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
