@@ -3213,7 +3213,7 @@ function renderDueReminder(){
     const diffBill=Math.round((currBill-td)/(1000*60*60*24));
     const diffDue=Math.round((dueDate-td)/(1000*60*60*24));
     // 結帳日已到（diffBill<=0）且繳款日未過（diffDue>=0）
-    if(diffBill>0||diffDue<0) return false;
+    if(diffBill>0) return false; // 只要結帳日已到就持續顯示，即使逾期也不消失（除非已繳費）
     // 本月已繳則不顯示
     const billMonth=`${currBill.getFullYear()}-${String(currBill.getMonth()+1).padStart(2,'0')}`;
     const paid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date.startsWith(billMonth));
@@ -3319,7 +3319,7 @@ function renderDueReminder(){
       billAmt=bt.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
     }
     const dueStr=`${a._dueDate.getMonth()+1}/${a._dueDate.getDate()}`;
-    const diffLabel=a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
+    const diffLabel=a._diffDue<0?`逾期${Math.abs(a._diffDue)}天`:a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
