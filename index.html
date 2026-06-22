@@ -3847,11 +3847,8 @@ function openAddSheet(){
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
   if(instStart) instStart.value = d.slice(0,7);
-  // 預設收入，隱藏外國手續費
-  const fwrap=document.getElementById('sheet-has-foreign-wrap');
-  if(fwrap) fwrap.style.display = sheetType==='out'?'block':'none';
-  renderSheetCatChips();
-  renderSheetAcctChips();
+  // 重新套用目前類型的顯示狀態（確保清除後重新開啟狀態正確）
+  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
   refreshSheetProjectSelect();
 }
 function closeAddSheet(){
