@@ -4395,7 +4395,6 @@ function addTxnFromSheet(){
     }
   }
   sv();
-  closeAddSheet();
   document.getElementById('sheet-amount').value='';
   document.getElementById('sheet-note').value='';
   const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
@@ -4423,6 +4422,9 @@ function addTxnFromSheet(){
   const spreview=document.getElementById('sheet-photo-preview'); if(spreview) spreview.style.display='none';
   const spbtn=document.getElementById('sheet-photo-btn'); if(spbtn){spbtn.textContent='📷';spbtn.style.color='';}
   renderCalendar(); renderTxnList(); renderAcctOverview();
+  // 不關閉視窗，重新套用目前類型狀態方便連續輸入下一筆
+  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
+  document.getElementById('sheet-amount')?.focus();
 }
 
 function quickLoanPayment(id){
