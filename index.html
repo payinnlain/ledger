@@ -2489,7 +2489,12 @@ function markArPaid(id){
       </div>
       <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
         <div style="font-weight:500;margin-bottom:4px">${a.name}</div>
-        <div style="color:var(--text2)">${isAp?'應付':'應收'} ${fmt(a.amount,a.currency)}</div>
+        <div style="color:var(--text2)">${isAp?'應付':'應收'}總額 ${fmt(a.amount,a.currency)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2)">本次結清金額（可部分結清）</label>
+        <input type="text" id="ar-settle-amt" inputmode="decimal" value="${a.amount}" placeholder="${a.amount}"
+          style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -2555,9 +2560,13 @@ function confirmSettle(id){
   const date=document.getElementById('ar-settle-date').value||todayStr();
   const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
   const sub=document.getElementById('ar-settle-sub')?.value||null;
+  const settleAmt=parseFloat(document.getElementById('ar-settle-amt')?.value)||a.amount;
+  if(settleAmt<=0){alert('請輸入有效金額');return;}
+  if(settleAmt>a.amount){alert('結清金額不能超過總額 '+fmt(a.amount,a.currency));return;}
+  const isPartial = settleAmt < a.amount;
 
-  // 應付 + 扣款帳戶幣別不同 → 換匯視窗
-  if(a.type==='ap' && acctId){
+  // 應付 + 扣款帳戶幣別不同 → 換匯視窗（暫不支援部分結清的換匯流程，先全額處理）
+  if(a.type==='ap' && acctId && !isPartial){
     const debitAcct=accounts.find(x=>x.id===acctId);
     if(debitAcct && debitAcct.currency!==a.currency){
       openApFxGeneralModal(id, a, debitAcct, date, cat, sub);
@@ -2565,23 +2574,25 @@ function confirmSettle(id){
     }
   }
 
-  // 一般結清
-  a.status='paid';
+  // 結清（全額或部分）
+  if(isPartial){
+    a.amount = a.amount - settleAmt; // 剩餘金額繼續留著，狀態不變
+  } else {
+    a.status='paid';
+  }
   if(acctId){
     const txn={id:Date.now(), type:a.type==='ar'?'in':'out',
-      amount:a.amount, currency:a.currency,
-      cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
+      amount:settleAmt, currency:a.currency,
+      cat, date, note:(isPartial?'部分結清：':'結清：')+a.name+(a.note?' ('+a.note+')':''),
       tag:sub||null, acctId, toAcctId:null, project:null};
     txns.unshift(txn);
     // 同幣別投資帳戶直接加現金
-    if(acctId){
-      const linkedAcct=accounts.find(x=>x.id===acctId);
-      if(linkedAcct&&linkedAcct.type==='invest'&&a.currency===linkedAcct.currency){
-        linkedAcct.investCash=(linkedAcct.investCash||0)+(a.type==='ap'?-a.amount:a.amount);
-      }
+    const linkedAcct=accounts.find(x=>x.id===acctId);
+    if(linkedAcct&&linkedAcct.type==='invest'&&a.currency===linkedAcct.currency){
+      linkedAcct.investCash=(linkedAcct.investCash||0)+(a.type==='ap'?-settleAmt:settleAmt);
     }
   }
-  if(a.recurring && a.freq && a.due){
+  if(!isPartial && a.recurring && a.freq && a.due){
     const nextDue=nextRecurringDate(a.due, a.freq);
     arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
       amount:a.amount, currency:a.currency,
