@@ -660,7 +660,7 @@
     <div class="form-group">
       <label>金額</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" id="sheet-amount" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="font-size:24px;font-weight:600;padding:12px;flex:1" oninput="calcSheetTotal()">
+        <input type="text" id="sheet-amount" placeholder="0" inputmode="decimal" pattern="[0-9.]*" style="font-size:24px;font-weight:600;padding:12px;flex:1" oninput="calcSheetTotal();calcAdvanceSplit()">
         <button onclick="openSheetPhotoMenu()" style="width:48px;height:48px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);cursor:pointer;font-size:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center" id="sheet-photo-btn">📷</button>
       </div>
     </div>
@@ -685,15 +685,22 @@
       <div style="display:flex;flex-direction:column;gap:8px">
         <div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:3px">代墊對象（欠你錢的人）</div>
-          <input type="text" id="sheet-advance-name" placeholder="例：小明" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <input type="text" id="sheet-advance-name" placeholder="例：小明" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);box-sizing:border-box">
         </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);margin-bottom:3px">代墊金額（預設同支出總額，可改小於總額做拆分）</div>
-          <input type="text" id="sheet-advance-amt" inputmode="decimal" placeholder="留空=同支出總額" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);box-sizing:border-box">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:3px">這筆支出總額</div>
+            <input type="text" id="sheet-advance-total-display" readonly placeholder="0" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);box-sizing:border-box">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:3px">其中代墊的金額</div>
+            <input type="text" id="sheet-advance-amt" inputmode="decimal" placeholder="例：400" oninput="calcAdvanceSplit()" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--purple);font-weight:600;box-sizing:border-box">
+          </div>
         </div>
+        <div id="sheet-advance-split-hint" style="font-size:11px;color:var(--text2);padding:2px 2px"></div>
         <div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:3px">還款期限</div>
-          <input type="date" id="sheet-advance-due" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
+          <input type="date" id="sheet-advance-due" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);box-sizing:border-box">
         </div>
       </div>
     </div>
@@ -2186,7 +2193,7 @@ function confirmCreateArFromTxn(){
   arItems.push({
     id:Date.now(), type:'ar', name, amount:amt, currency:cur,
     due, acctId, note,
-    cat:'暫收', status:'pending'
+    cat:CATS_IN[0], status:'pending'
   });
   sv(); closeEdit();
   // 切到應收應付頁
@@ -3859,7 +3866,6 @@ function openAddSheet(){
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
   if(instStart) instStart.value = d.slice(0,7);
-  // 重新套用目前類型的顯示狀態（確保清除後重新開啟狀態正確）
   setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
   refreshSheetProjectSelect();
 }
@@ -4391,7 +4397,7 @@ function addTxnFromSheet(){
       receiptUrl:document.getElementById('sheet-receipt-url')?.value||null};
     txns.unshift(newTxn);
     syncInvestCash(newTxn);
-    // 代墊：建立應收款項（金額可小於支出總額，做部分拆分）
+    // 代墊：建立應收款項（金額可小於支出總額，拆分個人支出與代墊金額）
     if(sheetType==='out'&&document.getElementById('sheet-is-advance')?.checked){
       const advName=document.getElementById('sheet-advance-name')?.value.trim();
       if(advName){
@@ -4418,6 +4424,8 @@ function addTxnFromSheet(){
   const sadv=document.getElementById('sheet-is-advance'); if(sadv) sadv.checked=false;
   const sadvname=document.getElementById('sheet-advance-name'); if(sadvname) sadvname.value='';
   const sadvamt=document.getElementById('sheet-advance-amt'); if(sadvamt) sadvamt.value='';
+  const sadvhint=document.getElementById('sheet-advance-split-hint'); if(sadvhint) sadvhint.textContent='';
+  const sadvtotal=document.getElementById('sheet-advance-total-display'); if(sadvtotal) sadvtotal.value='';
   const sadvfields=document.getElementById('sheet-advance-fields'); if(sadvfields) sadvfields.style.display='none';
   const sxferfrom=document.getElementById('sheet-xfer-from-amt'); if(sxferfrom) sxferfrom.value='';
   const sxferto=document.getElementById('sheet-xfer-to-amt'); if(sxferto) sxferto.value='';
@@ -4438,7 +4446,6 @@ function addTxnFromSheet(){
   const spreview=document.getElementById('sheet-photo-preview'); if(spreview) spreview.style.display='none';
   const spbtn=document.getElementById('sheet-photo-btn'); if(spbtn){spbtn.textContent='📷';spbtn.style.color='';}
   renderCalendar(); renderTxnList(); renderAcctOverview();
-  // 不關閉視窗，重新套用目前類型狀態方便連續輸入下一筆
   setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
   document.getElementById('sheet-amount')?.focus();
 }
@@ -4855,11 +4862,23 @@ function toggleAdvance(){
   const fields=document.getElementById('sheet-advance-fields');
   if(fields) fields.style.display=checked?'block':'none';
   if(checked){
-    // 預設還款期限為今天
     const dueEl=document.getElementById('sheet-advance-due');
     if(dueEl&&!dueEl.value) dueEl.value=todayStr();
-
+    calcAdvanceSplit();
   }
+}
+function calcAdvanceSplit(){
+  const total=parseFloat(document.getElementById('sheet-amount')?.value)||0;
+  const totalDisplay=document.getElementById('sheet-advance-total-display');
+  if(totalDisplay) totalDisplay.value=total>0?total:'';
+  const advAmt=parseFloat(document.getElementById('sheet-advance-amt')?.value)||0;
+  const hint=document.getElementById('sheet-advance-split-hint');
+  if(!hint) return;
+  if(advAmt<=0){ hint.textContent=''; return; }
+  if(advAmt>total){ hint.textContent='⚠️ 代墊金額不能超過支出總額'; hint.style.color='var(--red)'; return; }
+  const mine=total-advAmt;
+  hint.style.color='var(--text2)';
+  hint.textContent=`你個人實際支出：${mine.toLocaleString()}　|　代墊（應收）：${advAmt.toLocaleString()}`;
 }
 function toggleForeignFee(){
   const checked=document.getElementById('sheet-has-foreign')?.checked;
