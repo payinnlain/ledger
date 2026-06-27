@@ -688,6 +688,10 @@
           <input type="text" id="sheet-advance-name" placeholder="例：小明" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
         <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:3px">代墊金額（預設同支出總額，可改小於總額做拆分）</div>
+          <input type="text" id="sheet-advance-amt" inputmode="decimal" placeholder="留空=同支出總額" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);box-sizing:border-box">
+        </div>
+        <div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:3px">還款期限</div>
           <input type="date" id="sheet-advance-due" style="width:100%;padding:7px;font-family:inherit;font-size:13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text)">
         </div>
@@ -2489,7 +2493,12 @@ function markArPaid(id){
       </div>
       <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
         <div style="font-weight:500;margin-bottom:4px">${a.name}</div>
-        <div style="color:var(--text2)">${isAp?'應付':'應收'} ${fmt(a.amount,a.currency)}</div>
+        <div style="color:var(--text2)">${isAp?'應付':'應收'}總額 ${fmt(a.amount,a.currency)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+        <label style="font-size:12px;color:var(--text2)">本次結清金額（可部分結清）</label>
+        <input type="text" id="ar-settle-amt" inputmode="decimal" value="${a.amount}" placeholder="${a.amount}"
+          style="font-family:inherit;font-size:14px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text);width:100%;box-sizing:border-box">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -2555,9 +2564,12 @@ function confirmSettle(id){
   const date=document.getElementById('ar-settle-date').value||todayStr();
   const cat=document.getElementById('ar-settle-cat')?.value||(a.type==='ar'?'其他收入':'其他支出');
   const sub=document.getElementById('ar-settle-sub')?.value||null;
+  const settleAmt=parseFloat(document.getElementById('ar-settle-amt')?.value)||a.amount;
+  if(settleAmt<=0){alert('請輸入有效金額');return;}
+  if(settleAmt>a.amount){alert('結清金額不能超過總額 '+fmt(a.amount,a.currency));return;}
+  const isPartial = settleAmt < a.amount;
 
-  // 應付 + 扣款帳戶幣別不同 → 換匯視窗
-  if(a.type==='ap' && acctId){
+  if(a.type==='ap' && acctId && !isPartial){
     const debitAcct=accounts.find(x=>x.id===acctId);
     if(debitAcct && debitAcct.currency!==a.currency){
       openApFxGeneralModal(id, a, debitAcct, date, cat, sub);
@@ -2565,23 +2577,23 @@ function confirmSettle(id){
     }
   }
 
-  // 一般結清
-  a.status='paid';
+  if(isPartial){
+    a.amount = a.amount - settleAmt;
+  } else {
+    a.status='paid';
+  }
   if(acctId){
     const txn={id:Date.now(), type:a.type==='ar'?'in':'out',
-      amount:a.amount, currency:a.currency,
-      cat, date, note:'結清：'+a.name+(a.note?' ('+a.note+')':''),
+      amount:settleAmt, currency:a.currency,
+      cat, date, note:(isPartial?'部分結清：':'結清：')+a.name+(a.note?' ('+a.note+')':''),
       tag:sub||null, acctId, toAcctId:null, project:null};
     txns.unshift(txn);
-    // 同幣別投資帳戶直接加現金
-    if(acctId){
-      const linkedAcct=accounts.find(x=>x.id===acctId);
-      if(linkedAcct&&linkedAcct.type==='invest'&&a.currency===linkedAcct.currency){
-        linkedAcct.investCash=(linkedAcct.investCash||0)+(a.type==='ap'?-a.amount:a.amount);
-      }
+    const linkedAcct=accounts.find(x=>x.id===acctId);
+    if(linkedAcct&&linkedAcct.type==='invest'&&a.currency===linkedAcct.currency){
+      linkedAcct.investCash=(linkedAcct.investCash||0)+(a.type==='ap'?-settleAmt:settleAmt);
     }
   }
-  if(a.recurring && a.freq && a.due){
+  if(!isPartial && a.recurring && a.freq && a.due){
     const nextDue=nextRecurringDate(a.due, a.freq);
     arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
       amount:a.amount, currency:a.currency,
@@ -3213,7 +3225,7 @@ function renderDueReminder(){
     const diffBill=Math.round((currBill-td)/(1000*60*60*24));
     const diffDue=Math.round((dueDate-td)/(1000*60*60*24));
     // 結帳日已到（diffBill<=0）且繳款日未過（diffDue>=0）
-    if(diffBill>0||diffDue<0) return false;
+    if(diffBill>0) return false; // 只要結帳日已到就持續顯示，即使逾期也不消失（除非已繳費）
     // 本月已繳則不顯示
     const billMonth=`${currBill.getFullYear()}-${String(currBill.getMonth()+1).padStart(2,'0')}`;
     const paid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date.startsWith(billMonth));
@@ -3319,7 +3331,7 @@ function renderDueReminder(){
       billAmt=bt.reduce((s,t)=>s+(t.type==='out'?t.amount:-(t.amount)),0);
     }
     const dueStr=`${a._dueDate.getMonth()+1}/${a._dueDate.getDate()}`;
-    const diffLabel=a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
+    const diffLabel=a._diffDue<0?`逾期${Math.abs(a._diffDue)}天`:a._diffDue===0?'今天到期':`還有${a._diffDue}天到期`;
     html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border)">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
@@ -3847,11 +3859,8 @@ function openAddSheet(){
   document.getElementById('sheet-date').value = d;
   const instStart = document.getElementById('sheet-inst-start');
   if(instStart) instStart.value = d.slice(0,7);
-  // 預設收入，隱藏外國手續費
-  const fwrap=document.getElementById('sheet-has-foreign-wrap');
-  if(fwrap) fwrap.style.display = sheetType==='out'?'block':'none';
-  renderSheetCatChips();
-  renderSheetAcctChips();
+  // 重新套用目前類型的顯示狀態（確保清除後重新開啟狀態正確）
+  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
   refreshSheetProjectSelect();
 }
 function closeAddSheet(){
@@ -4382,23 +4391,25 @@ function addTxnFromSheet(){
       receiptUrl:document.getElementById('sheet-receipt-url')?.value||null};
     txns.unshift(newTxn);
     syncInvestCash(newTxn);
-    // 代墊：建立應收款項
+    // 代墊：建立應收款項（金額可小於支出總額，做部分拆分）
     if(sheetType==='out'&&document.getElementById('sheet-is-advance')?.checked){
       const advName=document.getElementById('sheet-advance-name')?.value.trim();
       if(advName){
         const advDue=document.getElementById('sheet-advance-due')?.value||date;
+        const advAmtInput=parseFloat(document.getElementById('sheet-advance-amt')?.value);
+        const advAmt=(advAmtInput>0&&advAmtInput<=newTxn.amount)?advAmtInput:newTxn.amount;
+        const isPartialAdv = advAmt < newTxn.amount;
         arItems.push({
           id:Date.now()+2, type:'ar', name:advName,
-          amount:newTxn.amount, currency:cur,
+          amount:advAmt, currency:cur,
           due:advDue, acctId:null,
-          note:`代墊：${cat}${note?' · '+note:''}`,
+          note:`代墊：${cat}${note?' · '+note:''}${isPartialAdv?`（總額${fmt(newTxn.amount,cur)}中的${fmt(advAmt,cur)}）`:''}`,
           cat:'暫收', status:'pending'
         });
       }
     }
   }
   sv();
-  closeAddSheet();
   document.getElementById('sheet-amount').value='';
   document.getElementById('sheet-note').value='';
   const stag=document.getElementById('sheet-tag'); if(stag) stag.value='';
@@ -4406,6 +4417,7 @@ function addTxnFromSheet(){
   const sfee=document.getElementById('sheet-foreign-fee'); if(sfee) sfee.value='';
   const sadv=document.getElementById('sheet-is-advance'); if(sadv) sadv.checked=false;
   const sadvname=document.getElementById('sheet-advance-name'); if(sadvname) sadvname.value='';
+  const sadvamt=document.getElementById('sheet-advance-amt'); if(sadvamt) sadvamt.value='';
   const sadvfields=document.getElementById('sheet-advance-fields'); if(sadvfields) sadvfields.style.display='none';
   const sxferfrom=document.getElementById('sheet-xfer-from-amt'); if(sxferfrom) sxferfrom.value='';
   const sxferto=document.getElementById('sheet-xfer-to-amt'); if(sxferto) sxferto.value='';
@@ -4426,6 +4438,9 @@ function addTxnFromSheet(){
   const spreview=document.getElementById('sheet-photo-preview'); if(spreview) spreview.style.display='none';
   const spbtn=document.getElementById('sheet-photo-btn'); if(spbtn){spbtn.textContent='📷';spbtn.style.color='';}
   renderCalendar(); renderTxnList(); renderAcctOverview();
+  // 不關閉視窗，重新套用目前類型狀態方便連續輸入下一筆
+  setSheetType(sheetType, document.getElementById('sheet-btn-'+sheetType));
+  document.getElementById('sheet-amount')?.focus();
 }
 
 function quickLoanPayment(id){
