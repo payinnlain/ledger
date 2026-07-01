@@ -3239,10 +3239,9 @@ function renderDueReminder(){
     const diffDue=Math.round((dueDate-td)/(1000*60*60*24));
     // 結帳日已到（diffBill<=0）且繳款日未過（diffDue>=0）
     if(diffBill>0) return false; // 只要結帳日已到就持續顯示，即使逾期也不消失（除非已繳費）
-    // 本期已繳則不顯示（判斷從結帳日到繳款截止日之間是否有繳費記錄）
+    // 本期已繳則不顯示：結帳日之後有任何繳費記錄就算已繳
     const billStart=currBill.toISOString().slice(0,10);
-    const billEnd=dueDate.toISOString().slice(0,10);
-    const paid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date>=billStart&&t.date<=billEnd);
+    const paid=txns.some(t=>t.type==='xfer'&&String(t.toAcctId)===String(a.id)&&t.date&&t.date>=billStart);
     if(paid) return false;
     a._currBill=currBill;
     a._dueDate=dueDate;
