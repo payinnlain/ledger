@@ -802,7 +802,7 @@
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-    <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填"></div>
+    <div class="form-group"><label>備註</label><input type="text" id="sheet-note" placeholder="選填" list="note-suggestions" autocomplete="off"><datalist id="note-suggestions"></datalist></div>
     <div class="form-group"><label>標籤</label><input type="text" id="sheet-tag" placeholder="自動帶入" list="tag-suggestions"><datalist id="tag-suggestions"></datalist></div>
   </div>
   <div style="margin-bottom:14px">
@@ -4538,6 +4538,16 @@ function renderTags(){
     const dl=document.getElementById(id);
     if(dl) dl.innerHTML=allTags.map(t=>`<option value="${t}">`).join('');
   });
+  // 備註建議：取最近常用的備註（出現超過1次）
+  const noteCounts={};
+  txns.forEach(t=>{ if(t.note) noteCounts[t.note]=(noteCounts[t.note]||0)+1; });
+  const allNotes=Object.entries(noteCounts)
+    .filter(([,c])=>c>1)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,50)
+    .map(([n])=>n);
+  const noteDl=document.getElementById('note-suggestions');
+  if(noteDl) noteDl.innerHTML=allNotes.map(n=>`<option value="${n}">`).join('');
   el.innerHTML='<div class="card">'+tags.map(g=>{
     const totalOut=g.txns.filter(t=>t.type==='out').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
     const totalIn=g.txns.filter(t=>t.type==='in').reduce((s,t)=>s+twdEq(t.amount,t.currency),0);
