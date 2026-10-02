@@ -2579,7 +2579,6 @@ function confirmSettle(id){
   const sub=document.getElementById('ar-settle-sub')?.value||null;
   const settleAmt=parseFloat(document.getElementById('ar-settle-amt')?.value)||a.amount;
   if(settleAmt<=0){alert('請輸入有效金額');return;}
-  if(settleAmt>a.amount){alert('結清金額不能超過總額 '+fmt(a.amount,a.currency));return;}
   const isPartial = settleAmt < a.amount;
 
   if(a.type==='ap' && acctId && !isPartial){
@@ -2610,9 +2609,7 @@ function confirmSettle(id){
     const nextDue=nextRecurringDate(a.due, a.freq);
     arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
       amount:a.amount, currency:a.currency,
-      due:nextDue, note:a.note, acctId:a.acctId,
-      cat:a.cat||null, sub:a.sub||null,
-      recurring:true, freq:a.freq, status:'unpaid'});
+      due:nextDue, note:a.note, acctId:a.acctId, recurring:true, freq:a.freq, status:'unpaid'});
   }
   sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
 }
