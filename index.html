@@ -2610,7 +2610,9 @@ function confirmSettle(id){
     const nextDue=nextRecurringDate(a.due, a.freq);
     arItems.unshift({id:Date.now()+1, type:a.type, name:a.name,
       amount:a.amount, currency:a.currency,
-      due:nextDue, note:a.note, acctId:a.acctId, recurring:true, freq:a.freq, status:'unpaid'});
+      due:nextDue, note:a.note, acctId:a.acctId,
+      cat:a.cat||null, sub:a.sub||null,
+      recurring:true, freq:a.freq, status:'unpaid'});
   }
   sv(); closeEdit(); renderAr(); renderDashboard(); renderAcctOverview();
 }
